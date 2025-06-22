@@ -1,0 +1,8 @@
+operator_controller
+operator_controller.asc
+.las-manifest.template
+.las-manifest.template.asc
+.las-manifest.yaml
+.sgxplugin-manifest.template
+.sgxplugin-manifest.template.asc
+.sgxplugin-manifest.yaml
