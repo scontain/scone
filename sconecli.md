@@ -1,16 +1,19 @@
 # SCONE CLI
 
-You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) within a container, a VM, or your host.
+You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.
 
-## Caveat
+This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.
 
-We have two versions of the `scone` CLI:
-    - a native version that cannot run inside of an enclave, and
-    - the default version that expects to run inside of an enclave
+## Caveat When Running Inside a Container
+
+There are two versions of the `scone` CLI:
+
+- A **native version** that cannot run inside an enclave
+- The **default version**, which is designed to run **inside an enclave**
   
-By default, the `scone` CLI inside of a container runs confidential in production mode. To run in simulation mode, set the environment variable `SCONE_PRODUCTION=0`, e.g., you can run`SCONE_PRODUCTION=0 scone --help` on systems that do not support production TEEs.
+By default, the `scone` CLI of a container runs confidential in production mode. To run in simulation mode on systems that do not support production TEEs, set the environment variable `SCONE_PRODUCTION=0`, e.g., you can run`SCONE_PRODUCTION=0 scone --help` .
 
-Below, we install the `scone` CLI using `auto` mode, i.e., the CLI will most likely run in simulation mode.
+Below, we describe how to install the `scone` CLI using `auto` mode, i.e., the CLI will most likely run in simulation mode.
 
 ## Installing the `scone` CLI 
 
@@ -98,7 +101,8 @@ docker rm scone-packages
 sudo dpkg -i \
      /tmp/packages/scone-common_amd64.deb \
      /tmp/packages/scone-libc_amd64.deb \
-     /tmp/packages/scone-cli_amd64.deb
+     /tmp/packages/scone-cli_amd64.deb \
+     /tmp/packages/kubectl-scone.deb
 
 # clean up
 rm -rf /tmp/packages

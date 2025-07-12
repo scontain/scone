@@ -11,7 +11,8 @@ To install or update the SCONE platform in a Kubernetes cluster, please perform 
 
 You can execute the steps automatically by running the script 'scripts/reconcile_scone_operator.sh'. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.
 
-1. Determine the current stable version of the SCONE platform:
+
+0. Determine the current stable version of the SCONE platform using 'curl':
 
 EOF
 printf "${RESET}"
@@ -23,11 +24,35 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-'curl' command:
+1. Make sure that we actually want to update the current cluster
 
-- Uses '-L' to follow redirects
-- Uses '-s' to suppress progress meter
-- Returns the latest stable version number (e.g., '5.9.0')
+EOF
+printf "${RESET}"
+
+# Get the current Kubernetes context
+K8S_CONTEXT=$(kubectl config current-context 2>/dev/null)
+
+if [[ -z "$K8S_CONTEXT" ]]; then
+  echo "❌ Could not determine the current Kubernetes context."
+  exit 1
+fi
+
+echo "📦 Current Kubernetes context: $K8S_CONTEXT"
+
+# Ask for confirmation
+read -rp "Do you want to proceed install SCONE version $VERSION with this context? [y/N] " confirm
+confirm=${confirm,,}  # Convert to lowercase
+
+if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
+  echo "❌ Aborted by user."
+  exit 1
+fi
+
+echo "✅ Proceeding with context: $K8S_CONTEXT"
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 2. Download the script to install the SCONE platform:
 
@@ -195,7 +220,7 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-First, we ensure that the correct 'kubectl provision' plugin is installed:
+We ensure that the correct 'kubectl provision' plugin is installed:
 
 EOF
 printf "${RESET}"
@@ -205,19 +230,6 @@ LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
-
-Next, we run the 'operator_controller' to check if the proper version is installed:
-
-EOF
-printf "${RESET}"
-
-./operator_controller --set-version $VERSION -v 2>&1 | grep "NOT installed" || { echo "SCONE Version $VERSION already installed" ; operator_cleanup ; exit 0; }
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.
 
 4. Set your Intel API Key
 
@@ -248,30 +260,125 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-5. Ensure that the following environment variables are set:
+In case we use the default DCAP API key, we ask the user for some input:
 
-In case you use the SCONE image registry, you would need to deploy image pull secrets. For this, you would need to set environment variables:
+EOF
+printf "${RESET}"
+
+# Check if DCAP_KEY is empty or unset
+if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+  while true; do
+    read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input
+
+    # Check if input is 32 hex chars (case-insensitive)
+    if [[ "$input" =~ ^[0-9a-fA-F]{32}$ ]]; then
+      DCAP_KEY="$input"
+      export DCAP_KEY
+      echo "✅ DCAP_KEY set."
+      break
+    else
+      echo "❌ Invalid input. Must be exactly 32 hex characters (0-9, a-f)."
+    fi
+  done
+fi
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+
+Next, we run the 'operator_controller' to check if the proper version is installed:
+
+EOF
+printf "${RESET}"
+
+./operator_controller --set-version $VERSION  --dcap-api "$DCAP_KEY" --reconcile -v 2>&1 | grep "NOT installed" || { echo "SCONE Version $VERSION already installed" ; operator_cleanup ; exit 0; }
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.
+
+5. Ensure that the image pull secret 'sconeapps' exists:
+
+We check if we can read the secret:
+
+EOF
+printf "${RESET}"
+
+export install_sconeapps_secret=0
+
+kubectl get secret sconeapps -n scone-system >/dev/null 2>&1 && echo "\"sconeapps\" image pull secret exists" || { echo "Secret does not exist" ; export install_sconeapps_secret=1; }
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+We assume that you use the 'scone.cloud' image registry, you would need to deploy image pull secrets. For this, you will need to set environment variables:
 
 export REGISTRY_USERNAME=<your-name> # username of the registry service account
 export REGISTRY_ACCESS_TOKEN=<your-access-toke> # read access token
 export REGISTRY_EMAIL=<your-email> # email address of the service account
 
-For more details, please read the following document: [Create an Access Token](https://sconedocs.github.io/registry/#create-an-access-token).
+For more details, please read the following document: [Create an Access Token](https://sconedocs.github.io/registry/#create-an-access-token). In the script (i.e., 'reconcile_scone_operator.sh'), we
+ask the user to input the values for these variables:
 
-6. Install the latest stable version or fix/update the installed version:
+EOF
+printf "${RESET}"
 
-./operator_controller --set-version \$VERSION --reconcile --update --plugin --verbose --dcap-api "\$DCAP_KEY" --secret-operator  --username \$REGISTRY_USERNAME --access-token \$REGISTRY_ACCESS_TOKEN --email \$REGISTRY_EMAIL
+if [[ $install_sconeapps_secret == 1 ]] ; then
+    # Prompt for REGISTRY_USERNAME
+    while [[ -z "${REGISTRY_USERNAME:-}" ]]; do
+    read -rp "Enter REGISTRY_USERNAME (registry service account username): " REGISTRY_USERNAME
+    done
+    export REGISTRY_USERNAME
+    echo "✅ REGISTRY_USERNAME set."
+
+    # Prompt for REGISTRY_ACCESS_TOKEN
+    while [[ -z "${REGISTRY_ACCESS_TOKEN:-}" ]]; do
+    read -rsp "Enter REGISTRY_ACCESS_TOKEN (read access token): " REGISTRY_ACCESS_TOKEN
+    echo
+    done
+    export REGISTRY_ACCESS_TOKEN
+    echo "✅ REGISTRY_ACCESS_TOKEN set."
+
+    # Prompt for REGISTRY_EMAIL
+    while [[ -z "${REGISTRY_EMAIL:-}" ]]; do
+    read -rp "Enter REGISTRY_EMAIL (service account email address): " REGISTRY_EMAIL
+    done
+    export REGISTRY_EMAIL
+    echo "✅ REGISTRY_EMAIL set."
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+6. We install the latest stable version or fix/update the installed version
+
+We do this in case no 'sconeapps' secret exists yet:
+
+EOF
+printf "${RESET}"
+
+    ./operator_controller --set-version $VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USERNAME --access-token $REGISTRY_ACCESS_TOKEN --email $REGISTRY_EMAIL
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 
 7. Updating the SCONE platform
 
-In case an older version of the SCONE platform is installed, we can update the platform by executing the following command:
+In case an older version of the SCONE platform was already installed (i.e., when the 'sconeapps' secret already exists), we can update the platform by executing the following command:
 
 
 EOF
 printf "${RESET}"
 
-./operator_controller --set-version $VERSION --update --reconcile --plugin -v
+else
+    ./operator_controller --set-version $VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
+fi
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
