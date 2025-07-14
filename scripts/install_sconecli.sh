@@ -131,7 +131,8 @@ sudo dpkg -i \
      /tmp/packages/scone-common_amd64.deb \
      /tmp/packages/scone-libc_amd64.deb \
      /tmp/packages/scone-cli_amd64.deb \
-     /tmp/packages/kubectl-scone.deb
+     /tmp/packages/kubectl-scone.deb \
+     /tmp/packages/k8s-scone.deb
 
 # clean up
 rm -rf /tmp/packages
@@ -154,6 +155,8 @@ cat <<EOF
 
 This should execute the same SCONE version as the previously printed latest stable version.
 (The minimal version is 5.10.0-rc.5)
+
 EOF
 printf "${RESET}"
 
+  echo "✅ All scone-related executable installed"
