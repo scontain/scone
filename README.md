@@ -26,3 +26,20 @@ All markdown files are associated with a script that executes the individual ste
 
 - `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores it in a script file.
 
+## Running with Docker
+
+### Build the image
+
+```bash
+docker build -t scone-workshop:latest .
+```
+
+### Run the image
+
+Create a contianer using the image
+
+```bash
+docker run -it --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    scone-workshop:latest
+```
