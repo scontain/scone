@@ -7,7 +7,6 @@ printf "${LILAC}"
 cat <<EOF
 # Checking Prerequisites
 
-
 ## Checking Commands
 
 To run our commands and to transform manifests and container images,
@@ -38,67 +37,127 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-  check_command() {
-    command -v "$1" &>/dev/null
-  }
+check_command() {
+  command -v "$1" &>/dev/null
+}
 
-  if ! dpkg-query -W -f='${Status}' gcc-multilib 2>/dev/null | grep "ok installed" &>/dev/null; then
-    echo "📥 Installing gcc-multilib..."
-    sudo apt update
-    sudo apt -y install gcc-multilib
-  else
-    echo "✔️ gcc-multilib is already installed."
+# Auto-install gcc-multilib
+if ! dpkg-query -W -f='${Status}' gcc-multilib 2>/dev/null | grep "ok installed" &>/dev/null; then
+  echo "📥 Installing gcc-multilib..."
+  sudo apt update
+  sudo apt -y install gcc-multilib
+else
+  echo "✔️ gcc-multilib is already installed."
+fi
+
+# Auto-install Rust if not present
+if ! check_command rustc; then
+  echo "📥 Installing Rust..."
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  source ~/.cargo/env
+  echo "✔️ Rust installed successfully."
+else
+  echo "✔️ Rust is already installed."
+fi
+
+# Auto-install Cosign if not present
+if ! check_command cosign; then
+  echo "📥 Installing Cosign..."
+  curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
+  sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+  sudo chmod +x /usr/local/bin/cosign
+  echo "✔️ Cosign installed successfully."
+else
+  echo "✔️ Cosign is already installed."
+fi
+
+# Auto-install Docker if not present
+if ! check_command docker; then
+  echo "📥 Installing Docker..."
+  curl -fsSL https://get.docker.com | sh
+  sudo usermod -aG docker $USER
+  echo "✔️ Docker installed successfully. Please log out and back in for group changes to take effect."
+else
+  echo "✔️ Docker is already installed."
+fi
+
+# Auto-install GitHub CLI if not present
+if ! check_command gh; then
+  echo "📥 Installing GitHub CLI..."
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  sudo apt update
+  sudo apt install -y gh
+  echo "✔️ GitHub CLI installed successfully."
+else
+  echo "✔️ GitHub CLI is already installed."
+fi
+
+# Auto-install kubectl if not present
+if ! check_command kubectl; then
+  echo "📥 Installing kubectl..."
+  KUBECTL_VERSION="v1.28.10"
+  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
+  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
+  sudo chmod +x kubectl
+  sudo mv ./kubectl /usr/local/bin/
+  rm kubectl.sha256
+  echo "✔️ kubectl installed successfully."
+else
+  echo "✔️ kubectl is already installed."
+fi
+
+# Auto-install yq if not present
+if ! check_command yq; then
+  echo "📥 Installing yq..."
+  YQ_VERSION="v4.46.1"
+  sudo apt update
+  sudo apt install -y --no-install-recommends xz-utils
+  curl -L "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.tar.gz" | sudo tar xz -C /usr/local/bin
+  sudo chmod +x /usr/local/bin/yq_linux_amd64
+  sudo ln -sf /usr/local/bin/yq_linux_amd64 /usr/local/bin/yq
+  echo "✔️ yq installed successfully."
+else
+  echo "✔️ yq is already installed."
+fi
+
+# Auto-install other required packages
+missing_packages=()
+for pkg in pkg-config jq libssl-dev; do
+  if ! dpkg -s "$pkg" &>/dev/null; then
+    missing_packages+=("$pkg")
   fi
+done
 
-  if ! check_command rustc; then
-    echo -e "${RED}❌ Rust is not installed. Please install it from https://rustup.rs/${NC}"
-    exit 1
-  else
-    echo "✔️ Rust is already installed."
-  fi
+if [ ${#missing_packages[@]} -ne 0 ]; then
+  echo "📥 Installing missing packages: ${missing_packages[*]}"
+  sudo apt update
+  sudo apt install -y "${missing_packages[@]}"
+  echo "✔️ All missing packages installed successfully."
+fi
 
-  if ! check_command cosign; then
-    echo "📥 Installing Cosign..."
-    curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
-    sudo mv cosign-linux-amd64 /usr/local/bin/cosign
-    sudo chmod +x /usr/local/bin/cosign
-  else
-    echo "✔️ Cosign is already installed."
-  fi
+# sed is typically pre-installed on Ubuntu, but check anyway
+if ! check_command sed; then
+  echo "📥 Installing sed..."
+  sudo apt update
+  sudo apt install -y sed
+  echo "✔️ sed installed successfully."
+else
+  echo "✔️ sed is already installed."
+fi
 
-  if ! check_command docker; then
-    echo -e "${RED}❌ Docker is not installed. Please install it from https://docs.docker.com/engine/install/ubuntu/${NC}"
-    exit 1
-  else
-    echo "✔️ Docker is already installed."
-  fi
+# Check Kubernetes cluster connectivity
+if ! kubectl cluster-info &>/dev/null; then
+  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
+  exit 1
+fi
 
-  missing=()
-  for cmd in kubectl yq sed gh pkg-config jq; do
-    if ! check_command "$cmd"; then
-      missing+=("$cmd")
-    fi
-  done
-
-  if ! dpkg -s libssl-dev &>/dev/null; then
-    missing+=("libssl-dev")
-  fi
-
-  if [ ${#missing[@]} -ne 0 ]; then
-    echo -e "${RED}❌ Missing required tools/packages:${NC} ${missing[*]}"
-    exit 1
-  fi
-
-  if ! kubectl cluster-info &>/dev/null; then
-    echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
-    exit 1
-  fi
-  echo "✅ Installed all external executable"
+echo "✅ All external executables are installed and ready"
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
-
 
 ## Check access to 'scone.cloud' images
 
@@ -106,8 +165,6 @@ We check that we can pull some SCONE container images that we need to execute
 the transformations. If this fail, please do the following:
 
 - generate an access token following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
-
-- 
 
 EOF
 printf "${RESET}"
@@ -138,7 +195,6 @@ LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
-
 
 ## Install SCONE CLI tools
 
