@@ -109,6 +109,14 @@ sudo dpkg -i \
 rm -rf /tmp/packages
 ```
 
+We ensure that `kubectl-scone` plugin only exists once - otherwise, `kubectl` issues a warning:
+
+```bash
+if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then
+    sudo rm -f /usr/bin/kubectl-scone
+fi
+```
+
 Check that the `scone` cli is properly installed by executing:
 
 ```bash

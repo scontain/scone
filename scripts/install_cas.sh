@@ -309,7 +309,7 @@ fi
 echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
-read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  with this context? [y/N] " confirm
+read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
 confirm=${confirm,,}  # Convert to lowercase
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
@@ -346,6 +346,7 @@ cat <<EOF
 
 10. Installing the CAS 
 
+The following statement installs the CAS and waits until the CAS becomes healthy:
 
 EOF
 printf "${RESET}"
@@ -359,7 +360,10 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-echo "✅ CAS \$CAS installed in \$CAS_NAMESPACE"
+Finally, we show the status of the CAS
+
 EOF
 printf "${RESET}"
 
+kubectl get cas $CAS -n $CAS_NAMESPACE
+echo "✅ CAS $CAS installed in $CAS_NAMESPACE"
