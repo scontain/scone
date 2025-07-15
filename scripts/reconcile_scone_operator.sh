@@ -246,7 +246,7 @@ printf "${RESET}"
     export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
     if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
         echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
+        EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null" )
 
         if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
             echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
@@ -310,6 +310,7 @@ printf "${RESET}"
 export install_sconeapps_secret=0
 
 kubectl get secret sconeapps -n scone-system >/dev/null 2>&1 && echo "\"sconeapps\" image pull secret exists" || { echo "Secret does not exist" ; export install_sconeapps_secret=1; }
+kubectl get secret scone-operator-pull -n scone-system >/dev/null 2>&1 && echo "\"sconeapps\" image pull secret exists" || { echo "Secret does not exist" ; export install_sconeapps_secret=1; }
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"

@@ -252,7 +252,7 @@ fi
 echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
-read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  with this context? [y/N] " confirm
+read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
 confirm=${confirm,,}  # Convert to lowercase
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
@@ -281,6 +281,7 @@ echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK
 
 10. Installing the CAS 
 
+The following statement installs the CAS and waits until the CAS becomes healthy:
 
 ```bash
 if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" --dcap-api "$DCAP_KEY" "$CAS" ; then
@@ -289,4 +290,9 @@ if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "
 fi
 ```
 
+Finally, we show the status of the CAS
+
+```bash
+kubectl get cas $CAS -n $CAS_NAMESPACE
 echo "✅ CAS $CAS installed in $CAS_NAMESPACE"
+```

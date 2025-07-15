@@ -141,6 +141,19 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
+We ensure that 'kubectl-scone' plugin only exists once - otherwise, 'kubectl' issues a warning:
+
+EOF
+printf "${RESET}"
+
+if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then
+    sudo rm -f /usr/bin/kubectl-scone
+fi
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
 Check that the 'scone' cli is properly installed by executing:
 
 EOF

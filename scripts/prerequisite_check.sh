@@ -7,7 +7,6 @@ printf "${LILAC}"
 cat <<EOF
 # Checking Prerequisites
 
-
 ## Checking Commands
 
 To run our commands and to transform manifests and container images,
