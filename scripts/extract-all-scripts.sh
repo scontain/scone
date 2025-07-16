@@ -8,7 +8,8 @@ files=(
   "scone_operator.md scripts/reconcile_scone_operator.sh"
   "CAS.md scripts/install_cas.sh"
   "prerequisite_check.md scripts/prerequisite_check.sh"
-  "deploying-osv-scanner.md scripts/install_osv_scanner.sh"
+  "scone_monitoring.md scripts/install_prometheus_grafana.sh"
+  # TODO: uncomment it: "deploying-osv-scanner.md scripts/install_osv_scanner.sh"
 )
 
 # Loop over the file pairs
