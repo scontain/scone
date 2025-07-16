@@ -97,49 +97,6 @@ if ! kubectl cluster-info &>/dev/null; then
 fi
 echo "✅ Installed all external executable"
 
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-## Check access to 'scone.cloud' images
-
-We check that we can pull some SCONE container images that we need to execute
-the transformations. If this fail, please do the following:
-
-- generate an access token following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
-
-EOF
-printf "${RESET}"
-
-echo -e "${YELLOW}🔍 Checking access to GitHub repositories...${NC}"
-
-repos=(
-    "https://github.com/scontain/k8s-scone"
-    "https://github.com/scontain/java-args-env-file"
-    "https://github.com/scontain/lib-sconify"
-    "https://github.com/scontain/gen-policy"
-    "https://github.com/scontain/scone_cli_crate"
-)
-
-for repo in "${repos[@]}"; do
-    repo_name=$(basename "$repo")
-    echo -n "Checking access to $repo_name... "
-    
-    if git ls-remote "$repo" HEAD &>/dev/null; then
-        echo -e "${GREEN}✅ Access confirmed${NC}"
-    else
-        echo -e "${RED}❌ Access denied${NC}"
-        echo -e "${YELLOW}Please ensure you have:"
-        echo "1. Read access to the repository"
-        echo "2. Git installed and configured"
-        echo "3. Proper network connectivity"
-        echo "4. GitHub credentials set up if required"
-        echo -e "5. If using SSH, your SSH key is added to your GitHub account${NC}"
-        exit 1
-    fi
-done
-
 echo -e "${YELLOW}🔍 Checking Docker registry login...${NC}"
 
 # Check if logged in to the specific registry
