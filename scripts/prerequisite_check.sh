@@ -16,14 +16,12 @@ the current machine:
 - 'cosign': needed to sign and verify the signature of container images
 - 'docker': needed to build and run docker images
 - 'kubectl': command line interface for Kubernetes
-- 'yq' (v4+): command to access yaml documents
+- 'yq': command to access yaml documents
 - 'sed': simple editor to manipulate text files
 - 'gh': GitHub command line interface
 - 'pkg-config': A tool for discovering compiler and linker flags
 - 'jq': command to access json documents
 - 'libssl-dev': ssl development tools
-- 'helm': Kubernetes package manager
-- 'git': version control system to check repository access
 
 > NOTE: If the script fails on the first run with error:
 > 'Errors were encountered while processing: scone-glibc'
@@ -38,31 +36,8 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 check_command() {
-    command -v "$1" &>/dev/null
+  command -v "$1" &>/dev/null
 }
-
-check_yq_version() {
-    if check_command yq; then
-        local version
-        version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2)
-        if [[ -z "$version" || "$version" == "0" ]]; then
-            echo -e "${RED}❌ Found yq version $version which is not supported. Please install yq v4+ from https://github.com/mikefarah/yq/${NC}"
-            return 1
-        fi
-        if [[ "$version" -ge 4 ]]; then
-            echo "✔️ yq v$version is installed (meets requirement v4+)."
-            return 0
-        else
-            echo -e "${RED}❌ yq version $version is too old. Please install yq v4+ from https://github.com/mikefarah/yq/${NC}"
-            return 1
-        fi
-    else
-        echo -e "${RED}❌ yq is not installed. Please install yq v4+ from https://github.com/mikefarah/yq/${NC}"
-        return 1
-    fi
-}
-
-
 
 # Auto-install Cosign if not present
 if ! check_command cosign; then
@@ -111,9 +86,7 @@ else
   echo "✔️ kubectl is already installed."
 fi
 
-# Auto-install yq if not present
-if ! check_command yq; then
-  echo "📥 Installing yq..."
+install_yq_v4() {
   YQ_VERSION="v4.46.1"
   sudo apt update
   sudo apt install -y --no-install-recommends xz-utils
@@ -121,20 +94,25 @@ if ! check_command yq; then
   sudo chmod +x /usr/local/bin/yq_linux_amd64
   sudo ln -sf /usr/local/bin/yq_linux_amd64 /usr/local/bin/yq
   echo "✔️ yq installed successfully."
+}
+
+# Check and Auto install Yq Version 4
+if check_command yq; then
+    local version
+    version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2)
+    if [[ -z "$version" || "$version" == "0" ]]; then
+        echo -e "${RED}❌ Found yq version $version which is not supported. Installing Yq v4"
+        install_yq_v4
+    fi
+    if [[ "$version" -ge 4 ]]; then
+        echo "✔️ yq v$version is installed (meets requirement v4+)."
+    else
+        echo -e "${RED}❌ yq version $version is too old. Installing Yq v4"
+        install_yq_v4
+    fi
 else
-  echo "✔️ yq is already installed."
-fi
-
-# Auto-install other required packages
-missing_packages=()
-for pkg in pkg-config jq libssl-dev; do
-  if ! dpkg -s "$pkg" &>/dev/null; then
-    missing_packages+=("$pkg")
-  fi
-done
-
-if ! check_yq_version; then
-    missing+=("yq(v4+)")
+    echo -e "${RED}❌ yq is not installed. Installing Yq v4"
+    install_yq_v4
 fi
 
 # Auto-install other required packages
@@ -152,12 +130,23 @@ if [ ${#missing_packages[@]} -ne 0 ]; then
   echo "✔️ All missing packages installed successfully."
 fi
 
-if ! kubectl cluster-info &>/dev/null; then
-    echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
-    exit 1
+# sed is typically pre-installed on Ubuntu, but check anyway
+if ! check_command sed; then
+  echo "📥 Installing sed..."
+  sudo apt update
+  sudo apt install -y sed
+  echo "✔️ sed installed successfully."
+else
+  echo "✔️ sed is already installed."
 fi
-echo "✅ Installed all external executable"
 
+# Check Kubernetes cluster connectivity
+if ! kubectl cluster-info &>/dev/null; then
+  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
+  exit 1
+fi
+
+echo "✅ All external executables are installed and ready"
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -173,60 +162,12 @@ the transformations. If this fail, please do the following:
 EOF
 printf "${RESET}"
 
-echo -e "${YELLOW}🔍 Checking access to GitHub repositories...${NC}"
-
-repos=(
-    "https://github.com/scontain/k8s-scone"
-    "https://github.com/scontain/java-args-env-file"
-    "https://github.com/scontain/lib-sconify"
-    "https://github.com/scontain/gen-policy"
-    "https://github.com/scontain/scone_cli_crate"
-)
-
-for repo in "${repos[@]}"; do
-    repo_name=$(basename "$repo")
-    echo -n "Checking access to $repo_name... "
-    
-    if git ls-remote "$repo" HEAD &>/dev/null; then
-        echo -e "${GREEN}✅ Access confirmed${NC}"
-    else
-        echo -e "${RED}❌ Access denied${NC}"
-        echo -e "${YELLOW}Please ensure you have:"
-        echo "1. Read access to the repository"
-        echo "2. Git installed and configured"
-        echo "3. Proper network connectivity"
-        echo "4. GitHub credentials set up if required"
-        echo -e "5. If using SSH, your SSH key is added to your GitHub account${NC}"
-        exit 1
-    fi
-done
-
-echo -e "${YELLOW}🔍 Checking Docker registry login...${NC}"
-
-# Check if logged in to the specific registry
-if docker login registry.scontain.com >/dev/null 2>&1 <<<' '; then
-    echo "✅ Already authenticated with registry.scontain.com"
-else
-    echo -e "${RED}❌ Not authenticated with registry.scontain.com${NC}"
-    echo -e "${YELLOW}To login, use one of these methods:"
-    echo ""
-    echo "1. Using environment variables:"
-    echo "   echo \$SCONE_REGISTRY_TOKEN | docker login registry.scontain.com -u \$SCONE_REGISTRY_USER --password-stdin"
-    echo ""
-    echo "2. Interactive login:"
-    echo "   docker login registry.scontain.com"
-    echo ""
-    echo "Documentation: https://sconedocs.github.io/registry/#create-an-access-token"
-    echo -e "${NC}"
-    exit 1
-fi
-
 # determine the latest stable version of SCONE:
 VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-echo "The latest stable version of SCONE is $VERSION"
+echo "The lastest stable version of SCONE is $VERSION"
 
 echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
-images=(
+  images=(
     "registry.scontain.com/scone.cloud/sconecli:$VERSION"
     "registry.scontain.com/scone.cloud/scone-deb-pkgs:$VERSION"
     "registry.scontain.com/scone.cloud/sconecli:$VERSION"
@@ -235,14 +176,13 @@ images=(
   )
   for image in "${images[@]}"; do
     if ! docker pull --quiet "$image" &>/dev/null; then
-        echo -e "${RED}❌ Cannot pull Docker image: $image${NC}"
-        exit 1
+      echo -e "${RED}❌ Cannot pull Docker image: $image${NC}"
+      exit 1
     else
-        echo "✅ image '$image' is accessible"
+      echo "✅ image '$image' is accessible"
     fi
-done
-echo -e "${GREEN}✔️ All images are OK.${NC}"
-
+  done
+  echo -e "${GREEN}✔️ All images are OK.${NC}"
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
