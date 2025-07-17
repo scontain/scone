@@ -30,7 +30,7 @@ All markdown files are associated with a script that executes the individual ste
 ### Build the image
 
 ```bash
-docker build -t scone-workshop:latest .
+docker build -t scone:latest .
 ```
 
 ### Run the image
@@ -40,5 +40,5 @@ Create a container using the image
 ```bash
 docker run -it --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    scone-workshop:latest
+    scone:latest
 ```

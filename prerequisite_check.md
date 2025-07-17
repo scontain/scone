@@ -6,7 +6,6 @@ To run our commands and to transform manifests and container images,
 we need a set of executable. We install the following external `executable` on
 the current machine:
 
-- `rustc`: the Rust compiler - only needed when building the tool chain or building rust compilers
 - `cosign`: needed to sign and verify the signature of container images
 - `docker`: needed to build and run docker images
 - `kubectl`: command line interface for Kubernetes
@@ -30,16 +29,6 @@ NC='\033[0m' # No Color
 check_command() {
   command -v "$1" &>/dev/null
 }
-
-# Auto-install Rust if not present
-if ! check_command rustc; then
-  echo "📥 Installing Rust..."
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  source ~/.cargo/env
-  echo "✔️ Rust installed successfully."
-else
-  echo "✔️ Rust is already installed."
-fi
 
 # Auto-install Cosign if not present
 if ! check_command cosign; then
@@ -88,9 +77,7 @@ else
   echo "✔️ kubectl is already installed."
 fi
 
-# Auto-install yq if not present
-if ! check_command yq; then
-  echo "📥 Installing yq..."
+install_yq_v4() {
   YQ_VERSION="v4.46.1"
   sudo apt update
   sudo apt install -y --no-install-recommends xz-utils
@@ -98,8 +85,25 @@ if ! check_command yq; then
   sudo chmod +x /usr/local/bin/yq_linux_amd64
   sudo ln -sf /usr/local/bin/yq_linux_amd64 /usr/local/bin/yq
   echo "✔️ yq installed successfully."
+}
+
+# Check and Auto install Yq Version 4
+if check_command yq; then
+    local version
+    version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2)
+    if [[ -z "$version" || "$version" == "0" ]]; then
+        echo -e "${RED}❌ Found yq version $version which is not supported. Installing Yq v4"
+        install_yq_v4
+    fi
+    if [[ "$version" -ge 4 ]]; then
+        echo "✔️ yq v$version is installed (meets requirement v4+)."
+    else
+        echo -e "${RED}❌ yq version $version is too old. Installing Yq v4"
+        install_yq_v4
+    fi
 else
-  echo "✔️ yq is already installed."
+    echo -e "${RED}❌ yq is not installed. Installing Yq v4"
+    install_yq_v4
 fi
 
 # Auto-install other required packages
