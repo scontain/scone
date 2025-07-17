@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scone-controller-manager-metrics-service-monitor
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - scone-system
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s
+      scheme: http
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: scone-system
+  name: prometheus-pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-pod-reader-binding
+  namespace: scone-system
+subjects:
+- kind: ServiceAccount
+  name: prometheus-k8s
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: prometheus-pod-reader
+  apiGroup: rbac.authorization.k8s.io
