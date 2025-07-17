@@ -1,3 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail 
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 # Prometheus and Grafana Stack
 
 Prometheus and Grafana are two widely used open-source tools for monitoring and visualizing system metrics and application performance.
@@ -11,7 +18,9 @@ Prometheus and Grafana are two widely used open-source tools for monitoring and 
 
 Install from https://github.com/prometheus-operator/kube-prometheus.
 
-```bash
+EOF
+printf "${RESET}"
+
 # Create the namespace and CRDs, and then wait for them to be available before creating the remaining resources
 # Note that due to some CRD size we are using kubectl server-side apply feature which is generally available since kubernetes 1.22.
 # If you are using previous kubernetes versions this feature may not be available and you would need to use kubectl create instead.
@@ -27,17 +36,27 @@ kubectl wait \
     --namespace=monitoring
 kubectl apply -f manifests/
 popd; popd
-```
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 Create service monitor.
 
-```bash
+EOF
+printf "${RESET}"
+
 kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml
-```
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 Wait for grafana pod to be ready, and then patch its service to expose a LoadBalancer.
 
-```bash
+EOF
+printf "${RESET}"
+
 kubectl wait pod -l "app.kubernetes.io/component=grafana,app.kubernetes.io/name=grafana,app.kubernetes.io/part-of=kube-prometheus" \
   -n monitoring --for=condition=Ready --timeout 5m
 kubectl patch svc grafana -n monitoring --type=json -p '
@@ -56,21 +75,31 @@ done
 
 echo "Grafana public address:"
 kubectl get svc grafana -n monitoring -o jsonpath="{.status.loadBalancer.ingress[0].ip}"; echo
-```
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 Build configmap with SCONE Operator dashboard from template.
 
-```bash
+EOF
+printf "${RESET}"
+
 export SCONE_DASHBOARD_SCONE_OPERATOR=$(cat prometheus-grafana-manifests/scone-dashboard-scone-operator.json)
 envsubst < prometheus-grafana-manifests/configmap-dashboard-operator-template.yaml | sed '9,$s/^/    /' > prometheus-grafana-manifests/configmap-dashboard-operator.yaml
 
 export SCONE_DASHBOARD_RUNTIME_APP=$(cat prometheus-grafana-manifests/scone-dashboard-runtime-app.json)
 envsubst < prometheus-grafana-manifests/configmap-dashboard-runtime-template.yaml | sed '9,$s/^/    /' > prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
-```
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 Apply configmap with the dashboards.
 
-```bash
+EOF
+printf "${RESET}"
+
 kubectl apply --server-side -n monitoring -f prometheus-grafana-manifests/configmap-dashboard-operator.yaml
 kubectl apply --server-side -n monitoring -f prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
 
@@ -120,26 +149,35 @@ kubectl patch deployment -n monitoring grafana --type=json --patch """
       },
   ]
 """
-```
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 ## Grafana Dashboard
 
 The login credentials for the Grafana dashboard are:
 
-```bash
+EOF
+printf "${RESET}"
+
 echo    "Login:    admin"
 echo    "Password: admin"
-```
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 On the computer where your browser run, you can execute:
 
-```
 kubectl port-forward -n monitoring svc/kube-prometheus-grafana 3000:80
-```
 
 You can then open the Grafana dashboard in your browser at <http://localhost:3000>
 
 
 ## Visualizing SCONE Operator Metrics
 
-Access the dashboard for the SCONE Operator Metrics in `Grafana Home -> Dashboards -> Default -> SCONE Operator Dashboard`.
+Access the dashboard for the SCONE Operator Metrics in 'Grafana Home -> Dashboards -> Default -> SCONE Operator Dashboard'.
+EOF
+printf "${RESET}"
+
