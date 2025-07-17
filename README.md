@@ -36,7 +36,7 @@ docker build -t scone-workshop:latest .
 
 ### Run the image
 
-Create a contianer using the image
+Create a container using the image
 
 ```bash
 docker run -it --rm \

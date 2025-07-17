@@ -13,7 +13,6 @@ To run our commands and to transform manifests and container images,
 we need a set of executable. We install the following external 'executable' on
 the current machine:
 
-- 'gcc-multilib' - (this dependency will be removed)
 - 'rustc': the Rust compiler - only needed when building the tool chain or building rust compilers
 - 'cosign': needed to sign and verify the signature of container images
 - 'docker': needed to build and run docker images
@@ -41,15 +40,6 @@ check_command() {
   command -v "$1" &>/dev/null
 }
 
-# Auto-install gcc-multilib
-if ! dpkg-query -W -f='${Status}' gcc-multilib 2>/dev/null | grep "ok installed" &>/dev/null; then
-  echo "📥 Installing gcc-multilib..."
-  sudo apt update
-  sudo apt -y install gcc-multilib
-else
-  echo "✔️ gcc-multilib is already installed."
-fi
-
 # Auto-install Rust if not present
 if ! check_command rustc; then
   echo "📥 Installing Rust..."
@@ -75,7 +65,6 @@ fi
 if ! check_command docker; then
   echo "📥 Installing Docker..."
   curl -fsSL https://get.docker.com | sh
-  sudo usermod -aG docker $USER
   echo "✔️ Docker installed successfully. Please log out and back in for group changes to take effect."
 else
   echo "✔️ Docker is already installed."
