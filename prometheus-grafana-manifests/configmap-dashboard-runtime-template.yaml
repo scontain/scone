@@ -5,4 +5,3 @@ metadata:
   namespace: monitoring
 data:
    scone-runtime.json: |
-    $SCONE_DASHBOARD_RUNTIME_APP
