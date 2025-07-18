@@ -9,7 +9,7 @@ When you install software, please follow the following steps. First, install sof
 
 - [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for runninf `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. This script also calls `./scripts/install_sconecli.sh`.
 
-- [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh`. Note that this script is called by `./scripts/prerequisite_check.sh`.
+- [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., only needed in case you only want to install / upgrade SCONE-related commands.
 
 Second, install the SCONE platform and a first CAS instance on your Kubernetes cluster:
 
