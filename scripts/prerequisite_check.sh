@@ -122,7 +122,6 @@ echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
     "registry.scontain.com/scone.cloud/sconecli:$VERSION"
     "registry.scontain.com/public-images/glibc:2.35-v4"
     "registry.scontain.com/public-images/glibc:2.39-v3"
-    "registry.scontain.com/scone.cloud/runtime-ubuntu20.04:$VERSION"
   )
   for image in "${images[@]}"; do
     if ! docker pull --quiet "$image" &>/dev/null; then
