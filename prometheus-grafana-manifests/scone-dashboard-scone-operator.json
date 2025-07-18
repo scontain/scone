@@ -2678,7 +2678,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "scone_cas_attestable{cr_name=\"$cas_instance\", namespace=\"scone-system\"}",
+          "expr": "scone_cas_attestable{cr_name=\"$cas_instance\", namespace=\"default\"}",
           "legendFormat": "{{__name__}} - {{cr_name}}",
           "range": true,
           "refId": "A"

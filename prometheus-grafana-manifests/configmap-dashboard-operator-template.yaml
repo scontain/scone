@@ -5,4 +5,3 @@ metadata:
   namespace: monitoring
 data:
   scone-operator.json: |
-    $SCONE_DASHBOARD_SCONE_OPERATOR

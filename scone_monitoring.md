@@ -20,12 +20,12 @@ pushd /tmp
 rm -rf kube-prometheus || true
 git clone https://github.com/prometheus-operator/kube-prometheus.git -b v0.15.0 --depth 1
 pushd kube-prometheus
-kubectl apply --server-side -f manifests/setup
+kubectl apply --server-side -f manifests/setup || true
 kubectl wait \
     --for condition=Established \
     --all CustomResourceDefinition \
-    --namespace=monitoring
-kubectl apply -f manifests/
+    --namespace=monitoring || true
+kubectl apply -f manifests/ || true
 popd; popd
 ```
 
@@ -49,23 +49,39 @@ kubectl patch svc grafana -n monitoring --type=json -p '
     }
 ]'
 
-while [[ -z $(kubectl get svc grafana -n monitoring -o jsonpath="{.status.loadBalancer.ingress[0].ip}") ]]; do
-  echo "Waiting for LoadBalancer IP..."
-  sleep 5
+MAX_WAIT=30     # Total seconds to wait
+INTERVAL=5      # Seconds between checks
+TRIES=$((MAX_WAIT / INTERVAL))
+COUNT=0
+IP=""
+
+while [[ -z "$IP" ]]; do
+  if [[ $COUNT -ge $TRIES ]]; then
+    echo "⚠️  LoadBalancer IP was not assigned after $MAX_WAIT seconds. Continuing without it."
+    break
+  fi
+  echo "⏳ Waiting for LoadBalancer IP..."
+  sleep $INTERVAL
+  IP=$(kubectl get svc grafana -n monitoring -o jsonpath="{.status.loadBalancer.ingress[0].ip}" 2>/dev/null)
+  ((COUNT=COUNT+1))
 done
 
-echo "Grafana public address:"
-kubectl get svc grafana -n monitoring -o jsonpath="{.status.loadBalancer.ingress[0].ip}"; echo
+if [[ -n "$IP" ]]; then
+  echo "✅ LoadBalancer IP assigned: $IP"
+else
+  echo "ℹ️  Proceeding without LoadBalancer IP."
+fi
 ```
 
 Build configmap with SCONE Operator dashboard from template.
 
 ```bash
-export SCONE_DASHBOARD_SCONE_OPERATOR=$(cat prometheus-grafana-manifests/scone-dashboard-scone-operator.json)
-envsubst < prometheus-grafana-manifests/configmap-dashboard-operator-template.yaml | sed '9,$s/^/    /' > prometheus-grafana-manifests/configmap-dashboard-operator.yaml
+cp prometheus-grafana-manifests/configmap-dashboard-operator-template.yaml prometheus-grafana-manifests/configmap-dashboard-operator.yaml
+sed 's/^/    /' prometheus-grafana-manifests/scone-dashboard-scone-operator.json >> prometheus-grafana-manifests/configmap-dashboard-operator.yaml
 
-export SCONE_DASHBOARD_RUNTIME_APP=$(cat prometheus-grafana-manifests/scone-dashboard-runtime-app.json)
-envsubst < prometheus-grafana-manifests/configmap-dashboard-runtime-template.yaml | sed '9,$s/^/    /' > prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
+#export SCONE_DASHBOARD_RUNTIME_APP=$(cat prometheus-grafana-manifests/scone-dashboard-runtime-app.json)
+cp prometheus-grafana-manifests/configmap-dashboard-runtime-template.yaml prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
+sed 's/^/    /' prometheus-grafana-manifests/scone-dashboard-runtime-app.json >> prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
 ```
 
 Apply configmap with the dashboards.
@@ -119,7 +135,7 @@ kubectl patch deployment -n monitoring grafana --type=json --patch """
           "value": $updates_volume_mounts
       },
   ]
-"""
+""" || echo "We ignore errors because of duplicates"
 ```
 
 ## Grafana Dashboard
