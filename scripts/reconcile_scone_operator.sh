@@ -391,12 +391,12 @@ EOF
 printf "${RESET}"
 
 operator_cleanup
+echo "✅ SCONE Operator upgraded to version $VERSION."
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-echo "✅ SCONE Operator upgraded to version \$VERSION."
 EOF
 printf "${RESET}"
 
