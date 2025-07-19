@@ -93,34 +93,50 @@ kubectl apply --server-side -n monitoring -f prometheus-grafana-manifests/config
 
 current_volumes=$(kubectl get deployment -n monitoring grafana -o json | jq -e -r '.spec.template.spec.volumes')
 
-updates_volumes=$(echo $current_volumes | jq '. += [
-  {
-    "configMap": {
-      "defaultMode": 420,
+# Check if the volume with name "grafana-scone-dashboard-operator" already exists
+if ! echo "$current_volumes" | jq -e '.[] | select(.name == "grafana-scone-dashboard-operator")' > /dev/null; then
+  # Add the new volumes if not already present
+  updates_volumes=$(echo "$current_volumes" | jq '. += [
+    {
+      "configMap": {
+        "defaultMode": 420,
+        "name": "grafana-scone-dashboard-operator"
+      },
       "name": "grafana-scone-dashboard-operator"
     },
-    "name": "grafana-scone-dashboard-operator"
-  },
-  {
-    "configMap": {
-      "defaultMode": 420,
+    {
+      "configMap": {
+        "defaultMode": 420,
+        "name": "grafana-scone-dashboard-runtime"
+      },
       "name": "grafana-scone-dashboard-runtime"
-    },
-    "name": "grafana-scone-dashboard-runtime"
-  }
-]')
+    }
+  ]')
+else
+  # Leave it unchanged
+  updates_volumes="$current_volumes"
+fi
+
 
 current_volume_mounts=$(kubectl get deployment -n monitoring grafana -o json | jq -e -r '.spec.template.spec.containers[0].volumeMounts')
-updates_volume_mounts=$(echo $current_volume_mounts | jq '. += [
-  {
-    "mountPath": "/grafana-dashboard-definitions/0/grafana-scone-dashboard-operator",
-    "name": "grafana-scone-dashboard-operator"
-  },
-  {
-    "mountPath": "/grafana-dashboard-definitions/0/grafana-scone-dashboard-runtime",
-    "name": "grafana-scone-dashboard-runtime"
-  }
-]')
+
+# Check if the mountPath exists in current_volume_mounts
+if ! echo "$current_volume_mounts" | jq -e '.[] | select(.mountPath == "/grafana-dashboard-definitions/0/grafana-scone-dashboard-operator")' > /dev/null; then
+  # Add the new volume mounts if not already present
+  updates_volume_mounts=$(echo "$current_volume_mounts" | jq '. += [
+    {
+      "mountPath": "/grafana-dashboard-definitions/0/grafana-scone-dashboard-operator",
+      "name": "grafana-scone-dashboard-operator"
+    },
+    {
+      "mountPath": "/grafana-dashboard-definitions/0/grafana-scone-dashboard-runtime",
+      "name": "grafana-scone-dashboard-runtime"
+    }
+  ]')
+else
+  # Leave it unchanged
+  updates_volume_mounts="$current_volume_mounts"
+fi
 
 kubectl patch deployment -n monitoring grafana --type=json --patch """
   [
@@ -150,7 +166,7 @@ echo    "Password: admin"
 On the computer where your browser run, you can execute:
 
 ```
-kubectl port-forward -n monitoring svc/kube-prometheus-grafana 3000:80
+kubectl port-forward -n monitoring svc/grafana 3000:3000
 ```
 
 You can then open the Grafana dashboard in your browser at <http://localhost:3000>
