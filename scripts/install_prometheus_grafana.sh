@@ -202,7 +202,7 @@ cat <<EOF
 
 On the computer where your browser run, you can execute:
 
-kubectl port-forward -n monitoring svc/kube-prometheus-grafana 3000:80
+kubectl port-forward -n monitoring svc/grafana 3000:3000
 
 You can then open the Grafana dashboard in your browser at <http://localhost:3000>
 
