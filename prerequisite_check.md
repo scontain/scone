@@ -30,6 +30,16 @@ check_command() {
   command -v "$1" &>/dev/null
 }
 
+scone_registry_login() {
+    if [[ -n "${SCONE_REGISTRY_ACCESS_TOKEN}" && -n "${SCONE_REGISTRY_USERNAME}" ]]; then
+        echo "Attempting docker login..."
+        echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
+    else
+        echo "Skipping docker login - SCONE_REGISTRY_TOKEN or SCONE_REGISTRY_USERNAME not set or empty"
+        return 1
+    fi
+}
+
 # Auto-install Cosign if not present
 if ! check_command cosign; then
   echo "📥 Installing Cosign..."
@@ -89,16 +99,15 @@ install_yq_v4() {
 
 # Check and Auto install Yq Version 4
 if check_command yq; then
-    local version
-    version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2)
-    if [[ -z "$version" || "$version" == "0" ]]; then
-        echo -e "${RED}❌ Found yq version $version which is not supported. Installing Yq v4"
+    yq_version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2)
+    if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then
+        echo -e "${RED}❌ Found yq version $yq_version which is not supported. Installing Yq v4"
         install_yq_v4
     fi
-    if [[ "$version" -ge 4 ]]; then
-        echo "✔️ yq v$version is installed (meets requirement v4+)."
+    if [[ "$yq_version" -ge 4 ]]; then
+        echo "✔️ yq v$yq_version is installed (meets requirement v4+)."
     else
-        echo -e "${RED}❌ yq version $version is too old. Installing Yq v4"
+        echo -e "${RED}❌ yq version $yq_version is too old. Installing Yq v4"
         install_yq_v4
     fi
 else
@@ -153,6 +162,7 @@ VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads
 echo "The lastest stable version of SCONE is $VERSION"
 
 echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
+scone_registry_login
   images=(
     "registry.scontain.com/scone.cloud/sconecli:$VERSION"
     "registry.scontain.com/scone.cloud/scone-deb-pkgs:$VERSION"
