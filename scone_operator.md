@@ -311,6 +311,6 @@ fi
 
 ```bash
 operator_cleanup
+echo "✅ SCONE Operator upgraded to version $VERSION."
 ```
 
-echo "✅ SCONE Operator upgraded to version $VERSION."
