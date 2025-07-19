@@ -47,6 +47,7 @@ if ! kubectl-provision --help >/dev/null ; then
   echo "ℹ️  Please install it before continuing by running './scripts/reconcile_scone_operator.sh'"
   exit 1
 fi
+echo "✅ 'kubectl-provision' plugin is available."
 
 if ! kubectl-scone --help >/dev/null ; then
   echo "❌ Error: The 'kubectl-scone' plugin is not installed or not available in your \$PATH."
