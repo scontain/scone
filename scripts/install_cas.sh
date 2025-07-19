@@ -37,18 +37,24 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-2. ensure that the SCONE 'kubectl' plugin is installed:
+2. ensure that the SCONE 'kubectl' plugins are installed:
 
 EOF
 printf "${RESET}"
 
-if ! kubectl plugin list | grep -q kubectl-provision; then
+if ! kubectl-provision --help >/dev/null ; then
   echo "❌ Error: The 'kubectl-provision' plugin is not installed or not available in your \$PATH."
   echo "ℹ️  Please install it before continuing by running './scripts/reconcile_scone_operator.sh'"
   exit 1
 fi
 
-echo "✅ 'kubectl-provision' plugin is available."
+if ! kubectl-scone --help >/dev/null ; then
+  echo "❌ Error: The 'kubectl-scone' plugin is not installed or not available in your \$PATH."
+  echo "ℹ️  Please install it before continuing by running './scripts/install_sconecli.sh'"
+  exit 1
+fi
+
+echo "✅ 'kubectl-scone' plugin is available."
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"

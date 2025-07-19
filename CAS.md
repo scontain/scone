@@ -25,16 +25,22 @@ fi
 echo "✅ Deployment '$DEPLOYMENT' exists in namespace '$NAMESPACE' (i.e., the SCONE Operator is running)."
 ```
 
-2. ensure that the SCONE `kubectl` plugin is installed:
+2. ensure that the SCONE `kubectl` plugins are installed:
 
 ```bash
-if ! kubectl plugin list | grep -q kubectl-provision; then
+if ! kubectl-provision --help >/dev/null ; then
   echo "❌ Error: The 'kubectl-provision' plugin is not installed or not available in your \$PATH."
   echo "ℹ️  Please install it before continuing by running './scripts/reconcile_scone_operator.sh'"
   exit 1
 fi
 
-echo "✅ 'kubectl-provision' plugin is available."
+if ! kubectl-scone --help >/dev/null ; then
+  echo "❌ Error: The 'kubectl-scone' plugin is not installed or not available in your \$PATH."
+  echo "ℹ️  Please install it before continuing by running './scripts/install_sconecli.sh'"
+  exit 1
+fi
+
+echo "✅ 'kubectl-scone' plugin is available."
 ```
 
 

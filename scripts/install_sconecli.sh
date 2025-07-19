@@ -127,12 +127,11 @@ docker cp scone-packages:/packages /tmp/
 docker rm scone-packages
 
 # install the packages
-sudo dpkg -i \
-     /tmp/packages/scone-common_amd64.deb \
-     /tmp/packages/scone-libc_amd64.deb \
-     /tmp/packages/scone-cli_amd64.deb \
-     /tmp/packages/kubectl-scone.deb \
-     /tmp/packages/k8s-scone.deb
+sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
+sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
+sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
+sudo dpkg -i /tmp/packages/k8s-scone.deb
+sudo dpkg -i /tmp/packages/kubectl-scone.deb 
 
 # clean up
 rm -rf /tmp/packages
@@ -146,8 +145,13 @@ We ensure that 'kubectl-scone' plugin only exists once - otherwise, 'kubectl' is
 EOF
 printf "${RESET}"
 
+
 if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then
-    sudo rm -f /usr/bin/kubectl-scone
+    P1=$(realpath /usr/bin/kubectl-scone )
+    P2=$(realpath /bin/kubectl-scone )
+    if [[ -n "$P1" && -n "$P2" && "$P1" != "$P2" ]]; then
+        rm -f "$P2"
+    fi
 fi
 LILAC='\033[1;35m'
 RESET='\033[0m'
