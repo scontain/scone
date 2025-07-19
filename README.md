@@ -15,7 +15,8 @@ Second, install the SCONE platform and a first CAS instance on your Kubernetes c
 
 - [`scone_operator.md`](scone_operator.md): a description on how to install or upgrade the SCONE platform in a Kubernetes cluster. To speed up the process, you can execute the script `./scripts/reconcile_scone_operator.sh`.
 
-- [`CAS.md`](CAS.md): a description on how to create a CAS `cas` in the default namespace.
+- [`CAS.md`](CAS.md): a description on how to create a CAS `cas` in the default namespace. You can execute the script `./scripts/install_cas.sh`.
+
 
 ## Automatic Script Extraction
 
