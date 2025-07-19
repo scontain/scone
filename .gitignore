@@ -9,3 +9,5 @@ operator_controller.asc
 
 prometheus-grafana-manifests/configmap-dashboard-operator.yaml
 prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
+
+*.env

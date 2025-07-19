@@ -25,3 +25,31 @@ All markdown files are associated with a script that executes the individual ste
 
 - `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores it in a script file.
 
+## Running with Docker
+
+### Copy and create the registry env
+
+```bash
+cp scone-registry.env.template scone-registry.env
+```
+
+Provide the correct credentials, to generate an access token follow these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
+
+### Build the image
+
+```bash
+docker build -t scone:latest .
+```
+
+### Run the image
+
+Create a container using the image
+
+```bash
+export KUBECONFIG_PATH=<path-to-your-kubeconfig>
+docker run -it --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v $KUBECONFIG_PATH:/kubeconfig
+    -v ./scone-registry.env:/scone-registry.env \
+    scone:latest
+```
