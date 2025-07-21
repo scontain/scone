@@ -54,3 +54,15 @@ docker run -it --rm \
     -v ./scone-registry.env:/scone-registry.env \
     scone:latest
 ```
+
+### Pre-built Container Image
+
+We also maintain a pre-built image at <registry.scontain.com/workshop/scone>.
+
+```bash
+cat > scone-registry.env <<EOF
+export SCONE_REGISTRY_ACCESS_TOKEN="<...>see https://sconedocs.github.io/registry/#create-an-access-token>"
+export SCONE_REGISTRY_USERNAME="<...>"
+EOF
+```
+

@@ -6,7 +6,7 @@ operator_controller.asc
 .sgxplugin-manifest.template
 .sgxplugin-manifest.template.asc
 .sgxplugin-manifest.yaml
-
+scone-registry.env
 prometheus-grafana-manifests/configmap-dashboard-operator.yaml
 prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
 
