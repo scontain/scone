@@ -31,12 +31,14 @@ check_command() {
 }
 
 scone_registry_login() {
+    export SCONE_REGISTRY_ACCESS_TOKEN=${SCONE_REGISTRY_ACCESS_TOKEN:-}
+    export SCONE_REGISTRY_USERNAME=${SCONE_REGISTRY_USERNAME:-}
     if [[ -n "${SCONE_REGISTRY_ACCESS_TOKEN}" && -n "${SCONE_REGISTRY_USERNAME}" ]]; then
         echo "Attempting docker login..."
         echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
     else
         echo "Skipping docker login - SCONE_REGISTRY_TOKEN or SCONE_REGISTRY_USERNAME not set or empty"
-        return 1
+        echo "WARNING: Assuming you are already logged in"
     fi
 }
 
@@ -99,7 +101,7 @@ install_yq_v4() {
 
 # Check and Auto install Yq Version 4
 if check_command yq; then
-    yq_version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2)
+    yq_version=$(yq --version 2>&1 | grep -oP 'v\d+' | cut -d'v' -f2) || yq_version=""
     if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then
         echo -e "${RED}❌ Found yq version $yq_version which is not supported. Installing Yq v4"
         install_yq_v4
