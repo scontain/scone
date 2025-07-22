@@ -11,7 +11,6 @@ To install or update the SCONE platform in a Kubernetes cluster, please perform 
 
 You can execute the steps automatically by running the script 'scripts/reconcile_scone_operator.sh'. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.
 
-
 0. Determine the current stable version of the SCONE platform using 'curl':
 
 EOF
@@ -194,8 +193,7 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-Please check that output is empty. Stop if error message 'Signature check FAILED' is printed. 
-
+Please check that output is empty. Stop if error message 'Signature check FAILED' is printed.
 
 3. Verifying if the cluster is properly installed:
 
@@ -233,7 +231,7 @@ cat <<EOF
 
 4. Set your Intel API Key
 
-To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable: 
+To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
 
 export DCAP_KEY="..."
 
@@ -286,13 +284,14 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-
 Next, we run the 'operator_controller' to check if the proper version is installed:
 
 EOF
 printf "${RESET}"
 
-./operator_controller --set-version $VERSION  --dcap-api "$DCAP_KEY" --reconcile -v 2>&1 | grep "NOT installed" || { echo "SCONE Version $VERSION already installed" ; operator_cleanup ; exit 0; }
+kubectl get deployment scone-controller-manager -n scone-system -o json | \
+  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$VERSION\"))" && \
+  { echo "SCONE Version $VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -368,11 +367,9 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-
 7. Updating the SCONE platform
 
 In case an older version of the SCONE platform was already installed (i.e., when the 'sconeapps' secret already exists), we can update the platform by executing the following command:
-
 
 EOF
 printf "${RESET}"
@@ -392,11 +389,3 @@ printf "${RESET}"
 
 operator_cleanup
 echo "✅ SCONE Operator upgraded to version $VERSION."
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-EOF
-printf "${RESET}"
-
