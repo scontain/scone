@@ -171,7 +171,7 @@ printf "${LILAC}"
 cat <<EOF
 
 This should execute the same SCONE version as the previously printed latest stable version.
-(The minimal version is 5.10.0-rc.5)
+(The minimal version is 5.10.1)
 
 EOF
 printf "${RESET}"

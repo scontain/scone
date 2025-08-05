@@ -129,7 +129,7 @@ scone --version
 ```
 
 This should execute the same SCONE version as the previously printed latest stable version.
-(The minimal version is 5.10.0-rc.5)
+(The minimal version is 5.10.1)
 
 ```bash
   echo "✅ All scone-related executable installed"
