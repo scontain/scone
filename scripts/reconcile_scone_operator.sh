@@ -375,6 +375,7 @@ EOF
 printf "${RESET}"
 
 else
+    echo "Reconciling the operator by executing:  ./operator_controller --set-version $VERSION --update --reconcile --plugin  --verbose --dcap-api $DCAP_KEY"
     ./operator_controller --set-version $VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
 fi
 LILAC='\033[1;35m'

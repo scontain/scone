@@ -17,6 +17,7 @@ Second, install the SCONE platform and a first CAS instance on your Kubernetes c
 
 - [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS - unless you defined environment variables `CAS` and/or `CAS_NAMESPACE`.
 
+- [`golang.md`](golang.md): Introduces a set of slightly patched Go compiler container images. The compilers link the compiled Go programs with `libc` to perform system calls. This permits us to effectively and efficiently shield the Go program (- in a second step that we will describe separately).
 
 ## Automatic Script Extraction
 
@@ -48,6 +49,9 @@ Create a container using the image
 
 ```bash
 export KUBECONFIG_PATH=<path-to-your-kubeconfig>
+# Example:
+# export KUBECONFIG_PATH="$KUBECONFIG"
+
 docker run -it --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v $KUBECONFIG_PATH:/kubeconfig \
@@ -57,7 +61,9 @@ docker run -it --rm \
 
 ### Pre-built Container Image
 
-We also maintain a pre-built image at <registry.scontain.com/workshop/scone>.
+We also maintain a pre-built image at `registry.scontain.com/workshop/scone`.
+
+To access this image, you need an access token:
 
 ```bash
 cat > scone-registry.env <<EOF
@@ -66,3 +72,12 @@ export SCONE_REGISTRY_USERNAME="<...>"
 EOF
 ```
 
+You can run the contain as follows:
+
+```bash
+docker run -it --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v $KUBECONFIG_PATH:/kubeconfig \
+    -v ./scone-registry.env:/scone-registry.env \
+    registry.scontain.com/workshop/scone
+```

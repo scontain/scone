@@ -7,12 +7,16 @@ printf "${LILAC}"
 cat <<EOF
 # 'golang' Confidential Computing Support
 
-This documentation is an adaptation of this page: https://hub.docker.com/_/golang
-We show how to use Go to support confidential computing for Go programs running
+We show how to build native Go-based binaries that can be used in the context of confidential computing. Note that the compiled binaries are native libraries without any code related to confidential computing. The only difference is that the binaries are linked with a 'libc' (see below). 
 
-- inside of Intel SGX enclaves,
-- inside of Intel TDX CVMs (Confidential VMs), or
-- inside of AMD SEV SNP CVMs.
+We show how to compile Go programs that can later inside Trusted Execution Environments (TEEs): 
+
+- Intel SGX enclaves,
+- Intel TDX CVMs (Confidential VMs), or
+- AMD SEV SNP CVMs.
+
+This documentation is an adaptation of this page: https://hub.docker.com/_/golang
+
 
 ## What is Go?
 
