@@ -164,7 +164,12 @@ VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads
 echo "The lastest stable version of SCONE is $VERSION"
 
 echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
-scone_registry_login
+
+if ! docker pull --quiet "registry.scontain.com/public-images/glibc:2.39-v3" &>/dev/null; then
+      echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
+      scone_registry_login
+fi
+
   images=(
     "registry.scontain.com/scone.cloud/sconecli:$VERSION"
     "registry.scontain.com/scone.cloud/scone-deb-pkgs:$VERSION"
