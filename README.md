@@ -4,12 +4,11 @@ This repo contains several markdown files and a version file:
 
 - [`stable.txt`](stable.txt): the latest stable version of the SCONE platform
 
+The SCONE Confidential Computing Platform consists of components running on your local computer and components running in a Kubernetes cluster. First, install the SCONE software components on your local machine:
 
-When you install software, please follow the following steps. First, install software on your local machine:
+- [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. This script also installs the SCONE CLI by executing `./scripts/install_sconecli.sh`.
 
-- [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for runninf `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. This script also calls `./scripts/install_sconecli.sh`.
-
-- [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., only needed in case you only want to install / upgrade SCONE-related commands.
+- [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., one only needs this script to uprade the SCONE CLI.
 
 Second, install the SCONE platform and a first CAS instance on your Kubernetes cluster:
 

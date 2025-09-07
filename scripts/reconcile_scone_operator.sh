@@ -356,6 +356,12 @@ cat <<EOF
 
 6. We install the latest stable version or fix/update the installed version
 
+> In case  'sconeapps' secret exists but it is not a token to pull
+> the 'scone.cloud' images, the following execution will fail. 
+> You can switch of the secret as follows:
+>     'kubectl delete ImagePullSecret sconeapps'
+> and then run again. In the second run, the script will set the secret.
+
 We do this in case no 'sconeapps' secret exists yet:
 
 EOF
@@ -367,7 +373,7 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-7. Updating the SCONE platform
+1. Updating the SCONE platform
 
 In case an older version of the SCONE platform was already installed (i.e., when the 'sconeapps' secret already exists), we can update the platform by executing the following command:
 
