@@ -97,7 +97,7 @@ In case your cluster has already been installed, you can extract the DCAP_API_KE
             echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
         else
             DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY ($DCAP_KEY) extracted from LAS - not recommended."
+            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
         fi
     fi
 ```
