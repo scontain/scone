@@ -158,7 +158,7 @@ verify_file operator_controller
 
 Please check that output is empty. Stop if error message `Signature check FAILED` is printed.
 
-3. Verifying if the cluster is properly installed:
+4. Verifying if the cluster is properly installed:
 
 We first define a cleanup function to cleanup after the `operator_controller`:
 
@@ -182,7 +182,7 @@ We ensure that the correct `kubectl provision` plugin is installed:
 ./operator_controller --set-version $VERSION  --only-plugin  --reconcile --update
 ```
 
-4. Set your Intel API Key
+5. Set your Intel API Key
 
 To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
 
@@ -245,7 +245,7 @@ In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. W
 kubectl delete crd vaults.services.scone.cloud || true
 ```
 
-5. Ensure that the image pull secret `sconeapps` exists:
+6. Ensure that the image pull secret `sconeapps` exists:
 
 We check if we can read the secret:
 
@@ -292,7 +292,7 @@ if [[ $install_sconeapps_secret == 1 ]] ; then
     echo "✅ REGISTRY_EMAIL set."
 ```
 
-6. We install the latest stable version or fix/update the installed version
+7. We install the latest stable version or fix/update the installed version
 
 We do this in case no `sconeapps` secret exists yet:
 
@@ -300,7 +300,7 @@ We do this in case no `sconeapps` secret exists yet:
     ./operator_controller --set-version $VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USERNAME --access-token $REGISTRY_ACCESS_TOKEN --email $REGISTRY_EMAIL
 ```
 
-7. Updating the SCONE platform
+8. Updating the SCONE platform
 
 In case an older version of the SCONE platform was already installed (i.e., when the `sconeapps` secret already exists), we can update the platform by executing the following command:
 
@@ -310,15 +310,16 @@ else
 fi
 ```
 
-8. Cleaning up temporary files
+9. Cleaning up temporary files
 
 ```bash
 operator_cleanup
 echo "✅ SCONE Operator upgraded to version $VERSION."
 ```
 
-9. Wait for LAS to become healthy
+10. Wait for LAS to become healthy
 
 ```bash
+cd -
 COND=HEALTHY TIMEOUT=300 INTERVAL=2 NAMESPACE= scripts/wait-crd-state.sh las
 ```

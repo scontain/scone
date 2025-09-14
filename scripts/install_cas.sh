@@ -152,6 +152,12 @@ if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
       echo "❌ Invalid input. Must be exactly 32 hex characters (0-9, a-f)."
     fi
   done
+  # kubectl provision requires DCAP argument 
+  export DCAP_ARG="--dcap-api $DCAP_KEY"
+
+else
+  # kubectl provision will extract DCAP_KEY from LAS
+  export DCAP_ARG=""
 fi
 LILAC='\033[1;35m'
 RESET='\033[0m'
@@ -358,7 +364,7 @@ The following statement installs the CAS and waits until the CAS becomes healthy
 EOF
 printf "${RESET}"
 
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" --dcap-api "$DCAP_KEY" "$CAS" ; then
+if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
   echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
   exit 1
 fi
