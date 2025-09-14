@@ -203,7 +203,7 @@ In case your cluster has already been installed, you can extract the DCAP_API_KE
             echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
         else
             DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY ($DCAP_KEY) extracted from LAS - not recommended."
+            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
         fi
     fi
 ```
@@ -238,6 +238,12 @@ kubectl get deployment scone-controller-manager -n scone-system -o json | \
 ```
 
 If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.
+
+In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. We ignore if the removal fails because vault crd might not exist:
+
+```bash
+kubectl delete crd vaults.services.scone.cloud || true
+```
 
 5. Ensure that the image pull secret `sconeapps` exists:
 
@@ -309,4 +315,10 @@ fi
 ```bash
 operator_cleanup
 echo "✅ SCONE Operator upgraded to version $VERSION."
+```
+
+9. Wait for LAS to become healthy
+
+```bash
+COND=HEALTHY TIMEOUT=300 INTERVAL=2 NAMESPACE= scripts/wait-crd-state.sh las
 ```

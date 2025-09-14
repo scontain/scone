@@ -84,3 +84,12 @@ All markdown files are associated with a script that executes the individual ste
 - `scripts/extract-all-scripts.sh`: almost all scripts in the directory `scripts` are automatically derived from the markdown files. If one updates the Markdown files, the generated scripts can be updated by executing `scripts/extract-all-scripts.sh`.
 
 - `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores them in a script file.
+
+## Screencast
+
+The following screencast demonstrates the installation of `prerequisite_check.md`, `scone_operator.md`, and `CAS.md` in action:
+
+![demo](docs/demo.svg)
+
+Generate an updated screencast by executing `make`.
+

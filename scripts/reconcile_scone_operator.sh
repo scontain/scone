@@ -250,7 +250,7 @@ printf "${RESET}"
             echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
         else
             DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY ($DCAP_KEY) extracted from LAS - not recommended."
+            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
         fi
     fi
 LILAC='\033[1;35m'
@@ -298,6 +298,17 @@ printf "${LILAC}"
 cat <<EOF
 
 If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.
+
+In case we upgrade from version 5 to version 6, we need to delete CRD 'vault'. We ignore if the removal fails because vault crd might not exist:
+
+EOF
+printf "${RESET}"
+
+kubectl delete crd vaults.services.scone.cloud || true
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 5. Ensure that the image pull secret 'sconeapps' exists:
 
@@ -389,3 +400,14 @@ printf "${RESET}"
 
 operator_cleanup
 echo "✅ SCONE Operator upgraded to version $VERSION."
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+9. Wait for LAS to become healthy
+
+EOF
+printf "${RESET}"
+
+COND=HEALTHY TIMEOUT=300 INTERVAL=2 NAMESPACE= scripts/wait-crd-state.sh las
