@@ -4,10 +4,14 @@
 TYPE_SPEED        ?= 24
 PAUSE_AFTER_CMD   ?= 0.6
 SCRIPT            ?= docs/demo.sh
+CAS_SCRIPT        ?= docs/cas.sh
 CAST              ?= docs/demo.cast
+CAS_CAST          ?= docs/cas.cast
 CAST_V2           ?= docs/demo.v2.cast
 SVG               ?= docs/demo.svg
-TITLE             ?= Confidential Caddy demo
+CAS_SVG           ?= docs/cas.svg
+CAS_TITLE         ?= Installing SCONE CAS
+TITLE             ?= Installing SCONE CLI and SCONE Operator
 COLS              ?= 100
 
 DEPS := asciinema svg-term
@@ -29,6 +33,12 @@ $(CAST): $(SCRIPT) | check-deps
 	asciinema rec --overwrite -q -t "$(TITLE)" -c "$(SCRIPT)" $@
 	@echo "$(GREEN)✓ Recorded: $(CAST)$(RESET)"
 
+$(CAS_CAST): $(CAS_SCRIPT) $(CAST) | check-deps
+	@echo "$(YELLOW)Recording to $(CAS_CAST)…$(RESET)"
+	@TYPE_SPEED=$(TYPE_SPEED) PAUSE_AFTER_CMD=$(PAUSE_AFTER_CMD) \
+	asciinema rec --overwrite -q -t "$(CAS_TITLE)" -c "$(CAS_SCRIPT)" $@
+	@echo "$(GREEN)✓ Recorded: $(CAS_CAST)$(RESET)"
+
 # -----------------------------
 # Ensure v2 for svg-term (auto-detect v1/v2/v3)
 # If v3 -> convert to v2; if v1/v2 -> copy through.
@@ -43,14 +53,19 @@ $(CAST_V2): $(CAST) | check-deps
 # -----------------------------
 # Render SVG
 # -----------------------------
-$(SVG): check-deps
+$(SVG):  $(CAST) | check-deps
 	@echo "$(YELLOW)Exporting SVG to $(SVG)…$(RESET)"
 	@cat "$(CAST)" | svg-term --out "$(SVG)" --window --no-cursor  --width $(COLS)
 	@echo "$(GREEN)✓ SVG created: $(SVG)$(RESET)"
 
+$(CAS_SVG): $(CAS_CAST) | check-deps
+	@echo "$(YELLOW)Exporting SVG to $(CAS_SVG)…$(RESET)"
+	@cat "$(CAS_CAST)" | svg-term --out "$(CAS_SVG)" --window --no-cursor  --width $(COLS)
+	@echo "$(GREEN)✓ SVG created: $(CAS_SVG)$(RESET)"
+
 # Front-door targets, matching your original names
-record: $(CAST)
-svg:    $(SVG)
+record: $(CAST) $(CAS_CAST)
+svg:    $(SVG) $(CAS_SVG)
 
 # -----------------------------
 # Dependency checks
@@ -72,7 +87,7 @@ check-deps:
 # Utilities
 # -----------------------------
 clean:
-	@rm -f "$(CAST)" "$(CAST_V2)" "$(SVG)"
+	@rm -f "$(CAST)" "$(CAS_CAST)" "$(SVG)" "$(CAS_SVG)"
 	@echo "$(GREEN)Cleaned$(RESET)"
 
 help:

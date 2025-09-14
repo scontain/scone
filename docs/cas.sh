@@ -36,12 +36,11 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 # -------- Your scripted demo --------
+export CAS="cas"
+export CAS_NAMESPACE="default"
 
-pe '# Checking prerequisites and installing SCONE CLI...'
-pe 'scripts/prerequisite_check.sh'
-pe '# Next, we install the SCONE operator including SCONE SGX Plugin, SCONE Local Attestation Service' 
-pe 'scripts/reconcile_scone_operator.sh'
+pe "# Installing CAS $CAS in namespace $CAS_NAMESPACE ..."
+pe 'scripts/install_cas.sh'
 pe '# DONE'
 
-# Done
 sleep 10

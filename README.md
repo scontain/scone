@@ -16,9 +16,20 @@ Second, install the SCONE platform and a first CAS instance on your Kubernetes c
 
 - [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS - unless you defined environment variables `CAS` and/or `CAS_NAMESPACE`.
 
-- [golang support](https://github.com/scontain/golang): we support the latest golang versions for building confidential applications.
 
-## Running with Docker
+## Screencast
+
+Installation of a SCONE CAS:
+
+![Installation of CAS](docs/cas.svg)
+
+## Tutorials
+
+- [confidential Java App](https://github.com/scontain/java-args-env-file): we show how to run a cloud-native Java service as a confidential, cloud-native Java service on Intel SGX, Intel TDX, or AMD SEV SNP.
+
+- [golang support](https://github.com/scontain/golang): we provide container images with the latest `Go` versions for building native applications. We show how to build a native `Go` application `caddy` into a [`confidential caddy`](https://github.com/scontainug/caddy) applications using [`scone-signer`](https://sconedocs.github.io/CAS_cli/#scone-signer).
+
+## SCONE CLI Docker Image
 
 ### Copy and create the registry env
 
@@ -85,11 +96,11 @@ All markdown files are associated with a script that executes the individual ste
 
 - `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores them in a script file.
 
-## Screencast
+## Screencast: Installation of SCONE CLI and SCONE Operator
 
 The following screencast demonstrates the installation of `prerequisite_check.md`, `scone_operator.md`, and `CAS.md` in action:
 
-![demo](docs/demo.svg)
+![installation of SCONE CLI and SCONE Operator](docs/demo.svg)
 
-Generate an updated screencast by executing `make`.
+Generate updated screencasts by executing `make`.
 
