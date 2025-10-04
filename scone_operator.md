@@ -6,9 +6,27 @@ You can execute the steps automatically by running the script `scripts/reconcile
 
 0. Determine the current stable version of the SCONE platform using `curl`:
 
+
+By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `VERSION` to the version that you want to install:
+
+```
+export VERSION="..."  # set to version
+```
+
+Otherwise, to ensure that you install the latest version, you can undefine `VERSION`:
+
+```
+unset VERSION
+```
+
 ```bash
-VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-echo "The lastest stable version of SCONE is $VERSION"
+if [ -z "${VERSION+x}" ]; then
+  echo "Environment variable VERSION is not set - determining the latest stable version of SCONE"
+  export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+  echo "The lastest stable version of SCONE is $VERSION"
+else
+  echo "Environment variable VERSION is set to $VERSION"
+fi
 ```
 
 1. Make sure that we actually want to update the current cluster

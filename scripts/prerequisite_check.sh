@@ -7,6 +7,19 @@ printf "${LILAC}"
 cat <<EOF
 # Checking Prerequisites
 
+You need to have access to the docker registry 'registry.scontain.yom' with an account that has access to the namespace 'scone.cloud'. If you are already logged in, you are all set. If you have not logged in yet, please set the following variables:
+
+export SCONE_REGISTRY_USERNAME="..." # set to your user name 
+SCONE_REGISTRY_ACCESS_TOKEN="..." # set to personal access token with read access to scone.cloud
+
+By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable 'VERSION' to the version that you want to install:
+
+export VERSION="..."  # set to version
+
+Otherwise, to ensure that you install the latest version, you can undefine 'VERSION':
+
+unset VERSION
+
 ## Checking Commands
 
 To run our commands and to transform manifests and container images,
@@ -173,13 +186,17 @@ the transformations. If this fail, please do the following:
 EOF
 printf "${RESET}"
 
-# determine the latest stable version of SCONE:
-VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-echo "The lastest stable version of SCONE is $VERSION"
+if [ -z "${VERSION+x}" ]; then
+  echo "Environment variable VERSION is not set - determining the latest stable version of SCONE"
+  export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+  echo "The lastest stable version of SCONE is $VERSION"
+else
+  echo "Environment variable VERSION is set to $VERSION"
+fi
 
 echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
 
-if ! docker pull --quiet "registry.scontain.com/public-images/glibc:2.39-v3" &>/dev/null; then
+if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$VERSION" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
       scone_registry_login
 fi
