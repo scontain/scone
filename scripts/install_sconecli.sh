@@ -26,12 +26,25 @@ Below, we describe how to install the 'scone' CLI using 'auto' mode, i.e., the C
 
 We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.
 
+
+By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable 'VERSION' to the version that you want to install:
+
+export VERSION="..."  # set to version
+
+Otherwise, to ensure that you install the latest version, you can undefine 'VERSION':
+
+unset VERSION
+
 EOF
 printf "${RESET}"
 
-# determine the latest stable version of SCONE:
-VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-echo "The lastest stable version of SCONE is $VERSION"
+if [ -z "${VERSION+x}" ]; then
+  echo "Environment variable VERSION is not set - determining the latest stable version of SCONE"
+  export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+  echo "The lastest stable version of SCONE is $VERSION"
+else
+  echo "Environment variable VERSION is set to $VERSION"
+fi
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -171,7 +184,7 @@ printf "${LILAC}"
 cat <<EOF
 
 This should execute the same SCONE version as the previously printed latest stable version.
-(The minimal version is 5.10.1)
+(The minimal version is 6.0.0)
 
 EOF
 printf "${RESET}"
