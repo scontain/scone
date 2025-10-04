@@ -7,12 +7,12 @@ printf "${LILAC}"
 cat <<EOF
 # Checking Prerequisites
 
-You need to have access to the docker registry 'registry.scontain.yom' with an account that has access to the namespace 'scone.cloud'. If you are already logged in, you are all set. If you have not logged in yet, please set the following variables:
+You need to login to the docker registry 'registry.scontain.yom' with an account that has access to the namespace 'scone.cloud'. If you are already logged in to 'registry.scontain.yom', you are all set. If you have not logged in yet, please set the following variables:
 
 export SCONE_REGISTRY_USERNAME="..." # set to your user name 
-SCONE_REGISTRY_ACCESS_TOKEN="..." # set to personal access token with read access to scone.cloud
+export SCONE_REGISTRY_ACCESS_TOKEN="..." # set to personal access token with read access to scone.cloud
 
-By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable 'VERSION' to the version that you want to install:
+By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable 'VERSION' to the SCONE version that you want to install:
 
 export VERSION="..."  # set to version
 
