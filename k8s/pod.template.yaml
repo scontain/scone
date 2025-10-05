@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: scone-toolbox
+  namespace: $CLI_NAMESPACE
+  labels:
+    app: scone-toolbox
+spec:
+  serviceAccountName: scone-runner
+  imagePullSecrets:
+  - name: scone-registry
+  restartPolicy: Never
+  containers:
+  - name: scone
+    image: $CLI_IMAGE
+    env:
+    - name: DOCKER_HOST
+      value: tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375
+    imagePullPolicy: Always
+    tty: true
+    stdin: true
+    volumeMounts:
+    - name: scone-env
+      mountPath: /scone-registry
+      readOnly: true
+  volumes:
+  - name: scone-env
+    secret:
+      secretName: scone-registry-env
+

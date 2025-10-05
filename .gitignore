@@ -9,5 +9,8 @@ operator_controller.asc
 scone-registry.env
 prometheus-grafana-manifests/configmap-dashboard-operator.yaml
 prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
-
+k8s/rbac.yaml
+k8s/pod.yaml
+k8s/dind.yaml
 *.env
+overwrite

@@ -1,16 +1,45 @@
 #!/bin/bash
+set -euo pipefail
 
-source /scone-registry.env
+source /scone-registry/scone-registry-env
 
 mkdir -p ~/.kube
+if [[ -f /kubeconfig ]]; then
+  cp /kubeconfig ~/.kube/config
+else
+  APISERVER="${APISERVER:-}"
+  if [[ -z "$APISERVER" ]]; then
+    if [[ -n "${KUBERNETES_SERVICE_HOST:-}" && -n "${KUBERNETES_SERVICE_PORT:-}" ]]; then
+      APISERVER="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+    else
+      APISERVER="https://kubernetes.default.svc"
+    fi
+  fi
+  TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+  CA="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+  NS="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+  kubectl config set-cluster in-cluster --server="$APISERVER" --certificate-authority="$CA" --embed-certs=true
+  kubectl config set-credentials sa --token="$TOKEN"
+  kubectl config set-context in-cluster --cluster=in-cluster --user=sa --namespace="$NS"
+  kubectl config use-context in-cluster
+fi
 
-cp /kubeconfig ~/.kube/config
+cd "$HOME"
 
-cd $HOME
+# Check Kubernetes cluster connectivity
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+if ! kubectl cluster-info &>/dev/null; then
+  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
+fi
 
-git clone https://github.com/scontain/scone.git
+if [[ -n "${SCONE_REGISTRY_ACCESS_TOKEN}" && -n "${SCONE_REGISTRY_USERNAME}" ]]; then
+    echo "Attempting docker login..."
+    echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
+    echo "Docker login successful."
+fi
+echo "alias k=kubectl" >> /root/.bashrc
+git config --global credential.helper cache
 
-~/scone/scripts/prerequisite_check.sh
-
-alias k=kubectl
+cd
 exec "$@"
