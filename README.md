@@ -4,11 +4,18 @@ This repo contains several markdown files that explain how to install the SCONE 
 
 - [`stable.txt`](stable.txt): the latest stable version of the SCONE platform
 
-The SCONE Confidential Computing Platform consists of components running on your local computer and components running in a Kubernetes cluster. First, install the SCONE software components on your local machine:
+The SCONE Confidential Computing Platform consists of components running on your local computer and components running in a Kubernetes cluster. 
+
+
+First, you can install the SCONE software components on your local machine or in Kubernetes cluster. If you want to install on a local computer or a development VM (must be modern x86 computer), follow the following steps:
 
 - [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. In a final step, the script installs the SCONE CLI by executing `./scripts/install_sconecli.sh`.
 
 - [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., one only needs this script to upgrade the SCONE CLI.
+
+In case you have no dedicated development VM, you could run as a container in a Kubernetes cluster (running x86 computers):
+
+- [`k8s.md`](k8s.md) describes the steps to deploy the Scone commands inside a Kubernetes cluster: these steps are part of script `./scripts/k8s_cli.sh`. Inside the container, you can build confidential applications like our [confidential Java App](https://github.com/scontain/java-args-env-file). 
 
 Second, install the SCONE platform and a first CAS instance on your Kubernetes cluster:
 
@@ -42,19 +49,36 @@ Provide the correct credentials. To generate an access token, follow these instr
 ### Build the image
 
 ```bash
-docker build -t scone:latest .
+export HOSTIP=$(ip route show default | awk '/default/ {print $3}')
+export HOSTIP="172.17.0.1" # as seen from the docker container
+docker context create dind \
+  --docker "host=tcp://${HOSTIP}:2375" || true
+
+docker --context dind  buildx build \
+    --secret id=kubeconfig,src=$HOME/.kube/config  \
+    --secret id=dockerconfig,src=$HOME/.docker/config.json \
+    --build-arg DOCKER_HOST="tcp://${HOSTIP}:2375" \
+    -t scone:latest \
+    --file Dockerfile .
+```
+
+Next, you can tag and push your image. For example, we push to:
+
+```bash
+docker tag scone:latest registry.scontain.com/workshop/scone
+docker push registry.scontain.com/workshop/scone
 ```
 
 ### Run the image
 
-Create a container using the image
+Create a container using the local image:
 
 ```bash
-export KUBECONFIG_PATH=<path-to-your-kubeconfig>
+export KUBECONFIG_PATH=${KUBECONFIG:-$HOME/.kube/config}
 docker run -it --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v $KUBECONFIG_PATH:/kubeconfig \
-    -v ./scone-registry.env:/scone-registry.env \
+    -v ./scone-registry.env:/scone-registry/scone-registry-env \
     scone:latest
 ```
 
@@ -80,11 +104,10 @@ EOF
 Next, run the following command:
 
 ```bash
-export KUBECONFIG_PATH="${KUBECONFIG_PATH:-$HOME/.kube/config}"
 docker run -it --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v $KUBECONFIG_PATH:/kubeconfig \
-    -v ./scone-registry.env:/scone-registry.env \
+    -v ./scone-registry.env:/scone-registry/scone-registry-env \
     registry.scontain.com/workshop/scone
 ```
 

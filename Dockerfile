@@ -1,8 +1,8 @@
 FROM ubuntu:24.04
-
-ENV DEBIAN_FRONTEND=noninteractive
-ARG KUBECTL_VERSION="v1.28.10"
+ARG DOCKER_HOST
+ARG KUBECTL_VERSION="v1.33.2"
 ARG YQ_VERSION="v4.46.1"
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -70,6 +70,22 @@ RUN apt-get update && \
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+COPY . /root/scone
+# Run prerequisite check during build to fail fast if something is missing
+# Use a secret mount to provide kubeconfig during build time
+# The secret can be provided using: --secret id=kubeconfig,src=$HOME/.kube/config
+ENV DOCKER_CONFIG=/root/.docker
+
+RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
+    --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
+    docker version && \
+    cd /root/scone \
+    && ./scripts/prerequisite_check.sh
+
+# check if newer local k8s-scone is available and use it
+RUN --mount=type=bind,source=overwrite,target=/overwrite \
+    [ -f /overwrite/k8s-scone ] && cp /overwrite/k8s-scone /usr/bin/k8s-scone || true
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: dind, namespace: $CLI_NAMESPACE}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: dind}}
+  template:
+    metadata: {labels: {app: dind}}
+    spec:
+      securityContext: {runAsUser: 0}
+      containers:
+      - name: dind
+        image: docker:27-dind
+        securityContext: {privileged: true}
+        env:
+        - name: DOCKER_TLS_CERTDIR
+          value: ""                     # <— disable TLS
+        args: ["--host=tcp://0.0.0.0:2375","--host=unix:///var/run/docker.sock","--storage-driver=overlay2"]
+        ports: [{containerPort: 2375, name: docker}]
+        volumeMounts:
+        - {name: dind-lib, mountPath: /var/lib/docker}
+      volumes:
+      - name: dind-lib
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: dind, namespace: $CLI_NAMESPACE}
+spec:
+  selector: {app: dind}
+  ports: [{name: docker, port: 2375, targetPort: 2375}]
