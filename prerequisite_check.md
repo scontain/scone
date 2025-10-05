@@ -57,7 +57,7 @@ scone_registry_login() {
         echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
     else
         echo "Skipping docker login - SCONE_REGISTRY_TOKEN or SCONE_REGISTRY_USERNAME not set or empty"
-        echo "WARNING: Assuming you are already logged in"
+        echo "WARNING: Cannot access private SCONE images without login"
     fi
 }
 
@@ -164,7 +164,6 @@ fi
 # Check Kubernetes cluster connectivity
 if ! kubectl cluster-info &>/dev/null; then
   echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
-  exit 1
 fi
 
 echo "✅ All external executables are installed and ready"

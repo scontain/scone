@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: scone-runner
+  namespace: $CLI_NAMESPACE
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: services-reader
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get","list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scone-nodes-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["base.scone.cloud"]
+  resources: ["las", "sgxplugins"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["services.scone.cloud"]
+  resources: ["cas"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["cas.scone.cloud"]
+  resources: ["encryptedpolicies", "signedpolicies"]
+  verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: scone-runner
+  namespace: $CLI_NAMESPACE
+rules:
+  - apiGroups: [""]
+    resources: ["pods","pods/log", "configmaps", "secrets", "deployments"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/attach"]
+    verbs: ["create", "get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+---
+# RoleBinding in kube-system
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: services-reader-binding
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: scone-runner
+  namespace: $CLI_NAMESPACE
+roleRef:
+  kind: ClusterRole
+  name: services-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: scone-runner
+  namespace: $CLI_NAMESPACE
+subjects:
+  - kind: ServiceAccount
+    name: scone-runner
+    namespace: $CLI_NAMESPACE
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: scone-runner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: scone-runner-nodes
+subjects:
+- kind: ServiceAccount
+  name: scone-runner
+  namespace: scone-tools
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: scone-nodes-reader
