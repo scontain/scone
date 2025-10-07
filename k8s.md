@@ -31,6 +31,12 @@ fi
 kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1; }
 ```
 
+## Enabling TCP on Docker Daemon
+
+The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, you can enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)
+
+> Note: Enabling TCP on the Docker is a security risk.  We provide a [script](scripts/disable_docker_tcp.sh) to disable the TCP when you are done with the workshop.
+
 ## Deployment
 
 You need to login to the docker registry `registry.scontain.yom` with an account that has access to the namespace `scone.cloud`. If you are already logged in to `registry.scontain.yom`, you are all set. If you have not logged in yet, please set the following variables:
