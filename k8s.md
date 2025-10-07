@@ -76,7 +76,9 @@ By default we install the CLI image in namespace `scone-tools`. You can overwrit
 export CLI_NAMESPACE="..."
 ```
 
-Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Please adjust in case you use a unique PAT for each pull secret: 
+Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Please adjust in case you use a unique PAT for each pull secret.
+
+Also, in case you built and pushed the image to a different registry, you need to adjust the value for `docker-server` in the  `docker-registry` secret accordingly.
 
 ```bash
 export CLI_NAMESPACE=${CLI_NAMESPACE:-scone-tools}
