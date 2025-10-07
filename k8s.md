@@ -33,7 +33,7 @@ kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1;
 
 ## Deployment
 
-You need to login to the docker registry `registry.scontain.yom` with an account that has access to the namespace `scone.cloud`. If you are already logged in to `registry.scontain.yom`, you are all set. If you have not logged in yet, please set the following variables:
+You need to login to the docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you are already logged in to `registry.scontain.com`, you are all set. If you have not logged in yet, please set the following variables:
 
 ```
 export SCONE_REGISTRY_USERNAME="..." # set to your user name 
