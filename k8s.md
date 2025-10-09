@@ -185,11 +185,11 @@ wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
 6. Run the SCONE CLI using help
 
 ```bash
-kubectl -n $CLI_NAMESPACE exec -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
 ```
 
 7. Drop into the shell to execute your commands
 
 ```bash
-kubectl -n $CLI_NAMESPACE exec -it deploy/scone-toolbox  -c scone-toolbox -- bash
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash
 ```
