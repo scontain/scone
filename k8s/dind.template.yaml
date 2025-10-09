@@ -12,6 +12,7 @@ spec:
       - name: dind
         image: docker:27-dind
         securityContext: {privileged: true}
+        imagePullPolicy: Always
         env:
         - name: DOCKER_TLS_CERTDIR
           value: ""                     # <— disable TLS

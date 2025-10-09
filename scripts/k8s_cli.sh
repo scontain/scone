@@ -43,9 +43,15 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
+## Enabling TCP on Docker Daemon
+
+The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, you can enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)
+
+> Note: Enabling TCP on the Docker is a security risk.  We provide a [script](scripts/disable_docker_tcp.sh) to disable the TCP when you are done with the workshop.
+
 ## Deployment
 
-You need to login to the docker registry 'registry.scontain.yom' with an account that has access to the namespace 'scone.cloud'. If you are already logged in to 'registry.scontain.yom', you are all set. If you have not logged in yet, please set the following variables:
+You need to login to the docker registry 'registry.scontain.com' with an account that has access to the namespace 'scone.cloud'. If you are already logged in to 'registry.scontain.com', you are all set. If you have not logged in yet, please set the following variables:
 
 export SCONE_REGISTRY_USERNAME="..." # set to your user name 
 export SCONE_REGISTRY_ACCESS_TOKEN="..." # set to personal access token with read access to scone.cloud
@@ -92,7 +98,9 @@ By default we install the CLI image in namespace 'scone-tools'. You can overwrit
 
 export CLI_NAMESPACE="..."
 
-Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Please adjust in case you use a unique PAT for each pull secret: 
+Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Please adjust in case you use a unique PAT for each pull secret.
+
+Also, in case you built and pushed the image to a different registry, you need to adjust the value for 'docker-server' in the  'docker-registry' secret accordingly.
 
 EOF
 printf "${RESET}"
@@ -172,13 +180,15 @@ cat <<EOF
 
 5. Deploy the SCONE CLI
 
-We change the image name in 'pod.yaml' file for the one you pushed in step 1
+We change the image name in 'deployment.yaml' file for the one you pushed in step 1
 
 EOF
 printf "${RESET}"
 
-envsubst < ./k8s/pod.template.yaml > ./k8s/pod.yaml
-kubectl apply -f ./k8s/pod.yaml
+envsubst < ./k8s/deployment.template.yaml > ./k8s/deployment.yaml
+# ensure we load the latest container image
+kubectl apply -f ./k8s/deployment.yaml
+kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -218,7 +228,7 @@ cat <<EOF
 EOF
 printf "${RESET}"
 
-kubectl -n $CLI_NAMESPACE exec -it scone-toolbox -- scone --help
+kubectl -n $CLI_NAMESPACE exec -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -229,4 +239,4 @@ cat <<EOF
 EOF
 printf "${RESET}"
 
-kubectl -n $CLI_NAMESPACE exec -it scone-toolbox -- bash
+kubectl -n $CLI_NAMESPACE exec -it deploy/scone-toolbox  -c scone-toolbox -- bash
