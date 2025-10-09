@@ -21,7 +21,8 @@ RUN apt-get update && \
     pkg-config \
     libssl-dev \
     gcc-multilib \
-    xz-utils && \
+    xz-utils \
+    bash-completion && \
     apt-get update && \
     apt-get -y install sudo && \
     \
@@ -89,4 +90,5 @@ RUN --mount=type=bind,source=overwrite,target=/overwrite \
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+WORKDIR /root
 CMD ["/bin/bash"]
