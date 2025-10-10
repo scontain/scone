@@ -7,7 +7,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: services-reader
+  name: services-reader-$CLI_NAMESPACE
 rules:
 - apiGroups: [""]
   resources: ["services"]
@@ -16,7 +16,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: scone-nodes-reader
+  name: scone-nodes-reader-$CLI_NAMESPACE
 rules:
 - apiGroups: [""]
   resources: ["nodes"]
@@ -57,7 +57,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: services-reader-binding
+  name: services-reader-binding-$CLI_NAMESPACE
   namespace: kube-system
 subjects:
 - kind: ServiceAccount
@@ -65,7 +65,7 @@ subjects:
   namespace: $CLI_NAMESPACE
 roleRef:
   kind: ClusterRole
-  name: services-reader
+  name: services-reader-$CLI_NAMESPACE
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -85,12 +85,12 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: scone-runner-nodes
+  name: scone-runner-nodes-$CLI_NAMESPACE
 subjects:
 - kind: ServiceAccount
   name: scone-runner
-  namespace: scone-tools
+  namespace: $CLI_NAMESPACE
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: scone-nodes-reader
+  name: scone-nodes-reader-$CLI_NAMESPACE
