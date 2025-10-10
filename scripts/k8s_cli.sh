@@ -228,7 +228,7 @@ cat <<EOF
 EOF
 printf "${RESET}"
 
-kubectl -n $CLI_NAMESPACE exec -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -239,4 +239,4 @@ cat <<EOF
 EOF
 printf "${RESET}"
 
-kubectl -n $CLI_NAMESPACE exec -it deploy/scone-toolbox  -c scone-toolbox -- bash
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash
