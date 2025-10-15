@@ -164,7 +164,7 @@ kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 wait_for_pod_logs() {
   local ns="${1:-default}"
   local label="${2:?Usage: wait_for_pod_logs <namespace> <label>}"
-  local timeout="${3:-120s}"
+  local timeout="${3:-200s}"
 
   echo "⏳ Waiting for pod with label $label in namespace $ns..."
   kubectl wait pod -n "$ns" -l "$label" --for=condition=Ready --timeout="$timeout" || {
