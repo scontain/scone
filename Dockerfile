@@ -22,6 +22,8 @@ RUN apt-get update && \
     libssl-dev \
     gcc-multilib \
     xz-utils \
+    vim \
+    less \
     bash-completion && \
     apt-get update && \
     apt-get -y install sudo && \
@@ -82,7 +84,7 @@ RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
     --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
     docker version && \
     cd /root/scone \
-    && ./scripts/prerequisite_check.sh
+    && VERSION=6.1.0-rc.0 ./scripts/prerequisite_check.sh
 
 # check if newer local k8s-scone is available and use it
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
