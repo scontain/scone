@@ -33,6 +33,11 @@ spec:
               value: tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375
           tty: true
           stdin: true
+          resources:
+            requests:
+              sgx.k8s.io/sgx: 1
+            limits:
+              sgx.k8s.io/sgx: 1
           volumeMounts:
             - name: scone-env
               mountPath: /scone-registry
