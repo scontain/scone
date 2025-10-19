@@ -1,8 +1,29 @@
+FROM registry.scontain.com/cicd/sconecli:6.1.0-rc.0 AS sconectl
+
+FROM registry.scontain.com/cicd/container-diff AS builder
+
 FROM ubuntu:24.04
 ARG DOCKER_HOST
 ARG KUBECTL_VERSION="v1.33.2"
 ARG YQ_VERSION="v4.46.1"
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive 
+
+COPY --from=sconectl \
+    /usr/local/bin/apply \
+    /usr/local/bin/gen-policy  \
+    /usr/local/bin/mesh \
+    /usr/local/bin/scone_genservice \
+    /usr/local/bin/scone_verify \
+    /usr/local/bin/sconify_image \
+    /usr/local/bin/verify \
+    /usr/local/bin/genservice \
+    /usr/local/bin/scone_apply \
+    /usr/local/bin/scone_mesh \
+    /usr/local/bin/sign-policy \
+    /usr/local/bin/
+
+
+COPY --from=builder /usr/bin/container-diff-linux-amd64   /usr/local/bin/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -24,6 +45,7 @@ RUN apt-get update && \
     xz-utils \
     vim \
     less \
+    dnsutils \
     bash-completion && \
     apt-get update && \
     apt-get -y install sudo && \
@@ -70,6 +92,18 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* 
 
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rs.sh \
+    && sh /tmp/rs.sh -y --no-modify-path --profile default \
+    && export PATH=$HOME/.cargo/bin:$PATH \
+    && rustup default stable \
+    && rm /tmp/rs.sh \
+    && cargo install sconectl \
+    && curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/scontain/SH/refs/heads/master/latest/kubectl-provision > $HOME/.cargo/bin/kubectl-provision \
+    && chmod +x $HOME/.cargo/bin/kubectl-provision \
+    && curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \
+    && chmod 700 get_helm.sh \
+    && ./get_helm.sh \
+    && rm get_helm.sh
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -89,6 +123,9 @@ RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
 # check if newer local k8s-scone is available and use it
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/k8s-scone ] && cp /overwrite/k8s-scone /usr/bin/k8s-scone || true
+
+RUN --mount=type=bind,source=overwrite,target=/overwrite \
+    [ -f /overwrite/kubectl-provision ] && cp /overwrite/kubectl-provision $HOME/.cargo/bin/kubectl-provision || true
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

@@ -42,7 +42,7 @@ fi
 echo '[[ -f /usr/share/bash-completion/bash_completion ]] && . /usr/share/bash-completion/bash_completion' >>~/.bashrc
 echo 'source <(kubectl completion bash)' >>~/.bashrc
 echo 'alias k=kubectl; complete -F __start_kubectl k' >>~/.bashrc
-
+echo 'export PATH=$HOME/.cargo/bin:$PATH' >>~/.bashrc
 git config --global credential.helper cache
 
 cd
