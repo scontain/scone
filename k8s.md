@@ -149,11 +149,13 @@ kubectl apply -f ./k8s/dind.yaml
 
 5. Deploy the SCONE CLI
 
-We change the image name in `pod.yaml` file for the one you pushed in step 1
+We change the image name in `deployment.yaml` file for the one you pushed in step 1
 
 ```bash
-envsubst < ./k8s/pod.template.yaml > ./k8s/pod.yaml
-kubectl apply -f ./k8s/pod.yaml
+envsubst < ./k8s/deployment.template.yaml > ./k8s/deployment.yaml
+# ensure we load the latest container image
+kubectl apply -f ./k8s/deployment.yaml
+kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 ```
 
 5. Watch the logs of the pod
@@ -162,7 +164,7 @@ kubectl apply -f ./k8s/pod.yaml
 wait_for_pod_logs() {
   local ns="${1:-default}"
   local label="${2:?Usage: wait_for_pod_logs <namespace> <label>}"
-  local timeout="${3:-120s}"
+  local timeout="${3:-200s}"
 
   echo "⏳ Waiting for pod with label $label in namespace $ns..."
   kubectl wait pod -n "$ns" -l "$label" --for=condition=Ready --timeout="$timeout" || {
@@ -183,11 +185,11 @@ wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
 6. Run the SCONE CLI using help
 
 ```bash
-kubectl -n $CLI_NAMESPACE exec -it scone-toolbox -- scone --help
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
 ```
 
 7. Drop into the shell to execute your commands
 
 ```bash
-kubectl -n $CLI_NAMESPACE exec -it scone-toolbox -- bash
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash
 ```

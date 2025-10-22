@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scone-toolbox
+  namespace: ${CLI_NAMESPACE}
+  labels:
+    app: scone-toolbox
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: scone-toolbox
+  template:
+    metadata:
+      labels:
+        app: scone-toolbox
+    spec:
+      serviceAccountName: scone-runner
+      imagePullSecrets:
+        - name: scone-registry
+      containers:
+        - name: scone-toolbox
+          image: ${CLI_IMAGE}
+          imagePullPolicy: Always
+          env:
+            - name: DOCKER_HOST
+              value: tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375
+          tty: true
+          stdin: true
+          resources:
+            requests:
+              sgx.k8s.io/sgx: 1
+            limits:
+              sgx.k8s.io/sgx: 1
+          volumeMounts:
+            - name: scone-env
+              mountPath: /scone-registry
+              readOnly: true
+      volumes:
+        - name: scone-env
+          secret:
+            secretName: scone-registry-env

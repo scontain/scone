@@ -3,7 +3,6 @@ set -euo pipefail
 
 # Config — change if you want a different bind address/port.
 TARGET_HOST="tcp://0.0.0.0:2375"
-UNIX_SOCK="unix:///var/run/docker.sock"
 SERVICE_NAME="docker"
 OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.service.d"
 OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
@@ -65,9 +64,9 @@ ensure_override() {
     echo "Writing ${OVERRIDE_FILE} with TCP host ${TARGET_HOST} ..."
     cat > "${OVERRIDE_FILE}" <<EOF
 [Service]
-# Clear the default ExecStart and set our own with TCP + Unix socket
+# Clear the default ExecStart and set our own with TCP + socket activation
 ExecStart=
-ExecStart=${dockerd_path} -H ${UNIX_SOCK} -H ${TARGET_HOST}
+ExecStart=${dockerd_path} -H fd:// -H ${TARGET_HOST} --containerd=/run/containerd/containerd.sock
 EOF
   else
     echo "Override already present and points to ${TARGET_HOST}."

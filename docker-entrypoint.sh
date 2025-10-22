@@ -38,7 +38,11 @@ if [[ -n "${SCONE_REGISTRY_ACCESS_TOKEN}" && -n "${SCONE_REGISTRY_USERNAME}" ]];
     echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
     echo "Docker login successful."
 fi
-echo "alias k=kubectl" >> /root/.bashrc
+
+echo '[[ -f /usr/share/bash-completion/bash_completion ]] && . /usr/share/bash-completion/bash_completion' >>~/.bashrc
+echo 'source <(kubectl completion bash)' >>~/.bashrc
+echo 'alias k=kubectl; complete -F __start_kubectl k' >>~/.bashrc
+echo 'export PATH=$HOME/.cargo/bin:$PATH' >>~/.bashrc
 git config --global credential.helper cache
 
 cd
