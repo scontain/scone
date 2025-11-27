@@ -7,11 +7,29 @@ spec:
   template:
     metadata: {labels: {app: dind}}
     spec:
-      securityContext: {runAsUser: 0}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
       containers:
       - name: dind
-        image: docker:27-dind
-        securityContext: {privileged: true}
+        image: docker:dind-rootless
+        securityContext:
+          allowPrivilegeEscalation: true
+          readOnlyRootFilesystem: false        # Docker needs writable state
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: Unconfined                   # FUSE often needs this
+        volumeMounts:
+          - name: docker-data
+            mountPath: /home/rootless/.local/share/docker
+          - name: xdg
+            mountPath: /run/user/1000
+          - name: dev-fuse
+            mountPath: /dev/fuse
+        volumeDevices: []                      # keep empty; we use volumeMount above
         imagePullPolicy: Always
         env:
         - name: DOCKER_TLS_CERTDIR
