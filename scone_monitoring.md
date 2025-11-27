@@ -175,3 +175,51 @@ You can then open the Grafana dashboard in your browser at <http://localhost:300
 ## Visualizing SCONE Operator Metrics
 
 Access the dashboard for the SCONE Operator Metrics in `Grafana Home -> Dashboards -> Default -> SCONE Operator Dashboard`.
+
+
+## SCONE Runtime Metrics
+
+The SCONE Runtime can collect metrics and provide this information via a Prometheus metric.
+
+### Activate metrics collection in the application
+
+- Metrics are exposed when environment variable `SCONE_METRICS` is defined, the value indicates at which port the metrics are expose. For example, `SCONE_METRICS=prometheus_port:9090` exposes metrics on port 9090. Other ports can be used if desired, this guide continues assuming port 9090 is supposed to be used.
+
+- If the application runs in a CAS session, add `SCONE_METRICS: "prometheus_port:9090"`. 
+- If the application runs standalone, specify `SCONE_METRICS=prometheus_port:9090` in its execution environment.
+
+Point your Prometheus Scraper at the services address and the used port to collect the produced metrics.
+In SCONE 6.0.2, the following metrics are exposed:
+
+```bash
+# HELP scone_enclave_heap_allocated_bytes The amount of memory requested by the application (roughly equal to VSZ)
+# TYPE scone_enclave_heap_allocated_bytes gauge
+scone_enclave_heap_allocated_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 8536064
+# HELP scone_enclave_heap_allocated_bytes_max The peak amount of memory requested by the application (roughly equal to VSZ)
+# TYPE scone_enclave_heap_allocated_bytes_max gauge
+scone_enclave_heap_allocated_bytes_max{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 8552448
+# HELP scone_enclave_heap_consecutive_allocated_heap_bytes The size of the consecutive allocated heap memory - the closer this is to allocated_bytes the lower fragmentation is in the heap
+# TYPE scone_enclave_heap_consecutive_allocated_heap_bytes gauge
+scone_enclave_heap_consecutive_allocated_heap_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 4317184
+# HELP scone_enclave_heap_max_bytes The maximal application available heap space
+# TYPE scone_enclave_heap_max_bytes gauge
+scone_enclave_heap_max_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 67108864
+# HELP scone_page_allocator_brk The size of the program break memory
+# TYPE scone_page_allocator_brk gauge
+scone_page_allocator_brk{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 0
+# HELP scone_page_allocator_committed_memory_bytes EDMM: The amount of committed heap memory (same as dynamically_allocated_memory_bytes + min_heap)
+# TYPE scone_page_allocator_committed_memory_bytes gauge
+scone_page_allocator_committed_memory_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 67108864
+# HELP scone_page_allocator_dynamically_allocated_memory_bytes EDMM: The amount of heap memory dynamically allocated by the application
+# TYPE scone_page_allocator_dynamically_allocated_memory_bytes gauge
+scone_page_allocator_dynamically_allocated_memory_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 0
+# HELP scone_page_allocator_mmap_calls Number of mmap() calls that have been handled by the in-enclave page allocator
+# TYPE scone_page_allocator_mmap_calls gauge
+scone_page_allocator_mmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 52
+# HELP scone_page_allocator_mremap_calls Number of mremap() calls that have been handled by the in-enclave page allocator
+# TYPE scone_page_allocator_mremap_calls gauge
+scone_page_allocator_mremap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 0
+# HELP scone_page_allocator_munmap_calls Number of munmap() calls that have been handled by the in-enclave page allocator
+# TYPE scone_page_allocator_munmap_calls gauge
+scone_page_allocator_munmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 27
+```
