@@ -297,7 +297,7 @@ echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK
 The following statement installs the CAS and waits until the CAS becomes healthy:
 
 ```bash
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" --no-docker --no-image-signature-check ; then
   echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
   exit 1
 fi
