@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-scone-dashboard-runtime
-  namespace: monitoring
-data:
-   scone-runtime.json: |
