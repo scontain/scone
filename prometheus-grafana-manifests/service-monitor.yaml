@@ -5,8 +5,7 @@ metadata:
   namespace: monitoring
 spec:
   namespaceSelector:
-    matchNames:
-      - scone-system
+    any: true
   selector:
     matchLabels:
       control-plane: controller-manager
@@ -16,10 +15,27 @@ spec:
       interval: 10s
       scheme: http
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
 metadata:
-  namespace: scone-system
+  name: scone-runtime-metrics-service-monitor
+  namespace: monitoring
+  labels:
+    release: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      collect-runtime-metrics.monitoring.scone.cloud: "true"
+  namespaceSelector:
+    any: true
+  endpoints:
+    - path: /
+      interval: 10s
+  fallbackScrapeProtocol: PrometheusText0.0.4
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   name: prometheus-pod-reader
 rules:
 - apiGroups: [""]
@@ -27,15 +43,14 @@ rules:
   verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: prometheus-pod-reader-binding
-  namespace: scone-system
 subjects:
 - kind: ServiceAccount
   name: prometheus-k8s
   namespace: monitoring
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: prometheus-pod-reader
   apiGroup: rbac.authorization.k8s.io
