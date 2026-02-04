@@ -1,0 +1,304 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Dashboard that contains metrics about the SCONE Runtime of sconified apps.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 36,
+  "links": [],
+  "panels": [
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "# SCONE Runtime Dashboard\n\nThis dashboard contains metrics for the SCONE Runtime of the sconified applicaitons.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "12.0.1",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "panels": [],
+      "title": "SCONE Runtime Application Overview",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 3,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "## SCONE Runtime Application Overview\n\nThis section contains links to another dashboard with metrics specific to a single sconified application. Please click on the desired application below in order to see its metrics.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "12.0.1",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-text"
+            },
+            "inspect": false
+          },
+          "links": [
+            {
+              "title": "Show detals",
+              "url": "/d/effd4a4a-ea68-4d57-96b3-3b7c9ccb5218/scone-runtime-application-details-dashboard?var-scone_config_id=${__data.fields.scone_config_id}&var-scone_cas_addr=﻿﻿${__data.fields.scone_cas_addr}﻿﻿&var-namespace=${__data.fields.namespace}&var-service=﻿${__data.fields.service}﻿&var-run_id=$__all"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "scone_config_id"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "scone_cas_addr"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "service"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "12.0.1",
+      "targets": [
+        {
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "label_join(\n  label_join(\n    label_join(scone_enclave_heap_allocated_bytes,\n      \"tmp1\", \"/\", \"scone_cas_addr\", \"scone_config_id\"\n    ),\n    \"tmp2\", \"/\", \"namespace\", \"service\"\n  ),\n  \"application\", \" | \", \"tmp1\", \"tmp2\"\n)\n",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{scone_cas_addr}}/{{scone_config_id}} | {{namespace}}/{{service}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "cas_config": true,
+              "container": true,
+              "instance": true,
+              "job": true,
+              "namespace": false,
+              "ns_service": true,
+              "pod": true,
+              "run_id": true,
+              "scone_cas_addr": false,
+              "scone_config_id": false,
+              "scone_version": true,
+              "service": false,
+              "tmp1": true,
+              "tmp2": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "Time": 0,
+              "Value": 12,
+              "__name__": 1,
+              "container": 2,
+              "instance": 3,
+              "job": 4,
+              "namespace": 9,
+              "pod": 5,
+              "run_id": 6,
+              "scone_cas_addr": 7,
+              "scone_config_id": 8,
+              "scone_version": 11,
+              "service": 10
+            },
+            "renameByName": {
+              "application": "Application (scone-cas-addr/scone-config-id | namespace/service)"
+            }
+          }
+        },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "Application (scone-cas-addr/scone-config-id | namespace/service)": {
+                "aggregations": [
+                  "lastNotNull"
+                ],
+                "operation": "aggregate"
+              },
+              "application": {
+                "aggregations": [],
+                "operation": "groupby"
+              },
+              "namespace": {
+                "aggregations": [],
+                "operation": "groupby"
+              },
+              "scone_cas_addr": {
+                "aggregations": [],
+                "operation": "groupby"
+              },
+              "scone_config_id": {
+                "aggregations": [],
+                "operation": "groupby"
+              },
+              "service": {
+                "aggregations": [],
+                "operation": "groupby"
+              }
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 41,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "SCONE Runtime Dashboard",
+  "uid": "1aeaa9d5-d9b0-4551-978d-48f139e4f484",
+  "version": 1
+}

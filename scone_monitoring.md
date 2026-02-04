@@ -7,7 +7,9 @@ Prometheus and Grafana are two widely used open-source tools for monitoring and 
 - Grafana queries Prometheus and displays those metrics.
 
 
-## Installing Prometheus
+## Installing Prometheus (Optional)
+
+If you already have Prometheus running in your cluster, you can skip this section.
 
 Install from https://github.com/prometheus-operator/kube-prometheus.
 
@@ -29,132 +31,17 @@ kubectl apply -f manifests/ || true
 popd; popd
 ```
 
-Create service monitor.
+## Enabling Metrics Collection (ServiceMonitor)
+
+SCONE metrics are exposed via Prometheus and require a ServiceMonitor to be applied before dashboards can display data.
 
 ```bash
 kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml
 ```
 
-Wait for grafana pod to be ready, and then patch its service to expose a LoadBalancer.
-
-```bash
-kubectl wait pod -l "app.kubernetes.io/component=grafana,app.kubernetes.io/name=grafana,app.kubernetes.io/part-of=kube-prometheus" \
-  -n monitoring --for=condition=Ready --timeout 5m
-kubectl patch svc grafana -n monitoring --type=json -p '
-[
-    {
-        "op": "replace",
-        "path": "/spec/type",
-        "value": "LoadBalancer"
-    }
-]'
-
-MAX_WAIT=30     # Total seconds to wait
-INTERVAL=5      # Seconds between checks
-TRIES=$((MAX_WAIT / INTERVAL))
-COUNT=0
-IP=""
-
-while [[ -z "$IP" ]]; do
-  if [[ $COUNT -ge $TRIES ]]; then
-    echo "⚠️  LoadBalancer IP was not assigned after $MAX_WAIT seconds. Continuing without it."
-    break
-  fi
-  echo "⏳ Waiting for LoadBalancer IP..."
-  sleep $INTERVAL
-  IP=$(kubectl get svc grafana -n monitoring -o jsonpath="{.status.loadBalancer.ingress[0].ip}" 2>/dev/null)
-  ((COUNT=COUNT+1))
-done
-
-if [[ -n "$IP" ]]; then
-  echo "✅ LoadBalancer IP assigned: $IP"
-else
-  echo "ℹ️  Proceeding without LoadBalancer IP."
-fi
-```
-
-Build configmap with SCONE Operator dashboard from template.
-
-```bash
-cp prometheus-grafana-manifests/configmap-dashboard-operator-template.yaml prometheus-grafana-manifests/configmap-dashboard-operator.yaml
-sed 's/^/    /' prometheus-grafana-manifests/scone-dashboard-scone-operator.json >> prometheus-grafana-manifests/configmap-dashboard-operator.yaml
-
-#export SCONE_DASHBOARD_RUNTIME_APP=$(cat prometheus-grafana-manifests/scone-dashboard-runtime-app.json)
-cp prometheus-grafana-manifests/configmap-dashboard-runtime-template.yaml prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
-sed 's/^/    /' prometheus-grafana-manifests/scone-dashboard-runtime-app.json >> prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
-```
-
-Apply configmap with the dashboards.
-
-```bash
-kubectl apply --server-side -n monitoring -f prometheus-grafana-manifests/configmap-dashboard-operator.yaml
-kubectl apply --server-side -n monitoring -f prometheus-grafana-manifests/configmap-dashboard-runtime.yaml
-
-
-current_volumes=$(kubectl get deployment -n monitoring grafana -o json | jq -e -r '.spec.template.spec.volumes')
-
-# Check if the volume with name "grafana-scone-dashboard-operator" already exists
-if ! echo "$current_volumes" | jq -e '.[] | select(.name == "grafana-scone-dashboard-operator")' > /dev/null; then
-  # Add the new volumes if not already present
-  updates_volumes=$(echo "$current_volumes" | jq '. += [
-    {
-      "configMap": {
-        "defaultMode": 420,
-        "name": "grafana-scone-dashboard-operator"
-      },
-      "name": "grafana-scone-dashboard-operator"
-    },
-    {
-      "configMap": {
-        "defaultMode": 420,
-        "name": "grafana-scone-dashboard-runtime"
-      },
-      "name": "grafana-scone-dashboard-runtime"
-    }
-  ]')
-else
-  # Leave it unchanged
-  updates_volumes="$current_volumes"
-fi
-
-
-current_volume_mounts=$(kubectl get deployment -n monitoring grafana -o json | jq -e -r '.spec.template.spec.containers[0].volumeMounts')
-
-# Check if the mountPath exists in current_volume_mounts
-if ! echo "$current_volume_mounts" | jq -e '.[] | select(.mountPath == "/grafana-dashboard-definitions/0/grafana-scone-dashboard-operator")' > /dev/null; then
-  # Add the new volume mounts if not already present
-  updates_volume_mounts=$(echo "$current_volume_mounts" | jq '. += [
-    {
-      "mountPath": "/grafana-dashboard-definitions/0/grafana-scone-dashboard-operator",
-      "name": "grafana-scone-dashboard-operator"
-    },
-    {
-      "mountPath": "/grafana-dashboard-definitions/0/grafana-scone-dashboard-runtime",
-      "name": "grafana-scone-dashboard-runtime"
-    }
-  ]')
-else
-  # Leave it unchanged
-  updates_volume_mounts="$current_volume_mounts"
-fi
-
-kubectl patch deployment -n monitoring grafana --type=json --patch """
-  [
-      {
-          "op": "replace",
-          "path": "/spec/template/spec/volumes",
-          "value": $updates_volumes
-      },
-      {
-          "op": "replace",
-          "path": "/spec/template/spec/containers/0/volumeMounts",
-          "value": $updates_volume_mounts
-      },
-  ]
-""" || echo "We ignore errors because of duplicates"
-```
-
 ## Grafana Dashboard
+
+Before importing the SCONE dashboards, you must be able to access the Grafana UI.
 
 The login credentials for the Grafana dashboard are:
 
@@ -171,11 +58,34 @@ kubectl port-forward -n monitoring svc/grafana 3000:3000
 
 You can then open the Grafana dashboard in your browser at <http://localhost:3000>
 
+## Importing SCONE Dashboards into Grafana
+
+SCONE provides preconfigured Grafana dashboards for visualizing Prometheus metrics.
+
+### Available Dashboards
+
+* ```Scone Operator Dashboard```: contains LAS and SGX-Plugin metrics. It also contains a CAS instance status overview. 
+  * ```Scone Operator CAS Details Dashboard```: this dashboard contains metrics for a specified CAS instance, selected from the overview in the Scone Operator Dashboard.
+* ```Scone Operator Controller Dashboard```: contains Scone Operator Controller metrics, including certificate read metrics, controller runtime metrics, Go metrics, leader election metrics, etc.
+* ```Scone Runtime Dashboard```: contains an overview for SCONEfied applications running in the cluster. To display detailed metrics for a given application, click the application's identifier in the overview. This identifier is based on the application's config ID, its CAS address, its namespace and its corresponding service.
+* ```Scone Runtime Application Details Dashboard```: contains metrics for a given application, selected from the application overview inside the Scone Runtime Dashboard detailed above.
+
+All dashboard JSON files are located in:
+```bash
+scone/prometheus-grafana-manifests
+```
+
+### Import Steps
+
+1. Open the Grafana UI.
+2. Navigate to ```Dashboards``` from the Grafana home page.
+3. Click `New -> Import`.
+4. Upload the desired SCONE dashboard JSON file.
+5. Click Import to complete the process.
 
 ## Visualizing SCONE Operator Metrics
 
-Access the dashboard for the SCONE Operator Metrics in `Grafana Home -> Dashboards -> Default -> SCONE Operator Dashboard`.
-
+Access the dashboard for the SCONE Operator Metrics in `Grafana Home -> Dashboards -> SCONE Dashboard`.
 
 ## SCONE Runtime Metrics
 
@@ -189,37 +99,37 @@ The SCONE Runtime can collect metrics and provide this information via a Prometh
 - If the application runs standalone, specify `SCONE_METRICS=prometheus_port:9090` in its execution environment.
 
 Point your Prometheus Scraper at the services address and the used port to collect the produced metrics.
-In SCONE 6.0.2, the following metrics are exposed:
+In SCONE 6.0.4, the following metrics are exposed:
 
 ```bash
 # HELP scone_enclave_heap_allocated_bytes The amount of memory requested by the application (roughly equal to VSZ)
 # TYPE scone_enclave_heap_allocated_bytes gauge
-scone_enclave_heap_allocated_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 8536064
+scone_enclave_heap_allocated_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 8536064
 # HELP scone_enclave_heap_allocated_bytes_max The peak amount of memory requested by the application (roughly equal to VSZ)
 # TYPE scone_enclave_heap_allocated_bytes_max gauge
-scone_enclave_heap_allocated_bytes_max{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 8552448
+scone_enclave_heap_allocated_bytes_max{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 8552448
 # HELP scone_enclave_heap_consecutive_allocated_heap_bytes The size of the consecutive allocated heap memory - the closer this is to allocated_bytes the lower fragmentation is in the heap
 # TYPE scone_enclave_heap_consecutive_allocated_heap_bytes gauge
-scone_enclave_heap_consecutive_allocated_heap_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 4317184
+scone_enclave_heap_consecutive_allocated_heap_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 4317184
 # HELP scone_enclave_heap_max_bytes The maximal application available heap space
 # TYPE scone_enclave_heap_max_bytes gauge
-scone_enclave_heap_max_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 67108864
+scone_enclave_heap_max_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 67108864
 # HELP scone_page_allocator_brk The size of the program break memory
 # TYPE scone_page_allocator_brk gauge
-scone_page_allocator_brk{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 0
+scone_page_allocator_brk{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 0
 # HELP scone_page_allocator_committed_memory_bytes EDMM: The amount of committed heap memory (same as dynamically_allocated_memory_bytes + min_heap)
 # TYPE scone_page_allocator_committed_memory_bytes gauge
-scone_page_allocator_committed_memory_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 67108864
+scone_page_allocator_committed_memory_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 67108864
 # HELP scone_page_allocator_dynamically_allocated_memory_bytes EDMM: The amount of heap memory dynamically allocated by the application
 # TYPE scone_page_allocator_dynamically_allocated_memory_bytes gauge
-scone_page_allocator_dynamically_allocated_memory_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 0
+scone_page_allocator_dynamically_allocated_memory_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 0
 # HELP scone_page_allocator_mmap_calls Number of mmap() calls that have been handled by the in-enclave page allocator
 # TYPE scone_page_allocator_mmap_calls gauge
-scone_page_allocator_mmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 52
+scone_page_allocator_mmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 52
 # HELP scone_page_allocator_mremap_calls Number of mremap() calls that have been handled by the in-enclave page allocator
 # TYPE scone_page_allocator_mremap_calls gauge
-scone_page_allocator_mremap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 0
+scone_page_allocator_mremap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 0
 # HELP scone_page_allocator_munmap_calls Number of munmap() calls that have been handled by the in-enclave page allocator
 # TYPE scone_page_allocator_munmap_calls gauge
-scone_page_allocator_munmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.2"} 27
+scone_page_allocator_munmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 27
 ```
