@@ -364,7 +364,7 @@ The following statement installs the CAS and waits until the CAS becomes healthy
 EOF
 printf "${RESET}"
 
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" --no-docker --no-image-signature-check ; then
   echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
   exit 1
 fi
