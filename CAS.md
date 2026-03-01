@@ -143,11 +143,7 @@ echo "The lastest stable version of SCONE is $VERSION"
 In some clusters, we have experienced problems with persistent volumes and persisten volume claims. Hence, we check if they exist:
 
 ```bash
-echo "🔍 Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available..."
-
-#!/usr/bin/env bash
-
-set -euo pipefail
+# Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available...
 
 required_resources=("persistentvolumes" "persistentvolumeclaims")
 kubectl_output=""

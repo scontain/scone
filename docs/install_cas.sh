@@ -228,11 +228,7 @@ printf '%s\n' 'In some clusters, we have experienced problems with persistent vo
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'echo "🔍 Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available..."'
-pe ''
-pe '#!/usr/bin/env bash'
-pe ''
-pe 'set -euo pipefail'
+pe '# Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available...'
 pe ''
 pe 'required_resources=("persistentvolumes" "persistentvolumeclaims")'
 pe 'kubectl_output=""'

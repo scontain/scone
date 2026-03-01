@@ -265,11 +265,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'echo "🔍 Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available..."'
-printf '%s\n' ''
-printf '%s\n' '#!/usr/bin/env bash'
-printf '%s\n' ''
-printf '%s\n' 'set -euo pipefail'
+printf '%s\n' '# Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available...'
 printf '%s\n' ''
 printf '%s\n' 'required_resources=("persistentvolumes" "persistentvolumeclaims")'
 printf '%s\n' 'kubectl_output=""'
@@ -337,11 +333,7 @@ printf '%s\n' '  echo "✅ Default StorageClass: \\$default_class"'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
-echo "🔍 Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available..."
-
-#!/usr/bin/env bash
-
-set -euo pipefail
+# Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available...
 
 required_resources=("persistentvolumes" "persistentvolumeclaims")
 kubectl_output=""
