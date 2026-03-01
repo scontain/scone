@@ -6,6 +6,8 @@ We install some utilities with `cargo`, so we first ensure that `rust` and `carg
 
 ![Screencast](docs/prerequisite_check.gif)
 
+![Screencast](docs/prerequisite_check.gif)
+
 ```bash
 # Ensure rust is installed
 ./scripts/install-rust.sh

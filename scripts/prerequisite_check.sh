@@ -16,6 +16,8 @@ printf '%s\n' 'We install some utilities with `cargo`, so we first ensure that `
 printf '%s\n' ''
 printf '%s\n' '![Screencast](docs/prerequisite_check.gif)'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/prerequisite_check.gif)'
+printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"

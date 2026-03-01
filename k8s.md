@@ -4,6 +4,8 @@ This document describes how to set up a pod in a Kubernetes cluster that contain
 
 ![Screencast](docs/k8s_cli.gif)
 
+![Screencast](docs/k8s_cli.gif)
+
 ## Prerequisites
 
 
