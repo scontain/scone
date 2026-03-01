@@ -38,7 +38,7 @@ Installation of a SCONE CAS:
 
 <video src="docs/cas.webm" controls></video>
 
-[Download screencast](docs/cas.webm)
+[!(Download screencast)](docs/cas.mp4)
 
 ## Tutorials
 
@@ -135,6 +135,6 @@ The following screencast demonstrates the installation of `prerequisite_check.md
 
 <video src="docs/demo.webm" controls></video>
 
-[Download screencast](docs/demo.webm)
+[!(Download screencast)](docs/demo.webm)
 
 Generate updated screencasts by executing `make`.
