@@ -7,15 +7,13 @@ SCRIPT            ?= docs/install_sconecli.sh
 CAS_SCRIPT        ?= docs/install_cas.sh
 CAST              ?= docs/demo.cast
 CAS_CAST          ?= docs/cas.cast
-CAST_V2           ?= docs/demo.v2.cast
-CAS_CAST_V2       ?= docs/cas.v2.cast
 WEBM              ?= docs/demo.webm
 CAS_WEBM          ?= docs/cas.webm
 CAS_TITLE         ?= Installing SCONE CAS
 TITLE             ?= Installing SCONE CLI and SCONE Operator
 COLS              ?= 100
 
-DEPS := asciinema asciinema-agg
+DEPS := asciinema agg
 
 RED   := \033[0;31m
 GREEN := \033[0;32m
@@ -40,30 +38,18 @@ $(CAS_CAST): $(CAS_SCRIPT) $(CAST) | check-deps
 	asciinema rec --overwrite -q -t "$(CAS_TITLE)" -c "$(CAS_SCRIPT)" $@
 	@echo "$(GREEN)✓ Recorded: $(CAS_CAST)$(RESET)"
 
-# -----------------------------
-# Ensure v2 for asciinema-agg
-# -----------------------------
-$(CAST_V2): $(CAST) | check-deps
-	@echo "$(YELLOW)Converting to v2 → $(CAST_V2)…$(RESET)"
-	@asciinema convert -f v2 "$(CAST)" "$(CAST_V2)"
-	@echo "$(GREEN)✓ Ready: $(CAST_V2)$(RESET)"
-
-$(CAS_CAST_V2): $(CAS_CAST) | check-deps
-	@echo "$(YELLOW)Converting to v2 → $(CAS_CAST_V2)…$(RESET)"
-	@asciinema convert -f v2 "$(CAS_CAST)" "$(CAS_CAST_V2)"
-	@echo "$(GREEN)✓ Ready: $(CAS_CAST_V2)$(RESET)"
 
 # -----------------------------
 # Render WEBM
 # -----------------------------
-$(WEBM):  $(CAST_V2) | check-deps
+$(WEBM):  $(CAST) | check-deps
 	@echo "$(YELLOW)Exporting WEBM to $(WEBM)…$(RESET)"
-	@asciinema-agg "$(CAST_V2)" "$(WEBM)"
+	@agg "$(CAST)" "$(WEBM)"
 	@echo "$(GREEN)✓ WEBM created: $(WEBM)$(RESET)"
 
-$(CAS_WEBM): $(CAS_CAST_V2) | check-deps
+$(CAS_WEBM): $(CAS_CAST) | check-deps
 	@echo "$(YELLOW)Exporting WEBM to $(CAS_WEBM)…$(RESET)"
-	@asciinema-agg "$(CAS_CAST_V2)" "$(CAS_WEBM)"
+	@agg "$(CAS_CAST)" "$(CAS_WEBM)"
 	@echo "$(GREEN)✓ WEBM created: $(CAS_WEBM)$(RESET)"
 
 # Front-door targets, matching your original names
@@ -80,7 +66,7 @@ check-deps:
 	  echo "$(RED)Missing tools:$$missing$(RESET)\n"; \
 	  echo "Install:"; \
 	  echo "  asciinema : (Linux) your pkg mgr | (macOS) brew install asciinema | (PyPI 2.x) pipx install asciinema"; \
-	  echo "  asciinema-agg: https://github.com/asciinema/agg"; \
+	  echo "  agg: https://github.com/asciinema/agg"; \
 	  exit 1; \
 	else \
 	  echo "$(GREEN)All dependencies available: $(DEPS)$(RESET)"; \
@@ -90,9 +76,9 @@ check-deps:
 # Utilities
 # -----------------------------
 clean:
-	@rm -f "$(CAST)" "$(CAS_CAST)" "$(CAST_V2)" "$(CAS_CAST_V2)" "$(WEBM)" "$(CAS_WEBM)"
+	@rm -f "$(CAST)" "$(CAS_CAST)" "$(WEBM)" "$(CAS_WEBM)"
 	@echo "$(GREEN)Cleaned$(RESET)"
 
 help:
 	@echo "Targets: record | webm | check-deps | clean | all"
-	@echo "Vars: TYPE_SPEED PAUSE_AFTER_CMD SCRIPT CAST CAST_V2 WEBM TITLE"
+	@echo "Vars: TYPE_SPEED PAUSE_AFTER_CMD SCRIPT CAST WEBM TITLE"
