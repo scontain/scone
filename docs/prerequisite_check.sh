@@ -24,8 +24,10 @@ slow_type() {
 
 pe() {
   local cmd="$*"
+  local display_cmd
+  display_cmd=$(printf "%s" "$cmd" | sed 's/\$/\\$/g')
   printf "%b" "$ORANGE"
-  slow_type "$cmd"
+  slow_type "$display_cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -50,16 +52,14 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-# Checking Prerequisites
-
-## Ensure that `cargo` is installed
-
-We install some utilities with the help of `cargo`. Hence, we first ensure that `rust` and `cargo` are installed
-with the help of `scripts/install-rust.sh` that checks if `rust` and important components are installed and installs
-`rust`. 
-
-EOF
+printf '%s\n' '# Checking Prerequisites'
+printf '%s\n' ''
+printf '%s\n' '## Ensure that `cargo` is installed'
+printf '%s\n' ''
+printf '%s\n' 'We install some utilities with the help of `cargo`. Hence, we first ensure that `rust` and `cargo` are installed'
+printf '%s\n' 'with the help of `scripts/install-rust.sh` that checks if `rust` and important components are installed and installs'
+printf '%s\n' '`rust`. '
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# ensuring that rust is installed'
@@ -68,11 +68,9 @@ pe '# ensure PATH is properly set:'
 pe 'export PATH=$HOME/.cargo/bin:$PATH'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-We use helper programs `tplenv` and `retry-spinner`. Hence, we ensure that they are installed:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'We use helper programs `tplenv` and `retry-spinner`. Hence, we ensure that they are installed:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# ensuring that tplenv is installed'
@@ -81,60 +79,54 @@ pe '# ensuring that retry-spinner is installed'
 pe 'cargo install retry-spinner'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Environment Variables
-
-By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `SCONE_VERSION` to the SCONE version that you want to install:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Environment Variables'
+printf '%s\n' ''
+printf '%s\n' 'By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `SCONE_VERSION` to the SCONE version that you want to install:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'export SCONE_VERSION=$(cat stable.txt)'
 pe 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Set the following environment variable to `--force` if you want to be asked interactively for the SCONE_VERSION:
-
-
-`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:
-
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-
-Let's ask the user and set the environment variables depending on the input of the user:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Set the following environment variable to `--force` if you want to be asked interactively for the SCONE_VERSION:'
+printf '%s\n' ''
+printf '%s\n' ''
+printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
+printf '%s\n' 'but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:'
+printf '%s\n' ''
+printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
+printf '%s\n' ''
+printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Checking Commands
-
-To run our commands and to transform manifests and container images,
-we need a set of executable. We install the following external `executable` on
-the current machine:
-
-- `cosign`: needed to sign and verify the signature of container images
-- `docker`: needed to build and run docker images
-- `kubectl`: command line interface for Kubernetes
-- `yq`: command to access yaml documents
-- `sed`: simple editor to manipulate text files
-- `gh`: GitHub command line interface
-- `pkg-config`: A tool for discovering compiler and linker flags
-- `jq`: command to access json documents
-- `libssl-dev`: ssl development tools
-
-> NOTE: If the script fails on the first run with error:
-> `Errors were encountered while processing: scone-glibc`
-> please run a second time.
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Checking Commands'
+printf '%s\n' ''
+printf '%s\n' 'To run our commands and to transform manifests and container images,'
+printf '%s\n' 'we need a set of executable. We install the following external `executable` on'
+printf '%s\n' 'the current machine:'
+printf '%s\n' ''
+printf '%s\n' '- `cosign`: needed to sign and verify the signature of container images'
+printf '%s\n' '- `docker`: needed to build and run docker images'
+printf '%s\n' '- `kubectl`: command line interface for Kubernetes'
+printf '%s\n' '- `yq`: command to access yaml documents'
+printf '%s\n' '- `sed`: simple editor to manipulate text files'
+printf '%s\n' '- `gh`: GitHub command line interface'
+printf '%s\n' '- `pkg-config`: A tool for discovering compiler and linker flags'
+printf '%s\n' '- `jq`: command to access json documents'
+printf '%s\n' '- `libssl-dev`: ssl development tools'
+printf '%s\n' ''
+printf '%s\n' '> NOTE: If the script fails on the first run with error:'
+printf '%s\n' '> `Errors were encountered while processing: scone-glibc`'
+printf '%s\n' '> please run a second time.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'GREEN='\''\033[0;32m'\'''
@@ -215,7 +207,7 @@ pe '}'
 pe ''
 pe '# Check and Auto install Yq Version 4'
 pe 'if check_command yq; then'
-pe '    yq_version=$(yq --version 2>&1 | grep -oP '\''v\d+'\'' | cut -d'\''v'\'' -f2) || yq_version=""'
+pe '    yq_version=$(yq --version 2>&1 | grep  -oE '\''v[0-9]+'\'' | cut -d'\''v'\'' -f2) || yq_version=""'
 pe '    if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then'
 pe '        echo -e "${RED}❌ Found yq version $yq_version which is not supported. Installing Yq v4"'
 pe '        install_yq_v4'
@@ -264,16 +256,14 @@ pe ''
 pe 'echo "✅ All external executables are installed and ready"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Check access to `scone.cloud` images
-
-We check that we can pull some SCONE container images that we need to execute
-the transformations. If this fail, please do the following:
-
-- generate an access token following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Check access to `scone.cloud` images'
+printf '%s\n' ''
+printf '%s\n' 'We check that we can pull some SCONE container images that we need to execute'
+printf '%s\n' 'the transformations. If this fail, please do the following:'
+printf '%s\n' ''
+printf '%s\n' '- generate an access token following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"'
@@ -306,11 +296,9 @@ pe '  done'
 pe '  echo -e "${GREEN}✔️ All images are OK.${NC}"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Install SCONE CLI tools
-
-We succeeded to pull the required, images. Next, we can install the `scone`-replated executable. To do so, you can run script `./scripts/install_sconecli.sh`.
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Install SCONE CLI tools'
+printf '%s\n' ''
+printf '%s\n' 'We succeeded to pull the required, images. Next, we can install the `scone`-replated executable. To do so, you can run script `./scripts/install_sconecli.sh`.'
 printf "%b" "$RESET"
 
