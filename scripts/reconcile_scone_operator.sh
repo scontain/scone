@@ -144,11 +144,13 @@ printf "${ORANGE}"
 cat <<'EOF'
 curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller.asc > operator_controller.asc
 echo "Downloaded signature of 'operator_controller' to file 'operator_controller.asc'"
+export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}
 EOF
 printf "${RESET}"
 
 curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller.asc > operator_controller.asc
 echo "Downloaded signature of 'operator_controller' to file 'operator_controller.asc'"
+export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}
 
 printf "${VIOLET}"
 cat <<'EOF'
@@ -166,8 +168,8 @@ cat <<'EOF'
 function create_gpg_verification_key() {
     local tmp_gpg
 
-    export gpg_public_key_file="$(mktemp)-pub.gpg"
-    tmp_gpg="${gpg_public_key_file}.base64"
+    export GPG_PUBLIC_KEY_FILE="$(mktemp)-pub.gpg"
+    tmp_gpg="${GPG_PUBLIC_KEY_FILE}.base64"
 
     cat > $tmp_gpg <<EOF
 mQINBF5tGZkBEACPxl1oBdP5xKWB/EaEkW3UwMEnpNJeOFjVysT5B3ZfK6OGqtZDYKsQEGtptJ54
@@ -230,7 +232,8 @@ QSvBZDzbO12jXPv78zVVkRjr7mljcPMB2iDRSeWO073ov1oxEeCmzzhyq8/7q0SrjR3J6g3b4k15
 NSHb32Obz9x+L+3Oo/r5oYf+T0B51YvOfz6O9BxoI3icZL1KJ2MtbtmYkE/UNNnNB4XApQGoZk5i
 BtcmftSsf9VCHB0IDPbyH6sro8MNyF81i5MewmQ99tdYE9UIiwNYa/10PRUClKWrEvxIOAK/K3sW
 EOF
-    cat "$tmp_gpg" | base64 -d > $gpg_public_key_file
+
+    cat "$tmp_gpg" | base64 -d > $GPG_PUBLIC_KEY_FILE
 }
 
 #
@@ -242,11 +245,11 @@ SIGNER="5BCAD31DCC8D5D722B7B7ABD2EBE04E7CC816D32"
 function verify_file() {
     file=$1
 
-    export gpg_public_key_file=${gpg_public_key_file:-""}
-    if [[ "$gpg_public_key_file" == "" ]]; then
+    export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}
+    if [[ "$GPG_PUBLIC_KEY_FILE" == "" ]]; then
         create_gpg_verification_key
     fi
-    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring $gpg_public_key_file --verify --status-fd=1 "$file.asc" "$file" 2>/dev/null | grep -e " VALIDSIG $SIGNER" >/dev/null || { echo "Signature check FAILED" ; return 1; }
+    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring $GPG_PUBLIC_KEY_FILE --verify --status-fd=1 "$file.asc" "$file" 2>/dev/null | grep -e " VALIDSIG $SIGNER" >/dev/null || { echo "Signature check FAILED" ; return 1; }
 }
 EOF
 printf "${RESET}"
@@ -254,8 +257,8 @@ printf "${RESET}"
 function create_gpg_verification_key() {
     local tmp_gpg
 
-    export gpg_public_key_file="$(mktemp)-pub.gpg"
-    tmp_gpg="${gpg_public_key_file}.base64"
+    export GPG_PUBLIC_KEY_FILE="$(mktemp)-pub.gpg"
+    tmp_gpg="${GPG_PUBLIC_KEY_FILE}.base64"
 
     cat > $tmp_gpg <<EOF
 mQINBF5tGZkBEACPxl1oBdP5xKWB/EaEkW3UwMEnpNJeOFjVysT5B3ZfK6OGqtZDYKsQEGtptJ54
@@ -318,7 +321,8 @@ QSvBZDzbO12jXPv78zVVkRjr7mljcPMB2iDRSeWO073ov1oxEeCmzzhyq8/7q0SrjR3J6g3b4k15
 NSHb32Obz9x+L+3Oo/r5oYf+T0B51YvOfz6O9BxoI3icZL1KJ2MtbtmYkE/UNNnNB4XApQGoZk5i
 BtcmftSsf9VCHB0IDPbyH6sro8MNyF81i5MewmQ99tdYE9UIiwNYa/10PRUClKWrEvxIOAK/K3sW
 EOF
-    cat "$tmp_gpg" | base64 -d > $gpg_public_key_file
+
+    cat "$tmp_gpg" | base64 -d > $GPG_PUBLIC_KEY_FILE
 }
 
 #
@@ -330,11 +334,11 @@ SIGNER="5BCAD31DCC8D5D722B7B7ABD2EBE04E7CC816D32"
 function verify_file() {
     file=$1
 
-    export gpg_public_key_file=${gpg_public_key_file:-""}
-    if [[ "$gpg_public_key_file" == "" ]]; then
+    export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}
+    if [[ "$GPG_PUBLIC_KEY_FILE" == "" ]]; then
         create_gpg_verification_key
     fi
-    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring $gpg_public_key_file --verify --status-fd=1 "$file.asc" "$file" 2>/dev/null | grep -e " VALIDSIG $SIGNER" >/dev/null || { echo "Signature check FAILED" ; return 1; }
+    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring $GPG_PUBLIC_KEY_FILE --verify --status-fd=1 "$file.asc" "$file" 2>/dev/null | grep -e " VALIDSIG $SIGNER" >/dev/null || { echo "Signature check FAILED" ; return 1; }
 }
 
 printf "${VIOLET}"

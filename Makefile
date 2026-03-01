@@ -46,12 +46,12 @@ $(CAS_CAST): $(CAS_SCRIPT) $(CAST) | check-deps
 # -----------------------------
 $(GIF):  $(CAST) | check-deps
 	@echo "$(YELLOW)Exporting GIF to $(GIF)…$(RESET)"
-	@agg --col "$(COLS)" --rows "$(ROWS)" --font-size "$(FONT_SIZE)" "$(CAST)" "$(GIF)"
+	@agg --cols "$(COLS)" --rows "$(ROWS)" --font-size "$(FONT_SIZE)" "$(CAST)" "$(GIF)"
 	@echo "$(GREEN)✓ GIF created: $(GIF)$(RESET)"
 
 $(CAS_GIF): $(CAS_CAST) | check-deps
 	@echo "$(YELLOW)Exporting GIF to $(CAS_GIF)…$(RESET)"
-	@agg --col "$(COLS)" --rows "$(ROWS)" --font-size "$(FONT_SIZE)" "$(CAS_CAST)" "$(CAS_GIF)"
+	@agg --cols "$(COLS)" --rows "$(ROWS)" --font-size "$(FONT_SIZE)" "$(CAS_CAST)" "$(CAS_GIF)"
 	@echo "$(GREEN)✓ GIF created: $(CAS_GIF)$(RESET)"
 
 # Front-door targets, matching your original names
