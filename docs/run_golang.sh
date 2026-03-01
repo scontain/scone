@@ -1,12 +1,55 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
 
-VIOLET='\033[38;5;141m'
-ORANGE='\033[38;5;208m'
-RESET='\033[0m'
+TYPE_SPEED="${TYPE_SPEED:-25}"
+PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"
+SHELLRC="${SHELLRC:-/dev/null}"
+PROMPT="${PROMPT:-$'\[\e[1;32m\]demo\[\e[0m\]:\[\e[1;34m\]~\[\e[0m\]\$ '}"
+COLUMNS="${COLUMNS:-100}"
+LINES="${LINES:-26}"
+ORANGE="${ORANGE:-\033[38;5;208m}"
+LILAC="${LILAC:-\033[38;5;141m}"
+RESET="${RESET:-\033[0m}"
 
-printf "${VIOLET}"
+slow_type() {
+  local text="$*"
+  local delay
+  delay=$(awk "BEGIN { print 1 / $TYPE_SPEED }")
+  for ((i=0; i<${#text}; i++)); do
+    printf "%s" "${text:i:1}"
+    sleep "$delay"
+  done
+}
+
+pe() {
+  local cmd="$*"
+  printf "%b" "$ORANGE"
+  slow_type "$cmd"
+  printf "%b" "$RESET"
+  printf "\n"
+
+  if [[ -n "${PE_BUFFER:-}" ]]; then
+    PE_BUFFER+=$'\n'
+  fi
+  PE_BUFFER+="$cmd"
+
+  # Execute only when buffered lines form a complete shell command.
+  if bash -n <(printf '%s\n' "$PE_BUFFER") 2>/dev/null; then
+    eval "$PE_BUFFER"
+    PE_BUFFER=""
+  fi
+
+  sleep "$PAUSE_AFTER_CMD"
+}
+
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+export COLUMNS LINES
+export PS1="$PROMPT"
+stty cols "$COLUMNS" rows "$LINES"
+
+printf "%b" "$LILAC"
 cat <<'EOF'
 # `golang` Confidential Computing Support
 
@@ -71,65 +114,37 @@ Note: `/go` is world-writable to allow flexibility in the user which runs the co
 The most straightforward way to use this image is to use a Go container as both the build and runtime environment. In your Dockerfile, writing something along the lines of the following will compile and run your project (assuming it uses go.mod for dependency management):
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-cd go-example
+pe 'cd go-example'
+pe ''
+pe 'cat > Dockerfile <<EOF'
+pe 'FROM registry.scontain.com/scone.cloud/golang:1.24'
+pe ''
+pe 'WORKDIR /usr/src/app'
+pe ''
+pe '# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change'
+pe 'COPY go.mod go.sum ./'
+pe 'RUN go mod download'
+pe ''
+pe 'COPY . .'
+pe 'RUN go build -v -o /usr/local/bin/app ./...'
+pe ''
+pe 'CMD ["app"]'
+pe 'EOF'
 
-cat > Dockerfile <<EOF
-FROM registry.scontain.com/scone.cloud/golang:1.24
-
-WORKDIR /usr/src/app
-
-# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN go build -v -o /usr/local/bin/app ./...
-
-CMD ["app"]
-EOF
-EOF
-printf "${RESET}"
-
-cd go-example
-
-cat > Dockerfile <<EOF
-FROM registry.scontain.com/scone.cloud/golang:1.24
-
-WORKDIR /usr/src/app
-
-# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN go build -v -o /usr/local/bin/app ./...
-
-CMD ["app"]
-EOF
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 You can then build and run the Docker image:
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-docker build -f Dockerfile -t my-golang-app .
-docker run -it --rm --name my-running-app my-golang-app
-EOF
-printf "${RESET}"
+pe 'docker build -f Dockerfile -t my-golang-app .'
+pe 'docker run -it --rm --name my-running-app my-golang-app'
 
-docker build -f Dockerfile -t my-golang-app .
-docker run -it --rm --name my-running-app my-golang-app
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 # Compile your app inside the Docker container
@@ -137,82 +152,50 @@ cat <<'EOF'
 There may be occasions where it is not appropriate to run your app inside a container. To compile, but not run your app inside the Docker instance, you can write something like:
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v
-EOF
-printf "${RESET}"
+pe 'docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v'
 
-docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 This will add your current directory as a volume to the container, set the working directory to the volume, and run the command go build which will tell go to compile the project in the working directory and output the executable to myapp. Alternatively, if you have a Makefile, you can run the make command inside your container.
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build
-EOF
-printf "${RESET}"
+pe 'docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build'
 
-docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 Cross-compile your app inside the Docker container
 If you need to compile your application for a platform other than linux/amd64 (such as windows/386):
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v
-EOF
-printf "${RESET}"
+pe 'docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v'
 
-docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 Alternatively, you can build for multiple platforms at once:
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-mkdir -p bin
-docker run --rm -it -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\
-	    set -euo pipefail; \
-	    for GOOS in linux; do \
-	      for GOARCH in 386 amd64; do \
-	        out="bin/go-args-env-file-${GOOS}-${GOARCH}"; \
-	        GOOS=$GOOS GOARCH=$GOARCH /usr/local/go/bin/go build -v -o "$out" .; \
-	      done; \
-	    done'
-EOF
-printf "${RESET}"
+pe 'mkdir -p bin'
+pe 'docker run --rm -it -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\''\'
+pe '	    set -euo pipefail; \'
+pe '	    for GOOS in linux; do \'
+pe '	      for GOARCH in 386 amd64; do \'
+pe '	        out="bin/go-args-env-file-${GOOS}-${GOARCH}"; \'
+pe '	        GOOS=$GOOS GOARCH=$GOARCH /usr/local/go/bin/go build -v -o "$out" .; \'
+pe '	      done; \'
+pe '	    done'\'''
 
-mkdir -p bin
-docker run --rm -it -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\
-	    set -euo pipefail; \
-	    for GOOS in linux; do \
-	      for GOARCH in 386 amd64; do \
-	        out="bin/go-args-env-file-${GOOS}-${GOARCH}"; \
-	        GOOS=$GOOS GOARCH=$GOARCH /usr/local/go/bin/go build -v -o "$out" .; \
-	      done; \
-	    done'
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 ### Git LFS
@@ -249,5 +232,5 @@ Some additional license information which was able to be auto-detected might be 
 
 As for any pre-built image usage, it is the image user's responsibility to ensure that any use of this image complies with any relevant licenses for all software contained within.
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 

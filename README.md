@@ -36,7 +36,9 @@ Second, install the SCONE platform and a first CAS instance on your Kubernetes c
 
 Installation of a SCONE CAS:
 
-![Installation of CAS](docs/cas.svg)
+<video src="docs/cas.webm" controls></video>
+
+[Download screencast](docs/cas.webm)
 
 ## Tutorials
 
@@ -131,7 +133,8 @@ All markdown files are associated with a script that executes the individual ste
 
 The following screencast demonstrates the installation of `prerequisite_check.md`, `scone_operator.md`, and `CAS.md` in action:
 
-![installation of SCONE CLI and SCONE Operator](docs/demo.svg)
+<video src="docs/demo.webm" controls></video>
+
+[Download screencast](docs/demo.webm)
 
 Generate updated screencasts by executing `make`.
-
