@@ -7,8 +7,8 @@ SCRIPT            ?= docs/install_sconecli.sh
 CAS_SCRIPT        ?= docs/install_cas.sh
 CAST              ?= docs/demo.cast
 CAS_CAST          ?= docs/cas.cast
-WEBM              ?= docs/demo.webm
-CAS_WEBM          ?= docs/cas.webm
+GIF               ?= docs/demo.gif
+CAS_GIF           ?= docs/cas.gif
 CAS_TITLE         ?= Installing SCONE CAS
 TITLE             ?= Installing SCONE CLI and SCONE Operator
 COLS              ?= 100
@@ -20,8 +20,8 @@ GREEN := \033[0;32m
 YELLOW:= \033[1;33m
 RESET := \033[0m
 
-.PHONY: all record webm check-deps clean help
-all: record webm
+.PHONY: all record gif check-deps clean help
+all: record gif
 
 # -----------------------------
 # Record
@@ -40,21 +40,21 @@ $(CAS_CAST): $(CAS_SCRIPT) $(CAST) | check-deps
 
 
 # -----------------------------
-# Render WEBM
+# Render GIF
 # -----------------------------
-$(WEBM):  $(CAST) | check-deps
-	@echo "$(YELLOW)Exporting WEBM to $(WEBM)…$(RESET)"
-	@agg "$(CAST)" "$(WEBM)"
-	@echo "$(GREEN)✓ WEBM created: $(WEBM)$(RESET)"
+$(GIF):  $(CAST) | check-deps
+	@echo "$(YELLOW)Exporting GIF to $(GIF)…$(RESET)"
+	@agg "$(CAST)" "$(GIF)"
+	@echo "$(GREEN)✓ GIF created: $(GIF)$(RESET)"
 
-$(CAS_WEBM): $(CAS_CAST) | check-deps
-	@echo "$(YELLOW)Exporting WEBM to $(CAS_WEBM)…$(RESET)"
-	@agg "$(CAS_CAST)" "$(CAS_WEBM)"
-	@echo "$(GREEN)✓ WEBM created: $(CAS_WEBM)$(RESET)"
+$(CAS_GIF): $(CAS_CAST) | check-deps
+	@echo "$(YELLOW)Exporting GIF to $(CAS_GIF)…$(RESET)"
+	@agg "$(CAS_CAST)" "$(CAS_GIF)"
+	@echo "$(GREEN)✓ GIF created: $(CAS_GIF)$(RESET)"
 
 # Front-door targets, matching your original names
 record: $(CAST) $(CAS_CAST)
-webm:   $(WEBM) $(CAS_WEBM)
+gif:   $(GIF) $(CAS_GIF)
 
 # -----------------------------
 # Dependency checks
@@ -76,9 +76,9 @@ check-deps:
 # Utilities
 # -----------------------------
 clean:
-	@rm -f "$(CAST)" "$(CAS_CAST)" "$(WEBM)" "$(CAS_WEBM)"
+	@rm -f "$(CAST)" "$(CAS_CAST)" "$(GIF)" "$(CAS_GIF)"
 	@echo "$(GREEN)Cleaned$(RESET)"
 
 help:
-	@echo "Targets: record | webm | check-deps | clean | all"
-	@echo "Vars: TYPE_SPEED PAUSE_AFTER_CMD SCRIPT CAST WEBM TITLE"
+	@echo "Targets: record | gif | check-deps | clean | all"
+	@echo "Vars: TYPE_SPEED PAUSE_AFTER_CMD SCRIPT CAST GIF TITLE"
