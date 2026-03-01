@@ -130,7 +130,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'docker run --rm -v "\$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v'
+printf '%s\n' 'docker run --rm -v "\\$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v'
 printf "${RESET}"
 
 docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v
@@ -142,7 +142,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'docker run --rm -v "\$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build'
+printf '%s\n' 'docker run --rm -v "\\$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build'
 printf "${RESET}"
 
 docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build
@@ -155,7 +155,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'docker run --rm -v "\$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v'
+printf '%s\n' 'docker run --rm -v "\\$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v'
 printf "${RESET}"
 
 docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v
@@ -168,12 +168,12 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'mkdir -p bin'
-printf '%s\n' 'docker run --rm -it -v "\$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\''\'
+printf '%s\n' 'docker run --rm -it -v "\\$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\''\'
 printf '%s\n' '	    set -euo pipefail; \'
 printf '%s\n' '	    for GOOS in linux; do \'
 printf '%s\n' '	      for GOARCH in 386 amd64; do \'
-printf '%s\n' '	        out="bin/go-args-env-file-\${GOOS}-\${GOARCH}"; \'
-printf '%s\n' '	        GOOS=\$GOOS GOARCH=\$GOARCH /usr/local/go/bin/go build -v -o "\$out" .; \'
+printf '%s\n' '	        out="bin/go-args-env-file-\\${GOOS}-\\${GOARCH}"; \'
+printf '%s\n' '	        GOOS=\\$GOOS GOARCH=\\$GOARCH /usr/local/go/bin/go build -v -o "\\$out" .; \'
 printf '%s\n' '	      done; \'
 printf '%s\n' '	    done'\'''
 printf "${RESET}"

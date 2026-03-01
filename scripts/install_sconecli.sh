@@ -55,7 +55,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval \$(tplenv --file environment-variables.md --create-values-file --context --eval \${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' 'eval \\$(tplenv --file environment-variables.md --create-values-file --context --eval \\${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 printf "${RESET}"
 
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
@@ -76,8 +76,8 @@ printf '%s\n' '# create a file with the public key of the signer key for all sco
 printf '%s\n' '#'
 printf '%s\n' ''
 printf '%s\n' 'function create_cosign_verification_key() {'
-printf '%s\n' '    export cosign_public_key_file="\$(mktemp).pub"'
-printf '%s\n' '    cat > \$cosign_public_key_file <<EOF'
+printf '%s\n' '    export cosign_public_key_file="\\$(mktemp).pub"'
+printf '%s\n' '    cat > \\$cosign_public_key_file <<EOF'
 printf '%s\n' '-----BEGIN PUBLIC KEY-----'
 printf '%s\n' 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErLf0HT8xZlLaoX5jNN8aVL1Yrs+P'
 printf '%s\n' 'wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw=='
@@ -87,20 +87,20 @@ printf '%s\n' '}'
 printf '%s\n' ''
 printf '%s\n' 'function verify_image() {'
 printf '%s\n' '    local image_name'
-printf '%s\n' '    image_name="\$1"'
-printf '%s\n' '    if [[ "\$image_name" == "" ]]; then'
+printf '%s\n' '    image_name="\\$1"'
+printf '%s\n' '    if [[ "\\$image_name" == "" ]]; then'
 printf '%s\n' '        echo "The name of the image for which we should verify the signature, was empty. Exiting."'
 printf '%s\n' '        exit 1'
 printf '%s\n' '    fi'
 printf '%s\n' ''
-printf '%s\n' '    echo "Verifying the signature of image '\''\$image_name'\''"'
+printf '%s\n' '    echo "Verifying the signature of image '\''\\$image_name'\''"'
 printf '%s\n' ''
-printf '%s\n' '    docker pull "\$image_name" >/dev/null'
-printf '%s\n' '    export cosign_public_key_file=\${cosign_public_key_file:-""}'
-printf '%s\n' '    if [[ "\$cosign_public_key_file" == "" ]]; then'
+printf '%s\n' '    docker pull "\\$image_name" >/dev/null'
+printf '%s\n' '    export cosign_public_key_file=\\${cosign_public_key_file:-""}'
+printf '%s\n' '    if [[ "\\$cosign_public_key_file" == "" ]]; then'
 printf '%s\n' '        create_cosign_verification_key'
 printf '%s\n' '    fi'
-printf '%s\n' '    cosign verify --key "\$cosign_public_key_file" "\$image_name" >/dev/null 2> /dev/null || { echo "Failed to verify signature of image '\''\$image_name'\''! Exiting! Please check that '\''cosign version'\'' shows a git version >= 2.0.0. Also ensure that there is no field '\''credsStore'\'' in '\''\$HOME/.docker/config.json'\''"; exit 1; }'
+printf '%s\n' '    cosign verify --key "\\$cosign_public_key_file" "\\$image_name" >/dev/null 2> /dev/null || { echo "Failed to verify signature of image '\''\\$image_name'\''! Exiting! Please check that '\''cosign version'\'' shows a git version >= 2.0.0. Also ensure that there is no field '\''credsStore'\'' in '\''\\$HOME/.docker/config.json'\''"; exit 1; }'
 printf '%s\n' ''
 printf '%s\n' '    echo " - verification was successful"'
 printf '%s\n' '}'
@@ -149,10 +149,10 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# default repo and image name'
-printf '%s\n' 'export REPO="\$REGISTRY/scone.cloud"'
+printf '%s\n' 'export REPO="\\$REGISTRY/scone.cloud"'
 printf '%s\n' 'export IMAGE="scone-deb-pkgs"'
 printf '%s\n' ''
-printf '%s\n' 'verify_image "\$REPO/\$IMAGE:\$SCONE_VERSION"'
+printf '%s\n' 'verify_image "\\$REPO/\\$IMAGE:\\$SCONE_VERSION"'
 printf "${RESET}"
 
 # default repo and image name
@@ -173,7 +173,7 @@ printf '%s\n' '# ensure that container scone-packages does not exit'
 printf '%s\n' 'docker rm scone-packages 2> /dev/null || true'
 printf '%s\n' ''
 printf '%s\n' '# run container such that we can copy the packages to a local repo'
-printf '%s\n' 'docker create --name scone-packages "\$REPO/\$IMAGE:\$SCONE_VERSION" sleep 1 > /dev/null'
+printf '%s\n' 'docker create --name scone-packages "\\$REPO/\\$IMAGE:\\$SCONE_VERSION" sleep 1 > /dev/null'
 printf "${RESET}"
 
 # ensure that container scone-packages does not exit
@@ -232,10 +232,10 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' ''
 printf '%s\n' 'if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then'
-printf '%s\n' '    P1=\$(realpath /usr/bin/kubectl-scone )'
-printf '%s\n' '    P2=\$(realpath /bin/kubectl-scone )'
-printf '%s\n' '    if [[ -n "\$P1" && -n "\$P2" && "\$P1" != "\$P2" ]]; then'
-printf '%s\n' '        rm -f "\$P2"'
+printf '%s\n' '    P1=\\$(realpath /usr/bin/kubectl-scone )'
+printf '%s\n' '    P2=\\$(realpath /bin/kubectl-scone )'
+printf '%s\n' '    if [[ -n "\\$P1" && -n "\\$P2" && "\\$P1" != "\\$P2" ]]; then'
+printf '%s\n' '        rm -f "\\$P2"'
 printf '%s\n' '    fi'
 printf '%s\n' 'fi'
 printf "${RESET}"
@@ -256,7 +256,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'echo "Expecting SCONE version: \$SCONE_VERSION"'
+printf '%s\n' 'echo "Expecting SCONE version: \\$SCONE_VERSION"'
 printf '%s\n' 'scone --version'
 printf "${RESET}"
 

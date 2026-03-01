@@ -22,10 +22,30 @@ slow_type() {
   done
 }
 
+escape_unescaped_dollars() {
+  local input="$1"
+  local output=""
+  local prev=""
+  local ch
+  local i
+
+  for ((i=0; i<${#input}; i++)); do
+    ch="${input:i:1}"
+    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
+      output+='\\$'
+    else
+      output+="$ch"
+    fi
+    prev="$ch"
+  done
+
+  printf "%s" "$output"
+}
+
 pe() {
   local cmd="$*"
   local display_cmd
-  display_cmd=$(printf "%s" "$cmd" | sed 's/\$/\\$/g')
+  display_cmd=$(escape_unescaped_dollars "$cmd")
   printf "%b" "$ORANGE"
   slow_type "$display_cmd"
   printf "%b" "$RESET"

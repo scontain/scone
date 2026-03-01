@@ -25,20 +25,20 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' ''
 printf '%s\n' 'DEPLOYMENT="scone-controller-manager"'
-printf '%s\n' 'NAMESPACE="scone-tools"'
+printf '%s\n' 'NAMESPACE="scone-system"'
 printf '%s\n' ''
-printf '%s\n' 'if ! kubectl get deployment "\$DEPLOYMENT" -n "\$NAMESPACE" >/dev/null 2>&1; then'
-printf '%s\n' '  echo "❌ Error: Deployment '\''\$DEPLOYMENT'\'' not found in namespace '\''\$NAMESPACE'\''."'
+printf '%s\n' 'if ! kubectl get deployment "\\$DEPLOYMENT" -n "\\$NAMESPACE" >/dev/null 2>&1; then'
+printf '%s\n' '  echo "❌ Error: Deployment '\''\\$DEPLOYMENT'\'' not found in namespace '\''\\$NAMESPACE'\''."'
 printf '%s\n' '  echo "   Please run '\''./scripts/reconcile_scone_operator.sh'\'' to the SCONE operator"'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "✅ Deployment '\''\$DEPLOYMENT'\'' exists in namespace '\''\$NAMESPACE'\'' (i.e., the SCONE Operator is running)."'
+printf '%s\n' 'echo "✅ Deployment '\''\\$DEPLOYMENT'\'' exists in namespace '\''\\$NAMESPACE'\'' (i.e., the SCONE Operator is running)."'
 printf "${RESET}"
 
 
 DEPLOYMENT="scone-controller-manager"
-NAMESPACE="scone-tools"
+NAMESPACE="scone-system"
 
 if ! kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" >/dev/null 2>&1; then
   echo "❌ Error: Deployment '$DEPLOYMENT' not found in namespace '$NAMESPACE'."
@@ -56,14 +56,14 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'if ! kubectl-provision --help >/dev/null ; then'
-printf '%s\n' '  echo "❌ Error: The '\''kubectl-provision'\'' plugin is not installed or not available in your \\$PATH."'
+printf '%s\n' '  echo "❌ Error: The '\''kubectl-provision'\'' plugin is not installed or not available in your \$PATH."'
 printf '%s\n' '  echo "ℹ️  Please install it before continuing by running '\''./scripts/reconcile_scone_operator.sh'\''"'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' 'echo "✅ '\''kubectl-provision'\'' plugin is available."'
 printf '%s\n' ''
 printf '%s\n' 'if ! kubectl-scone --help >/dev/null ; then'
-printf '%s\n' '  echo "❌ Error: The '\''kubectl-scone'\'' plugin is not installed or not available in your \\$PATH."'
+printf '%s\n' '  echo "❌ Error: The '\''kubectl-scone'\'' plugin is not installed or not available in your \$PATH."'
 printf '%s\n' '  echo "ℹ️  Please install it before continuing by running '\''./scripts/install_sconecli.sh'\''"'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
@@ -124,10 +124,10 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Try to extract the STATE field (assuming kubectl output includes a column "STATE")'
-printf '%s\n' 'STATE=\$(kubectl get las las -o jsonpath='\''{.status.state}'\'' 2>/dev/null || true)'
+printf '%s\n' 'STATE=\\$(kubectl get las las -o jsonpath='\''{.status.state}'\'' 2>/dev/null || true)'
 printf '%s\n' ''
-printf '%s\n' 'if [[ "\$STATE" != "HEALTHY" ]]; then'
-printf '%s\n' '  echo "❌ Error: LAS state is '\''\$STATE'\'' (expected: HEALTHY)."'
+printf '%s\n' 'if [[ "\\$STATE" != "HEALTHY" ]]; then'
+printf '%s\n' '  echo "❌ Error: LAS state is '\''\\$STATE'\'' (expected: HEALTHY)."'
 printf '%s\n' '  echo "ℹ️  Please verify that the LAS is running correctly."'
 printf '%s\n' '  # exit 1'
 printf '%s\n' 'fi'
@@ -160,15 +160,15 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
-printf '%s\n' '    export DCAP_KEY=\${DCAP_KEY:-\$DEFAULT_DCAP_KEY}'
-printf '%s\n' '    if [[ "\$DCAP_KEY" == "\$DEFAULT_DCAP_KEY" ]] ; then'
+printf '%s\n' '    export DCAP_KEY=\\${DCAP_KEY:-\\$DEFAULT_DCAP_KEY}'
+printf '%s\n' '    if [[ "\\$DCAP_KEY" == "\\$DEFAULT_DCAP_KEY" ]] ; then'
 printf '%s\n' '        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"'
-printf '%s\n' '        EXISTING_DCAP_KEY=\$(kubectl get las las -o json | jq -r '\''.spec.dcapKey'\'' )'
+printf '%s\n' '        EXISTING_DCAP_KEY=\\$(kubectl get las las -o json | jq -r '\''.spec.dcapKey'\'' )'
 printf '%s\n' ''
-printf '%s\n' '        if [[ "\$EXISTING_DCAP_KEY" == "null" ]] ; then'
-printf '%s\n' '            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=\$DEFAULT_DCAP_KEY - not recommended."'
+printf '%s\n' '        if [[ "\\$EXISTING_DCAP_KEY" == "null" ]] ; then'
+printf '%s\n' '            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=\\$DEFAULT_DCAP_KEY - not recommended."'
 printf '%s\n' '        else'
-printf '%s\n' '            DCAP_KEY="\$EXISTING_DCAP_KEY"'
+printf '%s\n' '            DCAP_KEY="\\$EXISTING_DCAP_KEY"'
 printf '%s\n' '            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."'
 printf '%s\n' '        fi'
 printf '%s\n' '    fi'
@@ -196,13 +196,13 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Check if DCAP_KEY is empty or unset'
-printf '%s\n' 'if [[ "\$DCAP_KEY" == "\$DEFAULT_DCAP_KEY" ]]; then'
+printf '%s\n' 'if [[ "\\$DCAP_KEY" == "\\$DEFAULT_DCAP_KEY" ]]; then'
 printf '%s\n' '  while true; do'
 printf '%s\n' '    read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input'
 printf '%s\n' ''
 printf '%s\n' '    # Check if input is 32 hex chars (case-insensitive)'
-printf '%s\n' '    if [[ "\$input" =~ ^[0-9a-fA-F]{32}\$ ]]; then'
-printf '%s\n' '      DCAP_KEY="\$input"'
+printf '%s\n' '    if [[ "\\$input" =~ ^[0-9a-fA-F]{32}\\$ ]]; then'
+printf '%s\n' '      DCAP_KEY="\\$input"'
 printf '%s\n' '      export DCAP_KEY'
 printf '%s\n' '      echo "✅ DCAP_KEY set."'
 printf '%s\n' '      break'
@@ -211,7 +211,7 @@ printf '%s\n' '      echo "❌ Invalid input. Must be exactly 32 hex characters 
 printf '%s\n' '    fi'
 printf '%s\n' '  done'
 printf '%s\n' '  # kubectl provision requires DCAP argument '
-printf '%s\n' '  export DCAP_ARG="--dcap-api \$DCAP_KEY"'
+printf '%s\n' '  export DCAP_ARG="--dcap-api \\$DCAP_KEY"'
 printf '%s\n' ''
 printf '%s\n' 'else'
 printf '%s\n' '  # kubectl provision will extract DCAP_KEY from LAS'
@@ -249,8 +249,8 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'VERSION=\$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)'
-printf '%s\n' 'echo "The lastest stable version of SCONE is \$VERSION"'
+printf '%s\n' 'VERSION=\\$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)'
+printf '%s\n' 'echo "The lastest stable version of SCONE is \\$VERSION"'
 printf "${RESET}"
 
 VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
@@ -279,21 +279,21 @@ printf '%s\n' ''
 printf '%s\n' '# Function: Check if required API resources exist in kubectl output'
 printf '%s\n' 'check_required_resources() {'
 printf '%s\n' '  # Run kubectl and store output (even if it fails)'
-printf '%s\n' '  if ! kubectl_output=\$(kubectl api-resources 2>&1); then'
+printf '%s\n' '  if ! kubectl_output=\\$(kubectl api-resources 2>&1); then'
 printf '%s\n' '    echo "❌ kubectl api-resources failed: continuing anyhow"'
 printf '%s\n' '  fi'
 printf '%s\n' ''
 printf '%s\n' '  missing=0'
-printf '%s\n' '  for res in "\${required_resources[@]}"; do'
-printf '%s\n' '    if echo "\$kubectl_output" | grep -qw "\$res"; then'
-printf '%s\n' '      echo "✅ Found API resource: \$res"'
+printf '%s\n' '  for res in "\\${required_resources[@]}"; do'
+printf '%s\n' '    if echo "\\$kubectl_output" | grep -qw "\\$res"; then'
+printf '%s\n' '      echo "✅ Found API resource: \\$res"'
 printf '%s\n' '    else'
-printf '%s\n' '      echo "❌ Missing API resource: \$res"'
+printf '%s\n' '      echo "❌ Missing API resource: \\$res"'
 printf '%s\n' '      missing=1'
 printf '%s\n' '    fi'
 printf '%s\n' '  done'
 printf '%s\n' ''
-printf '%s\n' '  if [[ \$missing -eq 0 ]]; then'
+printf '%s\n' '  if [[ \\$missing -eq 0 ]]; then'
 printf '%s\n' '    return 0'
 printf '%s\n' '  else'
 printf '%s\n' '    return 1'
@@ -302,12 +302,12 @@ printf '%s\n' '}'
 printf '%s\n' ''
 printf '%s\n' ''
 printf '%s\n' '# Retry loop: check resources until all are found or max attempts reached'
-printf '%s\n' 'echo "🔄 Checking for required API resources: \${required_resources[*]}"'
+printf '%s\n' 'echo "🔄 Checking for required API resources: \\${required_resources[*]}"'
 printf '%s\n' 'until check_required_resources; do'
 printf '%s\n' '  ((attempt++))'
-printf '%s\n' '  echo "⏳ Attempt #\$attempt failed. Retrying in 2s..."'
-printf '%s\n' '  if [[ \$attempt -ge \$max_attempts ]]; then'
-printf '%s\n' '    echo "❌ Error: Required resources not found after \$max_attempts attempts. Aborting."'
+printf '%s\n' '  echo "⏳ Attempt #\\$attempt failed. Retrying in 2s..."'
+printf '%s\n' '  if [[ \\$attempt -ge \\$max_attempts ]]; then'
+printf '%s\n' '    echo "❌ Error: Required resources not found after \\$max_attempts attempts. Aborting."'
 printf '%s\n' '    exit 1'
 printf '%s\n' '  fi'
 printf '%s\n' '  sleep 2'
@@ -317,9 +317,9 @@ printf '%s\n' 'echo "✅ PV and PVC API resources are available."'
 printf '%s\n' ''
 printf '%s\n' '# Check for StorageClass'
 printf '%s\n' 'echo "🔍 Checking for available StorageClasses..."'
-printf '%s\n' 'storage_classes=\$(kubectl get storageclass -o name 2>/dev/null || true)'
+printf '%s\n' 'storage_classes=\\$(kubectl get storageclass -o name 2>/dev/null || true)'
 printf '%s\n' ''
-printf '%s\n' 'if [[ -z "\$storage_classes" ]]; then'
+printf '%s\n' 'if [[ -z "\\$storage_classes" ]]; then'
 printf '%s\n' '  echo "❌ Error: No StorageClasses found. PersistentVolume provisioning may not work."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
@@ -328,12 +328,12 @@ printf '%s\n' 'echo "✅ Found StorageClasses:"'
 printf '%s\n' 'kubectl get storageclass'
 printf '%s\n' ''
 printf '%s\n' '# Look for default StorageClass'
-printf '%s\n' 'default_class=\$(kubectl get storageclass -o jsonpath='\''{range .items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")]}{.metadata.name}{"\n"}{end}'\'' || true)'
+printf '%s\n' 'default_class=\\$(kubectl get storageclass -o jsonpath='\''{range .items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")]}{.metadata.name}{"\n"}{end}'\'' || true)'
 printf '%s\n' ''
-printf '%s\n' 'if [[ -z "\$default_class" ]]; then'
+printf '%s\n' 'if [[ -z "\\$default_class" ]]; then'
 printf '%s\n' '  echo "⚠️  Warning: No default StorageClass is set. You must explicitly define a storageClassName in PVCs."'
 printf '%s\n' 'else'
-printf '%s\n' '  echo "✅ Default StorageClass: \$default_class"'
+printf '%s\n' '  echo "✅ Default StorageClass: \\$default_class"'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
@@ -415,17 +415,17 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'echo "✅ Using environment variable CAS (if it exists): \${CAS:-}"'
+printf '%s\n' 'echo "✅ Using environment variable CAS (if it exists): \\${CAS:-}"'
 printf '%s\n' '# Prompt for CAS (CAS instance name)'
-printf '%s\n' 'while [[ -z "\${CAS:-}" ]]; do'
+printf '%s\n' 'while [[ -z "\\${CAS:-}" ]]; do'
 printf '%s\n' '  read -rp "Enter the name of the CAS instance (CAS): " CAS'
 printf '%s\n' 'done'
 printf '%s\n' ''
-printf '%s\n' 'echo "✅ Using environment variable CAS_NAMESPACE (if it exists): \${CAS_NAMESPACE:-}"'
+printf '%s\n' 'echo "✅ Using environment variable CAS_NAMESPACE (if it exists): \\${CAS_NAMESPACE:-}"'
 printf '%s\n' '# Prompt for CAS_NAMESPACE (Kubernetes namespace)'
-printf '%s\n' 'while [[ -z "\${CAS_NAMESPACE:-}" ]]; do'
+printf '%s\n' 'while [[ -z "\\${CAS_NAMESPACE:-}" ]]; do'
 printf '%s\n' '  read -rp "Enter the Kubernetes namespace for CAS (default: default): " CAS_NAMESPACE'
-printf '%s\n' '  CAS_NAMESPACE="\${CAS_NAMESPACE:-default}"'
+printf '%s\n' '  CAS_NAMESPACE="\\${CAS_NAMESPACE:-default}"'
 printf '%s\n' 'done'
 printf '%s\n' ''
 printf '%s\n' '# Export the variables'
@@ -433,8 +433,8 @@ printf '%s\n' 'export CAS'
 printf '%s\n' 'export CAS_NAMESPACE'
 printf '%s\n' ''
 printf '%s\n' '# Confirm to the user'
-printf '%s\n' 'echo "✅ Using CAS: \$CAS"'
-printf '%s\n' 'echo "✅ Using namespace: \$CAS_NAMESPACE"'
+printf '%s\n' 'echo "✅ Using CAS: \\$CAS"'
+printf '%s\n' 'echo "✅ Using namespace: \\$CAS_NAMESPACE"'
 printf "${RESET}"
 
 echo "✅ Using environment variable CAS (if it exists): ${CAS:-}"
@@ -465,12 +465,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'if kubectl get cas "\$CAS" -n "\$CAS_NAMESPACE" &>/dev/null; then'
-printf '%s\n' '  echo "❌ Error: A CAS resource named '\''\$CAS'\'' already exists in namespace '\''\$CAS_NAMESPACE'\''."'
+printf '%s\n' 'if kubectl get cas "\\$CAS" -n "\\$CAS_NAMESPACE" &>/dev/null; then'
+printf '%s\n' '  echo "❌ Error: A CAS resource named '\''\\$CAS'\'' already exists in namespace '\''\\$CAS_NAMESPACE'\''."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "✅ No existing CAS resource named '\''\$CAS'\'' found in namespace '\''\$CAS_NAMESPACE'\''."'
+printf '%s\n' 'echo "✅ No existing CAS resource named '\''\\$CAS'\'' found in namespace '\''\\$CAS_NAMESPACE'\''."'
 printf "${RESET}"
 
 if kubectl get cas "$CAS" -n "$CAS_NAMESPACE" &>/dev/null; then
@@ -490,25 +490,25 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Get the current Kubernetes context'
-printf '%s\n' 'K8S_CONTEXT=\$(kubectl config current-context 2>/dev/null)'
+printf '%s\n' 'K8S_CONTEXT=\\$(kubectl config current-context 2>/dev/null)'
 printf '%s\n' ''
-printf '%s\n' 'if [[ -z "\$K8S_CONTEXT" ]]; then'
+printf '%s\n' 'if [[ -z "\\$K8S_CONTEXT" ]]; then'
 printf '%s\n' '  echo "❌ Could not determine the current Kubernetes context."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "📦 Current Kubernetes context: \$K8S_CONTEXT"'
+printf '%s\n' 'echo "📦 Current Kubernetes context: \\$K8S_CONTEXT"'
 printf '%s\n' ''
 printf '%s\n' '# Ask for confirmation'
-printf '%s\n' 'read -rp "Do you want to proceed install version \$VERSION of SCONE CAS \$CAS in namespace \$CAS_NAMESPACE  within this context? [y/N] " confirm'
-printf '%s\n' 'confirm=\${confirm,,}  # Convert to lowercase'
+printf '%s\n' 'read -rp "Do you want to proceed install version \\$VERSION of SCONE CAS \\$CAS in namespace \\$CAS_NAMESPACE  within this context? [y/N] " confirm'
+printf '%s\n' 'confirm=\\${confirm,,}  # Convert to lowercase'
 printf '%s\n' ''
-printf '%s\n' 'if [[ "\$confirm" != "y" && "\$confirm" != "yes" ]]; then'
+printf '%s\n' 'if [[ "\\$confirm" != "y" && "\\$confirm" != "yes" ]]; then'
 printf '%s\n' '  echo "❌ Aborted by user."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "✅ Proceeding with context: \$K8S_CONTEXT"'
+printf '%s\n' 'echo "✅ Proceeding with context: \\$K8S_CONTEXT"'
 printf "${RESET}"
 
 # Get the current Kubernetes context
@@ -541,15 +541,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'node_count=\$(kubectl get nodes -l las.scontain.com/ok=true --no-headers 2>/dev/null | wc -l)'
+printf '%s\n' 'node_count=\\$(kubectl get nodes -l las.scontain.com/ok=true --no-headers 2>/dev/null | wc -l)'
 printf '%s\n' 'required=3'
 printf '%s\n' ''
-printf '%s\n' 'if (( \$node_count < required )); then'
-printf '%s\n' '  echo "❌ Error: Only \$node_count node(s) found with label '\''las.scontain.com/ok=true'\''. At least \$required are required."'
+printf '%s\n' 'if (( \\$node_count < required )); then'
+printf '%s\n' '  echo "❌ Error: Only \\$node_count node(s) found with label '\''las.scontain.com/ok=true'\''. At least \\$required are required."'
 printf '%s\n' '  echo "   NOTE: Continuing anyhow - you might need to edit the desired number of safety services for the CAS to become HEALTHY"'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "✅ \$node_count node(s) with label '\''las.scontain.com/ok=true'\'' found — OK."'
+printf '%s\n' 'echo "✅ \\$node_count node(s) with label '\''las.scontain.com/ok=true'\'' found — OK."'
 printf "${RESET}"
 
 node_count=$(kubectl get nodes -l las.scontain.com/ok=true --no-headers 2>/dev/null | wc -l)
@@ -571,8 +571,8 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'if ! kubectl provision cas --verbose --wait --set-version \$VERSION --namespace "\$CAS_NAMESPACE" \$DCAP_ARG "\$CAS" ; then'
-printf '%s\n' '  echo "❌ Failed to create CAS \$CAS in namespace \$CAS_NAMESPACE."'
+printf '%s\n' 'if ! kubectl provision cas --verbose --wait --set-version \\$VERSION --namespace "\\$CAS_NAMESPACE" \\$DCAP_ARG "\\$CAS" ; then'
+printf '%s\n' '  echo "❌ Failed to create CAS \\$CAS in namespace \\$CAS_NAMESPACE."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf "${RESET}"
@@ -589,8 +589,8 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl get cas \$CAS -n \$CAS_NAMESPACE'
-printf '%s\n' 'echo "✅ CAS \$CAS installed in \$CAS_NAMESPACE"'
+printf '%s\n' 'kubectl get cas \\$CAS -n \\$CAS_NAMESPACE'
+printf '%s\n' 'echo "✅ CAS \\$CAS installed in \\$CAS_NAMESPACE"'
 printf "${RESET}"
 
 kubectl get cas $CAS -n $CAS_NAMESPACE
