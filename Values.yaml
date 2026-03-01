@@ -1,0 +1,5 @@
+environment:
+  REGISTRY: registry.scontain.com
+  SCONE_VERSION: 7.0.0-alpha.1
+  CLI_IMAGE: registry.scontain.com/workshop/scone
+  CLI_NAMESPACE: scone-tools

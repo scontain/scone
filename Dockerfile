@@ -118,14 +118,22 @@ RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
     --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
     docker version && \
     cd /root/scone \
-    && VERSION=6.1.0-rc.0 ./scripts/prerequisite_check.sh
+    && VERSION=7.0.0-alpha.1 ./scripts/prerequisite_check.sh
 
 # check if newer local k8s-scone is available and use it
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/k8s-scone ] && cp /overwrite/k8s-scone /usr/bin/k8s-scone || true
+    [ -f /overwrite/bin/k8s-scone ] && cp /overwrite/bin/k8s-scone /usr/bin/k8s-scone || true
+
+RUN --mount=type=bind,source=overwrite,target=/overwrite \
+    [ -f /overwrite/scone-td-build ] && cp /overwrite/bin/scone-td-build $HOME/.cargo/bin/scone-td-build || true
 
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/kubectl-provision ] && cp /overwrite/kubectl-provision $HOME/.cargo/bin/kubectl-provision || true
+
+RUN --mount=type=bind,source=overwrite,target=/overwrite \
+    [ -f /overwrite/bin/kubectl-scone ] && cp /overwrite/bin/kubectl-scone $HOME/.cargo/bin/kubectl-scone || true
+
+RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

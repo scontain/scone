@@ -14,7 +14,7 @@ We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the def
 ```bash
 
 DEPLOYMENT="scone-controller-manager"
-NAMESPACE="scone-system"
+NAMESPACE="scone-tools"
 
 if ! kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" >/dev/null 2>&1; then
   echo "❌ Error: Deployment '$DEPLOYMENT' not found in namespace '$NAMESPACE'."

@@ -4,6 +4,8 @@ You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **ho
 
 This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.
 
+NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.
+
 ## Caveat When Running Inside a Container
 
 There are two versions of the `scone` CLI:
@@ -20,26 +22,25 @@ Below, we describe how to install the `scone` CLI using `auto` mode, i.e., the C
 We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.
 
 
-By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `VERSION` to the version that you want to install:
+`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
+but that are not set yet. 
 
-```
-export VERSION="..."  # set to version
-```
-
-Otherwise, to ensure that you install the latest version, you can undefine `VERSION`:
-
-```
-unset VERSION
-```
+In case you want to use the values defined in the environment variables and file `Values.yaml`, please set:
 
 ```bash
-if [ -z "${VERSION+x}" ]; then
-  echo "Environment variable VERSION is not set - determining the latest stable version of SCONE"
-  export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-  echo "The lastest stable version of SCONE is $VERSION"
-else
-  echo "Environment variable VERSION is set to $VERSION"
-fi
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+```
+
+In case the values of the environment variables need to confirmed by the user, set it to `--force`: 
+
+```
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+```
+
+Let's ask the user and set the environment variables depending on the input of the user:
+
+```bash
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 ```
 
 The SCONE CLI is available as Debian packages as part of a container image. 
@@ -89,29 +90,32 @@ verify the image:
 
 ```bash
 # default repo and image name
-export REPO="registry.scontain.com/scone.cloud"
+export REPO="$REGISTRY/scone.cloud"
 export IMAGE="scone-deb-pkgs"
 
-verify_image "$REPO/$IMAGE:$VERSION"
+verify_image "$REPO/$IMAGE:$SCONE_VERSION"
 ```
 
 After successful verification, we create a temporary container
 to be able to copy the Debian packages to the local filesystem.
 
 ```bash
+# ensure that container scone-packages does not exit
+docker rm scone-packages 2> /dev/null || true
+
 # run container such that we can copy the packages to a local repo
-docker create --name scone-packages "$REPO/$IMAGE:$VERSION" sleep 1 > /dev/null
+docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev/null
 ```
 
 Next, we copy the package to the `/tmp` directory and
 install the `scone` packages. 
 
-You need to type your `sudo` password:
+You will need to type your `sudo` password:
 
 ```bash
 # copy the packages
 mkdir -p /tmp/packages
-docker cp scone-packages:/packages /tmp/
+docker cp scone-packages:/ /tmp/packages
 docker rm scone-packages
 
 # install the packages
@@ -141,7 +145,7 @@ fi
 Check that the `scone` cli is properly installed by executing:
 
 ```bash
-echo "Expecting SCONE version: $VERSION"
+echo "Expecting SCONE version: $SCONE_VERSION"
 scone --version
 ```
 

@@ -1,93 +1,108 @@
 # Deploying SCONE CLI Image on Kubernetes
 
+This document describes on how to set up a pod in Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker deamon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.
+
 ## Prerequisites
 
-Ensure that you have the following installed:
 
-- `kubectl`
-- access to a Kubernetes cluster with confidential nodes
+We first ensure that command `kubectl` is installed:
 
 ```bash
-
 check_command() {
   command -v "$1" &>/dev/null
 }
 
 # Auto-install kubectl if not present
 if ! check_command kubectl; then
-  KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
-  echo "📥 Installing kubectl $KUBECTL_VERSION ..."
-  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
-  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
-  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
-  sudo chmod +x kubectl
-  sudo mv ./kubectl /usr/local/bin/
-  rm kubectl.sha256
-  echo "✔️ kubectl $KUBECTL_VERSION installed successfully."
+  echo "Please run ./scripts/prerequisite_check.sh first"
 else
   echo "✔️ kubectl is already installed."
 fi
+```
 
+Next, we check that we havve access to a Kubernetes cluster. This Kubernetes cluster is used to install a pod to run the transformation of applications.
+
+```bash
+# checking that we have access to a cluster
 kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1; }
 ```
 
 ## Enabling TCP on Docker Daemon
 
-The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, you can enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)
+The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, we need to enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)
 
-> Note: Enabling TCP on the Docker is a security risk.  We provide a [script](scripts/disable_docker_tcp.sh) to disable the TCP when you are done with the workshop.
+> Note: Enabling TCP on the Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable the TCP when you are done using the docker deamon.
 
 ## Deployment
 
-You need to login to the docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you are already logged in to `registry.scontain.com`, you are all set. If you have not logged in yet, please set the following variables:
+You need to login to the docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you have not yet registered with `gitlab.scontain.com`, please check <https://sconedocs.github.io/registry/> on how to register an account. 
+
+Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. 
+
+We can ask the user for the credentials of the repository:
 
 ```
-export SCONE_REGISTRY_USERNAME="..." # set to your user name 
-export SCONE_REGISTRY_ACCESS_TOKEN="..." # set to personal access token with read access to scone.cloud
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 ```
 
-We check that both variables are defined:
+If we want to use the values from file `Values.yaml`, we set this environment variables as follows:
 
 ```bash
-if [ -z "${SCONE_REGISTRY_USERNAME+x}" ]; then
-  echo "Environment variable SCONE_REGISTRY_USERNAME is not set - please define and retry." 
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+```
+
+Next, we set all environment variables related to the registry credentials.
+
+```bash
+eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+```
+
+To be sure, we check that both variables are defined:
+
+```bash
+if [ -z "${REGISTRY_USER+x}" ]; then
+  echo "Environment variable REGISTRY_USER is not set - please define and retry." 
   exit 1
 fi
-if [ -z "${SCONE_REGISTRY_ACCESS_TOKEN+x}" ]; then
-  echo "Environment variable SCONE_REGISTRY_ACCESS_TOKEN is not set  - please define and retry." 
+if [ -z "${REGISTRY_TOKEN+x}" ]; then
+  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." 
   exit 1
 fi
 ```
 
-1. You can build and push your own image
+## Container Image
 
-```
-export CLI_IMAGE="<registry>/<username>/repository>:<tag>"
-
-docker build -t $CLI_IMAGE .
-docker push $CLI_IMAGE$
-```
-
-We use instead the pre-built image `registry.scontain.com/workshop/scone`
+In our pod, we use a pre-built image `registry.scontain.com/workshop/scone`
 
 ```bash
 export CLI_IMAGE="registry.scontain.com/workshop/scone"
 ```
 
-2. Create Namespace and Secrets
+## Creating Namespace and Secrets
 
 By default we install the CLI image in namespace `scone-tools`. You can overwrite the namespace with the help of environment variable `CLI_NAMESPACE`:
 
-```
-export CLI_NAMESPACE="..."
+```bash
+export CLI_NAMESPACE="scone-tools"
 ```
 
-Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Please adjust in case you use a unique PAT for each pull secret.
+Let's ask the user and set the environment variables depending on the input of the user:
+
+```bash
+eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+```
+
+Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Actually, we create two pull secrets:
+
+- `scone-registry`: we use this in the context of some examples. This permits use to store these examples on a different repo.
+
+ - `sconeapps`: we use this secret to pull the container images from `registry.scontain.com`.
+
+Please adjust in case you use a unique PAT for each pull secret.
 
 Also, in case you built and pushed the image to a different registry, you need to adjust the value for `docker-server` in the  `docker-registry` secret accordingly.
 
 ```bash
-export CLI_NAMESPACE=${CLI_NAMESPACE:-scone-tools}
 kubectl create ns $CLI_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
 SECRET_NAME="scone-registry"
@@ -98,8 +113,8 @@ else
   echo "Secret '$SECRET_NAME' not found in namespace '$CLI_NAMESPACE' - Creating it."
   kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \
     --docker-server=registry.scontain.com \
-    --docker-username="$SCONE_REGISTRY_USERNAME" \
-    --docker-password="$SCONE_REGISTRY_ACCESS_TOKEN"
+    --docker-username="$REGISTRY_USER" \
+    --docker-password="$REGISTRY_TOKEN"
 fi
 
 SECRET_NAME="sconeapps"
@@ -110,8 +125,8 @@ else
   echo "Secret '$SECRET_NAME' not found in namespace '$CLI_NAMESPACE' - Creating it."
   kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \
     --docker-server=registry.scontain.com \
-    --docker-username="$SCONE_REGISTRY_USERNAME" \
-    --docker-password="$SCONE_REGISTRY_ACCESS_TOKEN"
+    --docker-username="$REGISTRY_USER" \
+    --docker-password="$REGISTRY_TOKEN"
 fi
 
 SECRET_NAME="scone-registry-env"
@@ -121,8 +136,8 @@ if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
 else
 
 cat > ./scone-registry.env <<EOF
-export SCONE_REGISTRY_ACCESS_TOKEN="$SCONE_REGISTRY_ACCESS_TOKEN"
-export SCONE_REGISTRY_USERNAME="$SCONE_REGISTRY_USERNAME"
+export REGISTRY_TOKEN="$REGISTRY_TOKEN"
+export REGISTRY_USER="$REGISTRY_USER"
 EOF
 
 kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \
@@ -131,34 +146,34 @@ fi
 ```
 
    
-3. Add RBAC to the namespace
+## Add RBAC to the namespace
 
 We provide a template to define the RBAC for the CLI image. We instantiate this template first and then apply the RBAC:
 
 ```bash
-envsubst < ./k8s/rbac.template.yaml > ./k8s/rbac.yaml
+tplenv --file ./k8s/rbac.template.yaml --output ./k8s/rbac.yaml
 kubectl apply -f ./k8s/rbac.yaml
 ```
    
-4. Deploy DIND
+## Deploy DIND
 
 ```bash
-envsubst < ./k8s/dind.template.yaml > ./k8s/dind.yaml
+tplenv --file ./k8s/dind.template.yaml --output ./k8s/dind.yaml
 kubectl apply -f ./k8s/dind.yaml
 ```
 
-5. Deploy the SCONE CLI
+## Deploy the SCONE CLI
 
 We change the image name in `deployment.yaml` file for the one you pushed in step 1
 
 ```bash
-envsubst < ./k8s/deployment.template.yaml > ./k8s/deployment.yaml
+tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
 kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 ```
 
-5. Watch the logs of the pod
+##  Watch the logs of the pod
 
 ```bash
 wait_for_pod_logs() {
@@ -182,13 +197,13 @@ wait_for_pod_logs() {
 wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
 ```
    
-6. Run the SCONE CLI using help
+##  Run the SCONE CLI using help
 
 ```bash
 kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
 ```
 
-7. Drop into the shell to execute your commands
+##  Drop into the shell to execute your commands
 
 ```bash
 kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash

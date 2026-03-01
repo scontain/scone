@@ -4,32 +4,27 @@ To install or update the SCONE platform in a Kubernetes cluster, please perform 
 
 You can execute the steps automatically by running the script `scripts/reconcile_scone_operator.sh`. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.
 
-0. Determine the current stable version of the SCONE platform using `curl`:
-
-
-By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `VERSION` to the version that you want to install:
-
-```
-export VERSION="..."  # set to version
-```
-
-Otherwise, to ensure that you install the latest version, you can undefine `VERSION`:
-
-```
-unset VERSION
-```
+## Determine the current stable version of the SCONE platform
 
 ```bash
-if [ -z "${VERSION+x}" ]; then
-  echo "Environment variable VERSION is not set - determining the latest stable version of SCONE"
-  export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-  echo "The lastest stable version of SCONE is $VERSION"
-else
-  echo "Environment variable VERSION is set to $VERSION"
-fi
+export SCONE_VERSION=$(cat stable.txt)
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
 
-1. Make sure that we actually want to update the current cluster
+`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
+but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:
+
+```
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+```
+
+Let's ask the user and set the environment variables depending on the input of the user:
+
+```bash
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+```
+
+## Make sure that we actually want to update the current cluster
 
 ```bash
 # Get the current Kubernetes context
@@ -43,7 +38,7 @@ fi
 echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
-read -rp "Do you want to proceed install SCONE version $VERSION with this context? [y/N] " confirm
+read -rp "Do you want to proceed install SCONE version $SCONE_VERSION with this context? [y/N] " confirm
 confirm=${confirm,,}  # Convert to lowercase
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
@@ -54,24 +49,24 @@ fi
 echo "✅ Proceeding with context: $K8S_CONTEXT"
 ```
 
-2. Download the script to install the SCONE platform:
+## Download the script to install the SCONE platform:
 
 To simplify the cleanup, we download the installation script into a temporary directory:
 
 ```bash
 mkdir -p /tmp/SCONE_OPERATOR_CONTROLLER
 cd /tmp/SCONE_OPERATOR_CONTROLLER
-curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$VERSION/operator_controller > operator_controller
+curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller > operator_controller
 chmod a+x operator_controller
 echo "Downloaded script 'operator_controller' into directory $PWD"
 ```
 
-3. Verify the signature of the script:
+## Verify the signature of the script:
 
 Download the signature of the operator controller:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$VERSION/operator_controller.asc > operator_controller.asc
+curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller.asc > operator_controller.asc
 echo "Downloaded signature of 'operator_controller' to file 'operator_controller.asc'"
 ```
 
@@ -176,7 +171,7 @@ verify_file operator_controller
 
 Please check that output is empty. Stop if error message `Signature check FAILED` is printed.
 
-4. Verifying if the cluster is properly installed:
+## Verifying if the cluster is properly installed:
 
 We first define a cleanup function to cleanup after the `operator_controller`:
 
@@ -197,10 +192,10 @@ operator_controller.tgz.asc \
 We ensure that the correct `kubectl provision` plugin is installed:
 
 ```bash
-./operator_controller --set-version $VERSION  --only-plugin  --reconcile --update
+./operator_controller --set-version $SCONE_VERSION  --only-plugin  --reconcile --update
 ```
 
-5. Set your Intel API Key
+## Set your Intel API Key
 
 To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
 
@@ -251,8 +246,8 @@ Next, we run the `operator_controller` to check if the proper version is install
 
 ```bash
 kubectl get deployment scone-controller-manager -n scone-system -o json | \
-  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$VERSION\"))" && \
-  { echo "SCONE Version $VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."
+  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \
+  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."
 ```
 
 If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.
@@ -263,7 +258,7 @@ In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. W
 kubectl delete crd vaults.services.scone.cloud || true
 ```
 
-6. Ensure that the image pull secret `sconeapps` exists:
+## Ensure that the image pull secret `sconeapps` exists
 
 We check if we can read the secret:
 
@@ -276,66 +271,40 @@ kubectl get secret scone-operator-pull -n scone-system >/dev/null 2>&1 && echo "
 
 We assume that you use the `scone.cloud` image registry, you would need to deploy image pull secrets. For this, you will need to set environment variables:
 
-```
-export REGISTRY_USERNAME=<your-name> # username of the registry service account
-export REGISTRY_ACCESS_TOKEN=<your-access-toke> # read access token
-export REGISTRY_EMAIL=<your-email> # email address of the service account
-```
-
 For more details, please read the following document: [Create an Access Token](https://sconedocs.github.io/registry/#create-an-access-token). In the script (i.e., `reconcile_scone_operator.sh`), we
 ask the user to input the values for these variables:
 
 ```bash
 if [[ $install_sconeapps_secret == 1 ]] ; then
-    # Prompt for REGISTRY_USERNAME
-    while [[ -z "${REGISTRY_USERNAME:-}" ]]; do
-    read -rp "Enter REGISTRY_USERNAME (registry service account username): " REGISTRY_USERNAME
-    done
-    export REGISTRY_USERNAME
-    echo "✅ REGISTRY_USERNAME set."
+    # ask user for the credentials for accessing the registry
+  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )
 
-    # Prompt for REGISTRY_ACCESS_TOKEN
-    while [[ -z "${REGISTRY_ACCESS_TOKEN:-}" ]]; do
-    read -rsp "Enter REGISTRY_ACCESS_TOKEN (read access token): " REGISTRY_ACCESS_TOKEN
-    echo
-    done
-    export REGISTRY_ACCESS_TOKEN
-    echo "✅ REGISTRY_ACCESS_TOKEN set."
-
-    # Prompt for REGISTRY_EMAIL
-    while [[ -z "${REGISTRY_EMAIL:-}" ]]; do
-    read -rp "Enter REGISTRY_EMAIL (service account email address): " REGISTRY_EMAIL
-    done
-    export REGISTRY_EMAIL
-    echo "✅ REGISTRY_EMAIL set."
 ```
 
-7. We install the latest stable version or fix/update the installed version
-
-We do this in case no `sconeapps` secret exists yet:
+We install/fix/update the installed version:
 
 ```bash
-    ./operator_controller --set-version $VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USERNAME --access-token $REGISTRY_ACCESS_TOKEN --email $REGISTRY_EMAIL
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 ```
 
-8. Updating the SCONE platform
+## Updating the SCONE platform
 
 In case an older version of the SCONE platform was already installed (i.e., when the `sconeapps` secret already exists), we can update the platform by executing the following command:
 
 ```bash
 else
-    ./operator_controller --set-version $VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
 fi
 ```
 
-9. Cleaning up temporary files
+## Cleaning up temporary files
 
 ```bash
 operator_cleanup
-echo "✅ SCONE Operator upgraded to version $VERSION."
+echo "✅ SCONE Operator upgraded to version $SCONE_VERSION."
 ```
 
-10. Wait for LAS to become healthy
+## Wait for LAS to become healthy
 
 ```bash
 cd -
