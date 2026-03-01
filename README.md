@@ -15,7 +15,11 @@ First, if you want to install on a local computer or a development VM (must be m
 
 - [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. In a final step, the script installs the SCONE CLI by executing `./scripts/install_sconecli.sh`.
 
+![Screencast](docs/prerequisite_check.gif)
+
 - [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., one only needs this script to upgrade the SCONE CLI.
+
+![Screencast](docs/install_sconecli.gif)
 
 ## Installation in Kubernetes Cluster
 
@@ -23,24 +27,35 @@ In case you have no dedicated development VM, you could run as a container in a 
 
 - [`prerequisite_check.md`](prerequisite_check.md): run `./scripts/prerequisite_check.sh` to ensure that you have `kubectl` and `cargo` installed. Note: this will install more commands than needed - you might only want to install missing components manually instead.
 
+![Screencast](docs/prerequisite_check.gif)
+
 - [`k8s.md`](k8s.md) describes the steps to deploy the SCONE commands inside a Kubernetes cluster: these steps are part of script `./scripts/k8s_cli.sh`. 
+
+![Screencast](docs/k8s_cli.gif)
+
 Second, install the SCONE platform and a first CAS instance on your Kubernetes cluster:
 
 - [`scone_operator.md`](scone_operator.md): a description on how to install or upgrade the SCONE platform in a Kubernetes cluster. To speed up the process, you can execute the script `./scripts/reconcile_scone_operator.sh`.
 
+![Screencast](docs/reconcile_scone_operator.gif)
+
 - [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS - unless you defined environment variables `CAS` and/or `CAS_NAMESPACE`.
 
+![Screencast](docs/install_cas.gif)
+
+- [`scone_monitoring.md`](scone_monitoring.md): optional installation of Prometheus/Grafana and SCONE dashboards.
+
+![Screencast](docs/install_prometheus_grafana.gif)
+
 - Inside the container, you can build confidential applications like our [confidential Java App](https://github.com/scontain/java-args-env-file). 
-
-## Screencast
-
-Installation of a SCONE CAS:
-
-![Screencast](docs/cas.gif)
 
 ## Tutorials
 
 - [confidential Java App](https://github.com/scontain/java-args-env-file): we show how to run a cloud-native Java service as a confidential, cloud-native Java service on Intel SGX, Intel TDX, or AMD SEV SNP.
+
+- [golang.md](golang.md): SCONE Golang support documentation and workflow.
+
+![Screencast](docs/run_golang.gif)
 
 - [golang support](https://github.com/scontain/golang): we provide container images with the latest `Go` versions for building native applications. We show how to build a native `Go` application `caddy` into a [`confidential caddy`](https://github.com/scontainug/caddy) applications using [`scone-signer`](https://sconedocs.github.io/CAS_cli/#scone-signer).
 
@@ -126,11 +141,5 @@ All markdown files are associated with a script that executes the individual ste
 - `scripts/extract-all-scripts.sh`: almost all scripts in the directory `scripts` are automatically derived from the markdown files. If one updates the Markdown files, the generated scripts can be updated by executing `scripts/extract-all-scripts.sh`.
 
 - `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores them in a script file.
-
-## Screencast: Installation of SCONE CLI and SCONE Operator
-
-The following screencast demonstrates the installation of `prerequisite_check.md`, `scone_operator.md`, and `CAS.md` in action:
-
-![Screencast](docs/demo.gif)
 
 Generate updated screencasts by executing `make`.

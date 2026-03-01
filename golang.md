@@ -2,6 +2,8 @@
 
 We show how to build native Go-based binaries that can be used in the context of confidential computing. Note that the compiled binaries are native libraries without any code related to confidential computing. The only difference is that the binaries are linked with a `libc` (see below). 
 
+![Screencast](docs/run_golang.gif)
+
 We show how to compile Go programs that can later inside Trusted Execution Environments (TEEs): 
 
 - Intel SGX enclaves,

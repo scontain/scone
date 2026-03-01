@@ -2,6 +2,8 @@
 
 We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster. 
 
+![Screencast](docs/install_cas.gif)
+
 - First, we check that we have access to the cluster and the SCONE platform is already installed. 
 - Second, we ask the user for the name and the namespace of the CAS. 
 - Third, we call `kubectl provision` to install the CAS.

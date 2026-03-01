@@ -2,6 +2,8 @@
 
 Prometheus and Grafana are two widely used open-source tools for monitoring and visualizing system metrics and application performance.
 
+![Screencast](docs/install_prometheus_grafana.gif)
+
 - Prometheus collects and stores metrics.
 
 - Grafana queries Prometheus and displays those metrics.

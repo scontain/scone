@@ -2,6 +2,8 @@
 
 This document describes on how to set up a pod in Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker deamon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.
 
+![Screencast](docs/k8s_cli.gif)
+
 ## Prerequisites
 
 
