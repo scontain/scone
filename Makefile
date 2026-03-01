@@ -12,6 +12,8 @@ CAS_GIF           ?= docs/cas.gif
 CAS_TITLE         ?= Installing SCONE CAS
 TITLE             ?= Installing SCONE CLI and SCONE Operator
 COLS              ?= 100
+ROWS              ?= 50
+FONT_SIZE         ?= 22
 
 DEPS := asciinema agg
 
@@ -29,13 +31,13 @@ all: record gif
 $(CAST): $(SCRIPT) | check-deps
 	@echo "$(YELLOW)Recording to $(CAST)…$(RESET)"
 	@TYPE_SPEED=$(TYPE_SPEED) PAUSE_AFTER_CMD=$(PAUSE_AFTER_CMD) \
-	asciinema rec --overwrite -q -t "$(TITLE)" -c "$(SCRIPT)" $@
+	asciinema rec --cols "$(COLS)" --rows "$(ROWS)" --overwrite -q -t "$(TITLE)" -c "$(SCRIPT)" $@
 	@echo "$(GREEN)✓ Recorded: $(CAST)$(RESET)"
 
 $(CAS_CAST): $(CAS_SCRIPT) $(CAST) | check-deps
 	@echo "$(YELLOW)Recording to $(CAS_CAST)…$(RESET)"
 	@TYPE_SPEED=$(TYPE_SPEED) PAUSE_AFTER_CMD=$(PAUSE_AFTER_CMD) \
-	asciinema rec --overwrite -q -t "$(CAS_TITLE)" -c "$(CAS_SCRIPT)" $@
+	asciinema rec --cols "$(COLS)" --rows "$(ROWS)" --overwrite -q -t "$(CAS_TITLE)" -c "$(CAS_SCRIPT)" $@
 	@echo "$(GREEN)✓ Recorded: $(CAS_CAST)$(RESET)"
 
 
@@ -44,12 +46,12 @@ $(CAS_CAST): $(CAS_SCRIPT) $(CAST) | check-deps
 # -----------------------------
 $(GIF):  $(CAST) | check-deps
 	@echo "$(YELLOW)Exporting GIF to $(GIF)…$(RESET)"
-	@agg "$(CAST)" "$(GIF)"
+	@agg --col "$(COLS)" --rows "$(ROWS)" --font-size "$(FONT_SIZE)" "$(CAST)" "$(GIF)"
 	@echo "$(GREEN)✓ GIF created: $(GIF)$(RESET)"
 
 $(CAS_GIF): $(CAS_CAST) | check-deps
 	@echo "$(YELLOW)Exporting GIF to $(CAS_GIF)…$(RESET)"
-	@agg "$(CAS_CAST)" "$(CAS_GIF)"
+	@agg --col "$(COLS)" --rows "$(ROWS)" --font-size "$(FONT_SIZE)" "$(CAS_CAST)" "$(CAS_GIF)"
 	@echo "$(GREEN)✓ GIF created: $(CAS_GIF)$(RESET)"
 
 # Front-door targets, matching your original names
@@ -81,4 +83,4 @@ clean:
 
 help:
 	@echo "Targets: record | gif | check-deps | clean | all"
-	@echo "Vars: TYPE_SPEED PAUSE_AFTER_CMD SCRIPT CAST GIF TITLE"
+	@echo "Vars: TYPE_SPEED PAUSE_AFTER_CMD SCRIPT CAST GIF TITLE FONT_SIZE"
