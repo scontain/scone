@@ -7,18 +7,70 @@ printf "${LILAC}"
 cat <<EOF
 # Checking Prerequisites
 
-You need to login to the docker registry 'registry.scontain.yom' with an account that has access to the namespace 'scone.cloud'. If you are already logged in to 'registry.scontain.yom', you are all set. If you have not logged in yet, please set the following variables:
+## Ensure that 'cargo' is installed
 
-export SCONE_REGISTRY_USERNAME="..." # set to your user name 
-export SCONE_REGISTRY_ACCESS_TOKEN="..." # set to personal access token with read access to scone.cloud
+We install some utilities with the help of 'cargo'. Hence, we first ensure that 'rust' and 'cargo' are installed
+with the help of 'scripts/install-rust.sh' that checks if 'rust' and important components are installed and installs
+'rust'. 
 
-By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable 'VERSION' to the SCONE version that you want to install:
+EOF
+printf "${RESET}"
 
-export VERSION="..."  # set to version
+# ensuring that rust is installed
+./scripts/install-rust.sh
+# ensure PATH is properly set:
+export PATH=$HOME/.cargo/bin:$PATH
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
-Otherwise, to ensure that you install the latest version, you can undefine 'VERSION':
+We use helper programs 'tplenv' and 'retry-spinner'. Hence, we ensure that they are installed:
 
-unset VERSION
+EOF
+printf "${RESET}"
+
+# ensuring that tplenv is installed
+cargo install tplenv
+# ensuring that retry-spinner is installed
+cargo install retry-spinner
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+## Environment Variables
+
+By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable 'SCONE_VERSION' to the SCONE version that you want to install:
+
+EOF
+printf "${RESET}"
+
+export SCONE_VERSION=$(cat stable.txt)
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
+
+Set the following environment variable to '--force' if you want to be asked interactively for the SCONE_VERSION:
+
+
+'tplenv' will now ask the user for all environment variables that are described in file 'environment-variables.md'
+but that are not set yet. In case '--force' is set, the values of all environment variables need to confirmed by the user:
+
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+
+Let's ask the user and set the environment variables depending on the input of the user:
+
+EOF
+printf "${RESET}"
+
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+LILAC='\033[1;35m'
+RESET='\033[0m'
+printf "${LILAC}"
+cat <<EOF
 
 ## Checking Commands
 
@@ -53,13 +105,11 @@ check_command() {
 }
 
 scone_registry_login() {
-    export SCONE_REGISTRY_ACCESS_TOKEN=${SCONE_REGISTRY_ACCESS_TOKEN:-}
-    export SCONE_REGISTRY_USERNAME=${SCONE_REGISTRY_USERNAME:-}
-    if [[ -n "${SCONE_REGISTRY_ACCESS_TOKEN}" && -n "${SCONE_REGISTRY_USERNAME}" ]]; then
+    if [[ -n "${REGISTRY_TOKEN}" && -n "${REGISTRY_USER}" ]]; then
         echo "Attempting docker login..."
-        echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
+        echo "${REGISTRY_TOKEN}" | docker login ${REGISTRY} --username "${REGISTRY_USER}" --password-stdin
     else
-        echo "Skipping docker login - SCONE_REGISTRY_TOKEN or SCONE_REGISTRY_USERNAME not set or empty"
+        echo "Skipping docker login - REGISTRY_TOKEN or REGISTRY_USER not set or empty"
         echo "WARNING: Cannot access private SCONE images without login"
     fi
 }
@@ -99,7 +149,7 @@ fi
 # Auto-install kubectl if not present
 if ! check_command kubectl; then
   echo "📥 Installing kubectl..."
-  KUBECTL_VERSION="v1.28.10"
+  export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
   curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
   curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
   echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
@@ -185,25 +235,22 @@ the transformations. If this fail, please do the following:
 EOF
 printf "${RESET}"
 
-if [ -z "${VERSION+x}" ]; then
-  echo "Environment variable VERSION is not set - determining the latest stable version of SCONE"
-  export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-  echo "The lastest stable version of SCONE is $VERSION"
-else
-  echo "Environment variable VERSION is set to $VERSION"
-fi
+echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"
 
 echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
 
-if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$VERSION" &>/dev/null; then
+if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
+    # ask user for the credentials for accessing the registry
+  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )
+  kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
       scone_registry_login
 fi
 
   images=(
-    "registry.scontain.com/scone.cloud/sconecli:$VERSION"
-    "registry.scontain.com/scone.cloud/scone-deb-pkgs:$VERSION"
-    "registry.scontain.com/scone.cloud/sconecli:$VERSION"
+    "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION"
+    "registry.scontain.com/scone.cloud/scone-deb-pkgs:$SCONE_VERSION"
+    "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION"
     "registry.scontain.com/public-images/glibc:2.35-v4"
     "registry.scontain.com/public-images/glibc:2.39-v3"
   )
@@ -223,10 +270,7 @@ cat <<EOF
 
 ## Install SCONE CLI tools
 
-We succeeded to pull the required, images. Next, we can install the 'scone'-replated executable. To do so, we run script './scripts/install_sconecli.sh':
-
+We succeeded to pull the required, images. Next, we can install the 'scone'-replated executable. To do so, you can run script './scripts/install_sconecli.sh'.
 EOF
 printf "${RESET}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-"$SCRIPT_DIR/install_sconecli.sh"

@@ -4,25 +4,33 @@ This repo contains several markdown files that explain how to install the SCONE 
 
 - [`stable.txt`](stable.txt): the latest stable version of the SCONE platform
 
+
+## Installation
+
 The SCONE Confidential Computing Platform consists of components running on your local computer and components running in a Kubernetes cluster. 
 
+### Local Computer
 
-First, you can install the SCONE software components on your local machine or in Kubernetes cluster. If you want to install on a local computer or a development VM (must be modern x86 computer), follow the following steps:
+First, if you want to install on a local computer or a development VM (must be modern x86 computer), follow the following steps:
 
 - [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. In a final step, the script installs the SCONE CLI by executing `./scripts/install_sconecli.sh`.
 
 - [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., one only needs this script to upgrade the SCONE CLI.
 
+## Installation in Kubernetes Cluster
+
 In case you have no dedicated development VM, you could run as a container in a Kubernetes cluster (running x86 computers):
 
-- [`k8s.md`](k8s.md) describes the steps to deploy the Scone commands inside a Kubernetes cluster: these steps are part of script `./scripts/k8s_cli.sh`. Inside the container, you can build confidential applications like our [confidential Java App](https://github.com/scontain/java-args-env-file). 
+- [`prerequisite_check.md`](prerequisite_check.md): run `./scripts/prerequisite_check.sh` to ensure that you have `kubectl` and `cargo` installed. Note: this will install more commands than needed - you might only want to install missing components manually instead.
 
+- [`k8s.md`](k8s.md) describes the steps to deploy the SCONE commands inside a Kubernetes cluster: these steps are part of script `./scripts/k8s_cli.sh`. 
 Second, install the SCONE platform and a first CAS instance on your Kubernetes cluster:
 
 - [`scone_operator.md`](scone_operator.md): a description on how to install or upgrade the SCONE platform in a Kubernetes cluster. To speed up the process, you can execute the script `./scripts/reconcile_scone_operator.sh`.
 
 - [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS - unless you defined environment variables `CAS` and/or `CAS_NAMESPACE`.
 
+- Inside the container, you can build confidential applications like our [confidential Java App](https://github.com/scontain/java-args-env-file). 
 
 ## Screencast
 

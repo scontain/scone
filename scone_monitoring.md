@@ -71,7 +71,7 @@ SCONE provides preconfigured Grafana dashboards for visualizing Prometheus metri
 * ```Scone Runtime Application Details Dashboard```: contains metrics for a given application, selected from the application overview inside the Scone Runtime Dashboard detailed above.
 
 All dashboard JSON files are located in:
-```bash
+```
 scone/prometheus-grafana-manifests
 ```
 
@@ -101,7 +101,7 @@ The SCONE Runtime can collect metrics and provide this information via a Prometh
 Point your Prometheus Scraper at the services address and the used port to collect the produced metrics.
 In SCONE 6.0.4, the following metrics are exposed:
 
-```bash
+```
 # HELP scone_enclave_heap_allocated_bytes The amount of memory requested by the application (roughly equal to VSZ)
 # TYPE scone_enclave_heap_allocated_bytes gauge
 scone_enclave_heap_allocated_bytes{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 8536064

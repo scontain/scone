@@ -15,3 +15,5 @@ k8s/dind.yaml
 *.env
 overwrite
 k8s/deployment.yaml
+kubeconfig
+Values.credentials.yaml
