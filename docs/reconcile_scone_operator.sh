@@ -24,8 +24,10 @@ slow_type() {
 
 pe() {
   local cmd="$*"
+  local display_cmd
+  display_cmd=$(printf "%s" "$cmd" | sed 's/\$/\\$/g')
   printf "%b" "$ORANGE"
-  slow_type "$cmd"
+  slow_type "$display_cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -50,42 +52,36 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-## Installation of the SCONE Platform
-
-To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.
-
-You can execute the steps automatically by running the script `scripts/reconcile_scone_operator.sh`. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.
-
-## Determine the current stable version of the SCONE platform
-
-EOF
+printf '%s\n' '## Installation of the SCONE Platform'
+printf '%s\n' ''
+printf '%s\n' 'To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.'
+printf '%s\n' ''
+printf '%s\n' 'You can execute the steps automatically by running the script `scripts/reconcile_scone_operator.sh`. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.'
+printf '%s\n' ''
+printf '%s\n' '## Determine the current stable version of the SCONE platform'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'export SCONE_VERSION=$(cat stable.txt)'
 pe 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:
-
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-
-Let's ask the user and set the environment variables depending on the input of the user:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
+printf '%s\n' 'but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:'
+printf '%s\n' ''
+printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
+printf '%s\n' ''
+printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Make sure that we actually want to update the current cluster
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Make sure that we actually want to update the current cluster'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# Get the current Kubernetes context'
@@ -110,13 +106,11 @@ pe ''
 pe 'echo "✅ Proceeding with context: $K8S_CONTEXT"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Download the script to install the SCONE platform:
-
-To simplify the cleanup, we download the installation script into a temporary directory:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Download the script to install the SCONE platform:'
+printf '%s\n' ''
+printf '%s\n' 'To simplify the cleanup, we download the installation script into a temporary directory:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'mkdir -p /tmp/SCONE_OPERATOR_CONTROLLER'
@@ -126,13 +120,11 @@ pe 'chmod a+x operator_controller'
 pe 'echo "Downloaded script '\''operator_controller'\'' into directory $PWD"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Verify the signature of the script:
-
-Download the signature of the operator controller:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Verify the signature of the script:'
+printf '%s\n' ''
+printf '%s\n' 'Download the signature of the operator controller:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller.asc > operator_controller.asc'
@@ -140,14 +132,12 @@ pe 'echo "Downloaded signature of '\''operator_controller'\'' to file '\''operat
 pe 'export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Define bash functions:
-
-- `create_gpg_verification_key`: create a temporary file that contains the public key to verify the signature of the script.
-- `verify_file`: verifies that the signature matches the file and the given public key.
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Define bash functions:'
+printf '%s\n' ''
+printf '%s\n' '- `create_gpg_verification_key`: create a temporary file that contains the public key to verify the signature of the script.'
+printf '%s\n' '- `verify_file`: verifies that the signature matches the file and the given public key.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'function create_gpg_verification_key() {'
@@ -238,25 +228,21 @@ pe '    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring $GPG_PUBLIC_KEY_FI
 pe '}'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Next, we verify the signature of the script `operator_controller`:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Next, we verify the signature of the script `operator_controller`:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'verify_file operator_controller'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Please check that output is empty. Stop if error message `Signature check FAILED` is printed.
-
-## Verifying if the cluster is properly installed:
-
-We first define a cleanup function to cleanup after the `operator_controller`:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Please check that output is empty. Stop if error message `Signature check FAILED` is printed.'
+printf '%s\n' ''
+printf '%s\n' '## Verifying if the cluster is properly installed:'
+printf '%s\n' ''
+printf '%s\n' 'We first define a cleanup function to cleanup after the `operator_controller`:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'operator_cleanup() {'
@@ -272,27 +258,23 @@ pe '.sgxplugin-manifest.yaml'
 pe '}'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-We ensure that the correct `kubectl provision` plugin is installed:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'We ensure that the correct `kubectl provision` plugin is installed:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe './operator_controller --set-version $SCONE_VERSION  --only-plugin  --reconcile --update'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Set your Intel API Key
-
-To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
-
-export DCAP_KEY="..."
-
-In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Set your Intel API Key'
+printf '%s\n' ''
+printf '%s\n' 'To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
+printf '%s\n' ''
+printf '%s\n' 'export DCAP_KEY="..."'
+printf '%s\n' ''
+printf '%s\n' 'In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
@@ -310,11 +292,9 @@ pe '        fi'
 pe '    fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-In case we use the default DCAP API key, we ask the user for some input:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'In case we use the default DCAP API key, we ask the user for some input:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# Check if DCAP_KEY is empty or unset'
@@ -335,11 +315,9 @@ pe '  done'
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Next, we run the `operator_controller` to check if the proper version is installed:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Next, we run the `operator_controller` to check if the proper version is installed:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'kubectl get deployment scone-controller-manager -n scone-system -o json | \'
@@ -347,25 +325,21 @@ pe '  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"T
 pe '  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.
-
-In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. We ignore if the removal fails because vault crd might not exist:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.'
+printf '%s\n' ''
+printf '%s\n' 'In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. We ignore if the removal fails because vault crd might not exist:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'kubectl delete crd vaults.services.scone.cloud || true'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Ensure that the image pull secret `sconeapps` exists
-
-We check if we can read the secret:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Ensure that the image pull secret `sconeapps` exists'
+printf '%s\n' ''
+printf '%s\n' 'We check if we can read the secret:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'export install_sconeapps_secret=0'
@@ -374,14 +348,12 @@ pe 'kubectl get secret sconeapps -n scone-system >/dev/null 2>&1 && echo "\"scon
 pe 'kubectl get secret scone-operator-pull -n scone-system >/dev/null 2>&1 && echo "\"sconeapps\" image pull secret exists" || { echo "Secret does not exist" ; export install_sconeapps_secret=1; }'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-We assume that you use the `scone.cloud` image registry, you would need to deploy image pull secrets. For this, you will need to set environment variables:
-
-For more details, please read the following document: [Create an Access Token](https://sconedocs.github.io/registry/#create-an-access-token). In the script (i.e., `reconcile_scone_operator.sh`), we
-ask the user to input the values for these variables:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'We assume that you use the `scone.cloud` image registry, you would need to deploy image pull secrets. For this, you will need to set environment variables:'
+printf '%s\n' ''
+printf '%s\n' 'For more details, please read the following document: [Create an Access Token](https://sconedocs.github.io/registry/#create-an-access-token). In the script (i.e., `reconcile_scone_operator.sh`), we'
+printf '%s\n' 'ask the user to input the values for these variables:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'if [[ $install_sconeapps_secret == 1 ]] ; then'
@@ -390,23 +362,19 @@ pe '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials
 pe ''
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-We install/fix/update the installed version:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'We install/fix/update the installed version:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Updating the SCONE platform
-
-In case an older version of the SCONE platform was already installed (i.e., when the `sconeapps` secret already exists), we can update the platform by executing the following command:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Updating the SCONE platform'
+printf '%s\n' ''
+printf '%s\n' 'In case an older version of the SCONE platform was already installed (i.e., when the `sconeapps` secret already exists), we can update the platform by executing the following command:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'else'
@@ -414,22 +382,18 @@ pe '    ./operator_controller --set-version $SCONE_VERSION --update --reconcile 
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Cleaning up temporary files
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Cleaning up temporary files'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'operator_cleanup'
 pe 'echo "✅ SCONE Operator upgraded to version $SCONE_VERSION."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-## Wait for LAS to become healthy
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '## Wait for LAS to become healthy'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'cd -'

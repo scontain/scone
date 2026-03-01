@@ -145,6 +145,17 @@ escape_dollars_for_display() {
   printf "%s" "$1" | sed 's/\$/\\$/g'
 }
 
+emit_printf_lines() {
+  local output_file="$1"
+  shift
+  local line
+  local escaped
+  for line in "$@"; do
+    escaped=$(escape_single_quotes "$line")
+    echo "printf '%s\\n' '$escaped'" >>"$output_file"
+  done
+}
+
 if [[ "$mode" == "docs-pe" ]]; then
   write_docs_header
 else
@@ -160,11 +171,7 @@ flush_markdown() {
   if [[ ${#markdown_buffer[@]} -gt 0 ]]; then
     if [[ "$mode" == "docs-pe" ]]; then
       echo 'printf "%b" "$LILAC"' >> "$TMP_OUTPUT"
-      echo "cat <<'EOF'" >> "$TMP_OUTPUT"
-      for line in "${markdown_buffer[@]}"; do
-        echo "$line" >> "$TMP_OUTPUT"
-      done
-      echo "EOF" >> "$TMP_OUTPUT"
+      emit_printf_lines "$TMP_OUTPUT" "${markdown_buffer[@]}"
       echo 'printf "%b" "$RESET"' >> "$TMP_OUTPUT"
       echo "" >> "$TMP_OUTPUT"
       markdown_buffer=()
@@ -172,11 +179,7 @@ flush_markdown() {
     fi
 
     echo 'printf "${VIOLET}"' >> "$TMP_OUTPUT"
-    echo "cat <<'EOF'" >> "$TMP_OUTPUT"
-    for line in "${markdown_buffer[@]}"; do
-      echo "$line" >> "$TMP_OUTPUT"
-    done
-    echo "EOF" >> "$TMP_OUTPUT"
+    emit_printf_lines "$TMP_OUTPUT" "${markdown_buffer[@]}"
     echo 'printf "${RESET}"' >> "$TMP_OUTPUT"
     echo "" >> "$TMP_OUTPUT"
     markdown_buffer=()
@@ -199,11 +202,11 @@ flush_code_block() {
   fi
 
   echo 'printf "${ORANGE}"' >> "$TMP_OUTPUT"
-  echo "cat <<'EOF'" >> "$TMP_OUTPUT"
+  local escaped_code_buffer=()
   for line in "${code_buffer[@]}"; do
-    escape_dollars_for_display "$line" >> "$TMP_OUTPUT"
+    escaped_code_buffer+=("$(escape_dollars_for_display "$line")")
   done
-  echo "EOF" >> "$TMP_OUTPUT"
+  emit_printf_lines "$TMP_OUTPUT" "${escaped_code_buffer[@]}"
   echo 'printf "${RESET}"' >> "$TMP_OUTPUT"
   echo "" >> "$TMP_OUTPUT"
   for line in "${code_buffer[@]}"; do

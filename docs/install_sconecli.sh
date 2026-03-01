@@ -24,8 +24,10 @@ slow_type() {
 
 pe() {
   local cmd="$*"
+  local display_cmd
+  display_cmd=$(printf "%s" "$cmd" | sed 's/\$/\\$/g')
   printf "%b" "$ORANGE"
-  slow_type "$cmd"
+  slow_type "$display_cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -50,65 +52,59 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-# SCONE CLI
-
-You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.
-
-This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.
-
-NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.
-
-## Caveat When Running Inside a Container
-
-There are two versions of the `scone` CLI:
-
-- A **native version** that cannot run inside an enclave
-- The **default version**, which is designed to run **inside an enclave**
-  
-By default, the `scone` CLI of a container runs confidential in production mode. To run in simulation mode on systems that do not support production TEEs, set the environment variable `SCONE_PRODUCTION=0`, e.g., you can run`SCONE_PRODUCTION=0 scone --help` .
-
-Below, we describe how to install the `scone` CLI using `auto` mode, i.e., the CLI will most likely run in simulation mode.
-
-## Installing the `scone` CLI 
-
-We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.
-
-
-`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet. 
-
-In case you want to use the values defined in the environment variables and file `Values.yaml`, please set:
-
-EOF
+printf '%s\n' '# SCONE CLI'
+printf '%s\n' ''
+printf '%s\n' 'You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.'
+printf '%s\n' ''
+printf '%s\n' 'This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.'
+printf '%s\n' ''
+printf '%s\n' 'NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.'
+printf '%s\n' ''
+printf '%s\n' '## Caveat When Running Inside a Container'
+printf '%s\n' ''
+printf '%s\n' 'There are two versions of the `scone` CLI:'
+printf '%s\n' ''
+printf '%s\n' '- A **native version** that cannot run inside an enclave'
+printf '%s\n' '- The **default version**, which is designed to run **inside an enclave**'
+printf '%s\n' '  '
+printf '%s\n' 'By default, the `scone` CLI of a container runs confidential in production mode. To run in simulation mode on systems that do not support production TEEs, set the environment variable `SCONE_PRODUCTION=0`, e.g., you can run`SCONE_PRODUCTION=0 scone --help` .'
+printf '%s\n' ''
+printf '%s\n' 'Below, we describe how to install the `scone` CLI using `auto` mode, i.e., the CLI will most likely run in simulation mode.'
+printf '%s\n' ''
+printf '%s\n' '## Installing the `scone` CLI '
+printf '%s\n' ''
+printf '%s\n' 'We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.'
+printf '%s\n' ''
+printf '%s\n' ''
+printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
+printf '%s\n' 'but that are not set yet. '
+printf '%s\n' ''
+printf '%s\n' 'In case you want to use the values defined in the environment variables and file `Values.yaml`, please set:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-In case the values of the environment variables need to confirmed by the user, set it to `--force`: 
-
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-
-Let's ask the user and set the environment variables depending on the input of the user:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'In case the values of the environment variables need to confirmed by the user, set it to `--force`: '
+printf '%s\n' ''
+printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
+printf '%s\n' ''
+printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-The SCONE CLI is available as Debian packages as part of a container image. 
-We first verify that the container image is properly signed by cosign.
-
-To do so, we define the cosign public verification key using a function `create_cosign_verification_key`.
-We verify the signature of a given container image with function `verify_image`:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'The SCONE CLI is available as Debian packages as part of a container image. '
+printf '%s\n' 'We first verify that the container image is properly signed by cosign.'
+printf '%s\n' ''
+printf '%s\n' 'To do so, we define the cosign public verification key using a function `create_cosign_verification_key`.'
+printf '%s\n' 'We verify the signature of a given container image with function `verify_image`:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '#'
@@ -146,12 +142,10 @@ pe '    echo " - verification was successful"'
 pe '}'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Next, we define the image that contains the `scone` CLI Debian package and
-verify the image:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Next, we define the image that contains the `scone` CLI Debian package and'
+printf '%s\n' 'verify the image:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# default repo and image name'
@@ -161,12 +155,10 @@ pe ''
 pe 'verify_image "$REPO/$IMAGE:$SCONE_VERSION"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-After successful verification, we create a temporary container
-to be able to copy the Debian packages to the local filesystem.
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'After successful verification, we create a temporary container'
+printf '%s\n' 'to be able to copy the Debian packages to the local filesystem.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# ensure that container scone-packages does not exit'
@@ -176,14 +168,12 @@ pe '# run container such that we can copy the packages to a local repo'
 pe 'docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev/null'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Next, we copy the package to the `/tmp` directory and
-install the `scone` packages. 
-
-You will need to type your `sudo` password:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Next, we copy the package to the `/tmp` directory and'
+printf '%s\n' 'install the `scone` packages. '
+printf '%s\n' ''
+printf '%s\n' 'You will need to type your `sudo` password:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# copy the packages'
@@ -202,11 +192,9 @@ pe '# clean up'
 pe 'rm -rf /tmp/packages'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-We ensure that `kubectl-scone` plugin only exists once - otherwise, `kubectl` issues a warning:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'We ensure that `kubectl-scone` plugin only exists once - otherwise, `kubectl` issues a warning:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe ''
@@ -219,23 +207,19 @@ pe '    fi'
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Check that the `scone` cli is properly installed by executing:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Check that the `scone` cli is properly installed by executing:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'echo "Expecting SCONE version: $SCONE_VERSION"'
 pe 'scone --version'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-This should execute the same SCONE version as the previously printed latest stable version.
-(The minimal version is 6.0.0)
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'This should execute the same SCONE version as the previously printed latest stable version.'
+printf '%s\n' '(The minimal version is 6.0.0)'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '  echo "✅ All scone-related executable installed"'

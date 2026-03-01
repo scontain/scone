@@ -24,8 +24,10 @@ slow_type() {
 
 pe() {
   local cmd="$*"
+  local display_cmd
+  display_cmd=$(printf "%s" "$cmd" | sed 's/\$/\\$/g')
   printf "%b" "$ORANGE"
-  slow_type "$cmd"
+  slow_type "$display_cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -50,21 +52,19 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-# Deploying a CAS instance
-
-We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster. 
-
-- First, we check that we have access to the cluster and the SCONE platform is already installed. 
-- Second, we ask the user for the name and the namespace of the CAS. 
-- Third, we call `kubectl provision` to install the CAS.
-
-## Steps
-
-
-1. Ensure that the SCONE operator is installed and up-to-date (see [scone_operator](scone_operator.md))
-
-EOF
+printf '%s\n' '# Deploying a CAS instance'
+printf '%s\n' ''
+printf '%s\n' 'We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster. '
+printf '%s\n' ''
+printf '%s\n' '- First, we check that we have access to the cluster and the SCONE platform is already installed. '
+printf '%s\n' '- Second, we ask the user for the name and the namespace of the CAS. '
+printf '%s\n' '- Third, we call `kubectl provision` to install the CAS.'
+printf '%s\n' ''
+printf '%s\n' '## Steps'
+printf '%s\n' ''
+printf '%s\n' ''
+printf '%s\n' '1. Ensure that the SCONE operator is installed and up-to-date (see [scone_operator](scone_operator.md))'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe ''
@@ -80,11 +80,9 @@ pe ''
 pe 'echo "✅ Deployment '\''$DEPLOYMENT'\'' exists in namespace '\''$NAMESPACE'\'' (i.e., the SCONE Operator is running)."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-2. ensure that the SCONE `kubectl` plugins are installed:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '2. ensure that the SCONE `kubectl` plugins are installed:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'if ! kubectl-provision --help >/dev/null ; then'
@@ -103,14 +101,12 @@ pe ''
 pe 'echo "✅ '\''kubectl-scone'\'' plugin is available."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-
-3. Ensure that SGX Plugin and Local Attestation Service (LAS) are `HEALTHY`
-
-First, we check the state of the SGX Plugin. For the LAS to be healthy, the SGX Plugin must be healthy:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' ''
+printf '%s\n' '3. Ensure that SGX Plugin and Local Attestation Service (LAS) are `HEALTHY`'
+printf '%s\n' ''
+printf '%s\n' 'First, we check the state of the SGX Plugin. For the LAS to be healthy, the SGX Plugin must be healthy:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# Try to extract the STATE field (assuming kubectl output includes a column "STATE")'
@@ -123,12 +119,10 @@ pe '  exit 1'
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Next, we check that the LAS is healthy:
-
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Next, we check that the LAS is healthy:'
+printf '%s\n' ''
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# Try to extract the STATE field (assuming kubectl output includes a column "STATE")'
@@ -143,17 +137,15 @@ pe ''
 pe 'echo "✅ LAS state is HEALTHY."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-4. We determine your Intel API Key
-
-Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable: 
-
-export DCAP_KEY="..."
-
-In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '4. We determine your Intel API Key'
+printf '%s\n' ''
+printf '%s\n' 'Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable: '
+printf '%s\n' ''
+printf '%s\n' 'export DCAP_KEY="..."'
+printf '%s\n' ''
+printf '%s\n' 'In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
@@ -171,11 +163,9 @@ pe '        fi'
 pe '    fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-In case we use the default DCAP API key, we ask the user for some input:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'In case we use the default DCAP API key, we ask the user for some input:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# Check if DCAP_KEY is empty or unset'
@@ -202,24 +192,20 @@ pe '  export DCAP_ARG=""'
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-5. Determine the current stable version of the SCONE platform:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '5. Determine the current stable version of the SCONE platform:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)'
 pe 'echo "The lastest stable version of SCONE is $VERSION"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-6. Ensure that Persistent Volumes exist
-
-In some clusters, we have experienced problems with persistent volumes and persisten volume claims. Hence, we check if they exist:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '6. Ensure that Persistent Volumes exist'
+printf '%s\n' ''
+printf '%s\n' 'In some clusters, we have experienced problems with persistent volumes and persisten volume claims. Hence, we check if they exist:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'echo "🔍 Checking if PersistentVolume (PV) and PersistentVolumeClaim (PVC) APIs are available..."'
@@ -294,11 +280,9 @@ pe '  echo "✅ Default StorageClass: $default_class"'
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-7. Determine the name and the namespace of the CAS instance
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '7. Determine the name and the namespace of the CAS instance'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'echo "✅ Using environment variable CAS (if it exists): ${CAS:-}"'
@@ -323,11 +307,9 @@ pe 'echo "✅ Using CAS: $CAS"'
 pe 'echo "✅ Using namespace: $CAS_NAMESPACE"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Check that this CAS instance does not yet exist:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Check that this CAS instance does not yet exist:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'if kubectl get cas "$CAS" -n "$CAS_NAMESPACE" &>/dev/null; then'
@@ -338,13 +320,11 @@ pe ''
 pe 'echo "✅ No existing CAS resource named '\''$CAS'\'' found in namespace '\''$CAS_NAMESPACE'\''."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-8. Confirm that we want to install this CAS
-
-Make sure that we actually want to install CAS $CAS in the namespace $CAS_NAMESPACE of the current cluster
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '8. Confirm that we want to install this CAS'
+printf '%s\n' ''
+printf '%s\n' 'Make sure that we actually want to install CAS $CAS in the namespace $CAS_NAMESPACE of the current cluster'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe '# Get the current Kubernetes context'
@@ -369,13 +349,11 @@ pe ''
 pe 'echo "✅ Proceeding with context: $K8S_CONTEXT"'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-9. Check the number of nodes
-
-We expect at least 3 nodes in the Kubernetes cluster that have a healthy LAS, i.e., on these nodes, we can run the CAS and the CAS safety services.
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '9. Check the number of nodes'
+printf '%s\n' ''
+printf '%s\n' 'We expect at least 3 nodes in the Kubernetes cluster that have a healthy LAS, i.e., on these nodes, we can run the CAS and the CAS safety services.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'node_count=$(kubectl get nodes -l las.scontain.com/ok=true --no-headers 2>/dev/null | wc -l)'
@@ -389,13 +367,11 @@ pe ''
 pe 'echo "✅ $node_count node(s) with label '\''las.scontain.com/ok=true'\'' found — OK."'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-10. Installing the CAS 
-
-The following statement installs the CAS and waits until the CAS becomes healthy:
-
-EOF
+printf '%s\n' ''
+printf '%s\n' '10. Installing the CAS '
+printf '%s\n' ''
+printf '%s\n' 'The following statement installs the CAS and waits until the CAS becomes healthy:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then'
@@ -404,11 +380,9 @@ pe '  exit 1'
 pe 'fi'
 
 printf "%b" "$LILAC"
-cat <<'EOF'
-
-Finally, we show the status of the CAS
-
-EOF
+printf '%s\n' ''
+printf '%s\n' 'Finally, we show the status of the CAS'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe 'kubectl get cas $CAS -n $CAS_NAMESPACE'
