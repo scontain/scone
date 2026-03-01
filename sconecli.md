@@ -2,6 +2,8 @@
 
 You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.
 
+![Screencast](docs/install_sconecli.gif)
+
 This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.
 
 NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.

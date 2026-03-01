@@ -2,6 +2,8 @@
 
 To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.
 
+![Screencast](docs/reconcile_scone_operator.gif)
+
 You can execute the steps automatically by running the script `scripts/reconcile_scone_operator.sh`. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.
 
 ## Determine the current stable version of the SCONE platform
