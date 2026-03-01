@@ -11,6 +11,8 @@ printf '%s\n' '# `golang` Confidential Computing Support'
 printf '%s\n' ''
 printf '%s\n' 'We show how to build native Go-based binaries that can be used in the context of confidential computing. Note that the compiled binaries are native libraries without any code related to confidential computing. The only difference is that the binaries are linked with a `libc` (see below). '
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/run_golang.gif)'
+printf '%s\n' ''
 printf '%s\n' 'We show how to compile Go programs that can later inside Trusted Execution Environments (TEEs): '
 printf '%s\n' ''
 printf '%s\n' '- Intel SGX enclaves,'
@@ -74,7 +76,7 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'cd go-example'
 printf '%s\n' ''
-printf '%s\n' 'cat > Dockerfile <<EOF'
+printf '%s\n' 'cat > Dockerfile <<SEOF'
 printf '%s\n' 'FROM registry.scontain.com/scone.cloud/golang:1.24'
 printf '%s\n' ''
 printf '%s\n' 'WORKDIR /usr/src/app'
@@ -87,12 +89,12 @@ printf '%s\n' 'COPY . .'
 printf '%s\n' 'RUN go build -v -o /usr/local/bin/app ./...'
 printf '%s\n' ''
 printf '%s\n' 'CMD ["app"]'
-printf '%s\n' 'EOF'
+printf '%s\n' 'SEOF'
 printf "${RESET}"
 
 cd go-example
 
-cat > Dockerfile <<EOF
+cat > Dockerfile <<SEOF
 FROM registry.scontain.com/scone.cloud/golang:1.24
 
 WORKDIR /usr/src/app
@@ -105,7 +107,7 @@ COPY . .
 RUN go build -v -o /usr/local/bin/app ./...
 
 CMD ["app"]
-EOF
+SEOF
 
 printf "${VIOLET}"
 printf '%s\n' ''

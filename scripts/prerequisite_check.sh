@@ -15,6 +15,8 @@ printf '%s\n' 'We install some utilities with the help of `cargo`. Hence, we fir
 printf '%s\n' 'with the help of `scripts/install-rust.sh` that checks if `rust` and important components are installed and installs'
 printf '%s\n' '`rust`. '
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/prerequisite_check.gif)'
+printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"

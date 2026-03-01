@@ -22,32 +22,10 @@ slow_type() {
   done
 }
 
-escape_unescaped_dollars() {
-  local input="$1"
-  local output=""
-  local prev=""
-  local ch
-  local i
-
-  for ((i=0; i<${#input}; i++)); do
-    ch="${input:i:1}"
-    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
-      output+='\\$'
-    else
-      output+="$ch"
-    fi
-    prev="$ch"
-  done
-
-  printf "%s" "$output"
-}
-
 pe() {
   local cmd="$*"
-  local display_cmd
-  display_cmd=$(escape_unescaped_dollars "$cmd")
   printf "%b" "$ORANGE"
-  slow_type "$display_cmd"
+  slow_type "$cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -76,6 +54,8 @@ printf '%s\n' '# Deploying SCONE CLI Image on Kubernetes'
 printf '%s\n' ''
 printf '%s\n' 'This document describes on how to set up a pod in Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker deamon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/k8s_cli.gif)'
+printf '%s\n' ''
 printf '%s\n' '## Prerequisites'
 printf '%s\n' ''
 printf '%s\n' ''
@@ -83,16 +63,46 @@ printf '%s\n' 'We first ensure that command `kubectl` is installed:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'check_command() {'
-pe '  command -v "$1" &>/dev/null'
-pe '}'
-pe ''
-pe '# Auto-install kubectl if not present'
-pe 'if ! check_command kubectl; then'
-pe '  echo "Please run ./scripts/prerequisite_check.sh first"'
-pe 'else'
-pe '  echo "✔️ kubectl is already installed."'
-pe 'fi'
+pe "$(cat <<'EOF'
+check_command() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  command -v "$1" &>/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install kubectl if not present
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command kubectl; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Please run ./scripts/prerequisite_check.sh first"
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ kubectl is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -100,8 +110,14 @@ printf '%s\n' 'Next, we check that we havve access to a Kubernetes cluster. This
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# checking that we have access to a cluster'
-pe 'kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1; }'
+pe "$(cat <<'EOF'
+# checking that we have access to a cluster
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1; }
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -125,7 +141,10 @@ printf '%s\n' 'If we want to use the values from file `Values.yaml`, we set this
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
+pe "$(cat <<'EOF'
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -133,7 +152,10 @@ printf '%s\n' 'Next, we set all environment variables related to the registry cr
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
+pe "$(cat <<'EOF'
+eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -141,14 +163,38 @@ printf '%s\n' 'To be sure, we check that both variables are defined:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'if [ -z "${REGISTRY_USER+x}" ]; then'
-pe '  echo "Environment variable REGISTRY_USER is not set - please define and retry." '
-pe '  exit 1'
-pe 'fi'
-pe 'if [ -z "${REGISTRY_TOKEN+x}" ]; then'
-pe '  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." '
-pe '  exit 1'
-pe 'fi'
+pe "$(cat <<'EOF'
+if [ -z "${REGISTRY_USER+x}" ]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Environment variable REGISTRY_USER is not set - please define and retry." 
+EOF
+)"
+pe "$(cat <<'EOF'
+  exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+if [ -z "${REGISTRY_TOKEN+x}" ]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." 
+EOF
+)"
+pe "$(cat <<'EOF'
+  exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -158,7 +204,10 @@ printf '%s\n' 'In our pod, we use a pre-built image `registry.scontain.com/works
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'export CLI_IMAGE="registry.scontain.com/workshop/scone"'
+pe "$(cat <<'EOF'
+export CLI_IMAGE="registry.scontain.com/workshop/scone"
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -168,7 +217,10 @@ printf '%s\n' 'By default we install the CLI image in namespace `scone-tools`. Y
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'export CLI_NAMESPACE="scone-tools"'
+pe "$(cat <<'EOF'
+export CLI_NAMESPACE="scone-tools"
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -176,7 +228,10 @@ printf '%s\n' 'Let'\''s ask the user and set the environment variables depending
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+pe "$(cat <<'EOF'
+eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -192,46 +247,145 @@ printf '%s\n' 'Also, in case you built and pushed the image to a different regis
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'kubectl create ns $CLI_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -'
-pe ''
-pe 'SECRET_NAME="scone-registry"'
-pe ''
-pe 'if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then'
-pe '  echo "Secret '\''$SECRET_NAME'\'' exists in namespace '\''$CLI_NAMESPACE'\'' - do not replace."'
-pe 'else'
-pe '  echo "Secret '\''$SECRET_NAME'\'' not found in namespace '\''$CLI_NAMESPACE'\'' - Creating it."'
-pe '  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \'
-pe '    --docker-server=registry.scontain.com \'
-pe '    --docker-username="$REGISTRY_USER" \'
-pe '    --docker-password="$REGISTRY_TOKEN"'
-pe 'fi'
-pe ''
-pe 'SECRET_NAME="sconeapps"'
-pe ''
-pe 'if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then'
-pe '  echo "Secret '\''$SECRET_NAME'\'' exists in namespace '\''$CLI_NAMESPACE'\'' - do not replace."'
-pe 'else'
-pe '  echo "Secret '\''$SECRET_NAME'\'' not found in namespace '\''$CLI_NAMESPACE'\'' - Creating it."'
-pe '  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \'
-pe '    --docker-server=registry.scontain.com \'
-pe '    --docker-username="$REGISTRY_USER" \'
-pe '    --docker-password="$REGISTRY_TOKEN"'
-pe 'fi'
-pe ''
-pe 'SECRET_NAME="scone-registry-env"'
-pe ''
-pe 'if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then'
-pe '  echo "Secret '\''$SECRET_NAME'\'' exists in namespace '\''$CLI_NAMESPACE'\'' - do not replace."'
-pe 'else'
-pe ''
-pe 'cat > ./scone-registry.env <<EOF'
-pe 'export REGISTRY_TOKEN="$REGISTRY_TOKEN"'
-pe 'export REGISTRY_USER="$REGISTRY_USER"'
-pe 'EOF'
-pe ''
-pe 'kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \'
-pe '--from-file=$SECRET_NAME=./scone-registry.env'
-pe 'fi'
+pe "$(cat <<'EOF'
+kubectl create ns $CLI_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+SECRET_NAME="scone-registry"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret '$SECRET_NAME' not found in namespace '$CLI_NAMESPACE' - Creating it."
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \
+    --docker-server=registry.scontain.com \
+    --docker-username="$REGISTRY_USER" \
+    --docker-password="$REGISTRY_TOKEN"
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+SECRET_NAME="sconeapps"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret '$SECRET_NAME' not found in namespace '$CLI_NAMESPACE' - Creating it."
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \
+    --docker-server=registry.scontain.com \
+    --docker-username="$REGISTRY_USER" \
+    --docker-password="$REGISTRY_TOKEN"
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+SECRET_NAME="scone-registry-env"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+cat > ./scone-registry.env <<SEOF
+EOF
+)"
+pe "$(cat <<'EOF'
+export REGISTRY_TOKEN="$REGISTRY_TOKEN"
+EOF
+)"
+pe "$(cat <<'EOF'
+export REGISTRY_USER="$REGISTRY_USER"
+EOF
+)"
+pe "$(cat <<'EOF'
+SEOF
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \
+--from-file=$SECRET_NAME=./scone-registry.env
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -242,8 +396,14 @@ printf '%s\n' 'We provide a template to define the RBAC for the CLI image. We in
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'tplenv --file ./k8s/rbac.template.yaml --output ./k8s/rbac.yaml'
-pe 'kubectl apply -f ./k8s/rbac.yaml'
+pe "$(cat <<'EOF'
+tplenv --file ./k8s/rbac.template.yaml --output ./k8s/rbac.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl apply -f ./k8s/rbac.yaml
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' '   '
@@ -251,8 +411,14 @@ printf '%s\n' '## Deploy DIND'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'tplenv --file ./k8s/dind.template.yaml --output ./k8s/dind.yaml'
-pe 'kubectl apply -f ./k8s/dind.yaml'
+pe "$(cat <<'EOF'
+tplenv --file ./k8s/dind.template.yaml --output ./k8s/dind.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl apply -f ./k8s/dind.yaml
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -262,10 +428,22 @@ printf '%s\n' 'We change the image name in `deployment.yaml` file for the one yo
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml'
-pe '# ensure we load the latest container image'
-pe 'kubectl apply -f ./k8s/deployment.yaml'
-pe 'kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
+pe "$(cat <<'EOF'
+tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+# ensure we load the latest container image
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl apply -f ./k8s/deployment.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -273,25 +451,82 @@ printf '%s\n' '##  Watch the logs of the pod'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'wait_for_pod_logs() {'
-pe '  local ns="${1:-default}"'
-pe '  local label="${2:?Usage: wait_for_pod_logs <namespace> <label>}"'
-pe '  local timeout="${3:-200s}"'
-pe ''
-pe '  echo "⏳ Waiting for pod with label $label in namespace $ns..."'
-pe '  kubectl wait pod -n "$ns" -l "$label" --for=condition=Ready --timeout="$timeout" || {'
-pe '    echo "❌ Timeout waiting for pod to become Ready."'
-pe '    return 1'
-pe '  }'
-pe ''
-pe '  local pod'
-pe '  pod=$(kubectl get pod -n "$ns" -l "$label" -o jsonpath='\''{.items[0].metadata.name}'\'')'
-pe ''
-pe '  echo "📜 Showing first 10 lines of logs from pod: $pod"'
-pe '  kubectl logs -n "$ns" "$pod" | head -n 10'
-pe '}'
-pe ''
-pe 'wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox'
+pe "$(cat <<'EOF'
+wait_for_pod_logs() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  local ns="${1:-default}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  local label="${2:?Usage: wait_for_pod_logs <namespace> <label>}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  local timeout="${3:-200s}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "⏳ Waiting for pod with label $label in namespace $ns..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl wait pod -n "$ns" -l "$label" --for=condition=Ready --timeout="$timeout" || {
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "❌ Timeout waiting for pod to become Ready."
+EOF
+)"
+pe "$(cat <<'EOF'
+    return 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  }
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+  local pod
+EOF
+)"
+pe "$(cat <<'EOF'
+  pod=$(kubectl get pod -n "$ns" -l "$label" -o jsonpath='{.items[0].metadata.name}')
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📜 Showing first 10 lines of logs from pod: $pod"
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl logs -n "$ns" "$pod" | head -n 10
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' '   '
@@ -299,7 +534,10 @@ printf '%s\n' '##  Run the SCONE CLI using help'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help'
+pe "$(cat <<'EOF'
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -307,5 +545,8 @@ printf '%s\n' '##  Drop into the shell to execute your commands'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash'
+pe "$(cat <<'EOF'
+kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash
+EOF
+)"
 

@@ -22,32 +22,10 @@ slow_type() {
   done
 }
 
-escape_unescaped_dollars() {
-  local input="$1"
-  local output=""
-  local prev=""
-  local ch
-  local i
-
-  for ((i=0; i<${#input}; i++)); do
-    ch="${input:i:1}"
-    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
-      output+='\\$'
-    else
-      output+="$ch"
-    fi
-    prev="$ch"
-  done
-
-  printf "%s" "$output"
-}
-
 pe() {
   local cmd="$*"
-  local display_cmd
-  display_cmd=$(escape_unescaped_dollars "$cmd")
   printf "%b" "$ORANGE"
-  slow_type "$display_cmd"
+  slow_type "$cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -80,12 +58,26 @@ printf '%s\n' 'We install some utilities with the help of `cargo`. Hence, we fir
 printf '%s\n' 'with the help of `scripts/install-rust.sh` that checks if `rust` and important components are installed and installs'
 printf '%s\n' '`rust`. '
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/prerequisite_check.gif)'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# ensuring that rust is installed'
-pe './scripts/install-rust.sh'
-pe '# ensure PATH is properly set:'
-pe 'export PATH=$HOME/.cargo/bin:$PATH'
+pe "$(cat <<'EOF'
+# ensuring that rust is installed
+EOF
+)"
+pe "$(cat <<'EOF'
+./scripts/install-rust.sh
+EOF
+)"
+pe "$(cat <<'EOF'
+# ensure PATH is properly set:
+EOF
+)"
+pe "$(cat <<'EOF'
+export PATH=$HOME/.cargo/bin:$PATH
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -93,10 +85,22 @@ printf '%s\n' 'We use helper programs `tplenv` and `retry-spinner`. Hence, we en
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# ensuring that tplenv is installed'
-pe 'cargo install tplenv'
-pe '# ensuring that retry-spinner is installed'
-pe 'cargo install retry-spinner'
+pe "$(cat <<'EOF'
+# ensuring that tplenv is installed
+EOF
+)"
+pe "$(cat <<'EOF'
+cargo install tplenv
+EOF
+)"
+pe "$(cat <<'EOF'
+# ensuring that retry-spinner is installed
+EOF
+)"
+pe "$(cat <<'EOF'
+cargo install retry-spinner
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -106,8 +110,14 @@ printf '%s\n' 'By default, we install the latest stable version of SCONE. You ca
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'export SCONE_VERSION=$(cat stable.txt)'
-pe 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
+pe "$(cat <<'EOF'
+export SCONE_VERSION=$(cat stable.txt)
+EOF
+)"
+pe "$(cat <<'EOF'
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -123,7 +133,10 @@ printf '%s\n' 'Let'\''s ask the user and set the environment variables depending
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+pe "$(cat <<'EOF'
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -149,131 +162,506 @@ printf '%s\n' '> please run a second time.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'GREEN='\''\033[0;32m'\'''
-pe 'YELLOW='\''\033[1;33m'\'''
-pe 'RED='\''\033[0;31m'\'''
-pe 'NC='\''\033[0m'\'' # No Color'
-pe ''
-pe 'check_command() {'
-pe '  command -v "$1" &>/dev/null'
-pe '}'
-pe ''
-pe 'scone_registry_login() {'
-pe '    if [[ -n "${REGISTRY_TOKEN}" && -n "${REGISTRY_USER}" ]]; then'
-pe '        echo "Attempting docker login..."'
-pe '        echo "${REGISTRY_TOKEN}" | docker login ${REGISTRY} --username "${REGISTRY_USER}" --password-stdin'
-pe '    else'
-pe '        echo "Skipping docker login - REGISTRY_TOKEN or REGISTRY_USER not set or empty"'
-pe '        echo "WARNING: Cannot access private SCONE images without login"'
-pe '    fi'
-pe '}'
-pe ''
-pe '# Auto-install Cosign if not present'
-pe 'if ! check_command cosign; then'
-pe '  echo "📥 Installing Cosign..."'
-pe '  curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"'
-pe '  sudo mv cosign-linux-amd64 /usr/local/bin/cosign'
-pe '  sudo chmod +x /usr/local/bin/cosign'
-pe '  echo "✔️ Cosign installed successfully."'
-pe 'else'
-pe '  echo "✔️ Cosign is already installed."'
-pe 'fi'
-pe ''
-pe '# Auto-install Docker if not present'
-pe 'if ! check_command docker; then'
-pe '  echo "📥 Installing Docker..."'
-pe '  curl -fsSL https://get.docker.com | sh'
-pe '  echo "✔️ Docker installed successfully. Please log out and back in for group changes to take effect."'
-pe 'else'
-pe '  echo "✔️ Docker is already installed."'
-pe 'fi'
-pe ''
-pe '# Auto-install GitHub CLI if not present'
-pe 'if ! check_command gh; then'
-pe '  echo "📥 Installing GitHub CLI..."'
-pe '  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg'
-pe '  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null'
-pe '  sudo apt update'
-pe '  sudo apt install -y gh'
-pe '  echo "✔️ GitHub CLI installed successfully."'
-pe 'else'
-pe '  echo "✔️ GitHub CLI is already installed."'
-pe 'fi'
-pe ''
-pe '# Auto-install kubectl if not present'
-pe 'if ! check_command kubectl; then'
-pe '  echo "📥 Installing kubectl..."'
-pe '  export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)'
-pe '  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl'
-pe '  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256'
-pe '  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check'
-pe '  sudo chmod +x kubectl'
-pe '  sudo mv ./kubectl /usr/local/bin/'
-pe '  rm kubectl.sha256'
-pe '  echo "✔️ kubectl installed successfully."'
-pe 'else'
-pe '  echo "✔️ kubectl is already installed."'
-pe 'fi'
-pe ''
-pe 'install_yq_v4() {'
-pe '  YQ_VERSION="v4.46.1"'
-pe '  sudo apt update'
-pe '  sudo apt install -y --no-install-recommends xz-utils'
-pe '  curl -L "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.tar.gz" | sudo tar xz -C /usr/local/bin'
-pe '  sudo chmod +x /usr/local/bin/yq_linux_amd64'
-pe '  sudo ln -sf /usr/local/bin/yq_linux_amd64 /usr/local/bin/yq'
-pe '  echo "✔️ yq installed successfully."'
-pe '}'
-pe ''
-pe '# Check and Auto install Yq Version 4'
-pe 'if check_command yq; then'
-pe '    yq_version=$(yq --version 2>&1 | grep  -oE '\''v[0-9]+'\'' | cut -d'\''v'\'' -f2) || yq_version=""'
-pe '    if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then'
-pe '        echo -e "${RED}❌ Found yq version $yq_version which is not supported. Installing Yq v4"'
-pe '        install_yq_v4'
-pe '    fi'
-pe '    if [[ "$yq_version" -ge 4 ]]; then'
-pe '        echo "✔️ yq v$yq_version is installed (meets requirement v4+)."'
-pe '    else'
-pe '        echo -e "${RED}❌ yq version $yq_version is too old. Installing Yq v4"'
-pe '        install_yq_v4'
-pe '    fi'
-pe 'else'
-pe '    echo -e "${RED}❌ yq is not installed. Installing Yq v4"'
-pe '    install_yq_v4'
-pe 'fi'
-pe ''
-pe '# Auto-install other required packages'
-pe 'missing_packages=()'
-pe 'for pkg in pkg-config jq libssl-dev; do'
-pe '  if ! dpkg -s "$pkg" &>/dev/null; then'
-pe '    missing_packages+=("$pkg")'
-pe '  fi'
-pe 'done'
-pe ''
-pe 'if [ ${#missing_packages[@]} -ne 0 ]; then'
-pe '  echo "📥 Installing missing packages: ${missing_packages[*]}"'
-pe '  sudo apt update'
-pe '  sudo apt install -y "${missing_packages[@]}"'
-pe '  echo "✔️ All missing packages installed successfully."'
-pe 'fi'
-pe ''
-pe '# sed is typically pre-installed on Ubuntu, but check anyway'
-pe 'if ! check_command sed; then'
-pe '  echo "📥 Installing sed..."'
-pe '  sudo apt update'
-pe '  sudo apt install -y sed'
-pe '  echo "✔️ sed installed successfully."'
-pe 'else'
-pe '  echo "✔️ sed is already installed."'
-pe 'fi'
-pe ''
-pe '# Check Kubernetes cluster connectivity'
-pe 'if ! kubectl cluster-info &>/dev/null; then'
-pe '  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"'
-pe 'fi'
-pe ''
-pe 'echo "✅ All external executables are installed and ready"'
+pe "$(cat <<'EOF'
+GREEN='\033[0;32m'
+EOF
+)"
+pe "$(cat <<'EOF'
+YELLOW='\033[1;33m'
+EOF
+)"
+pe "$(cat <<'EOF'
+RED='\033[0;31m'
+EOF
+)"
+pe "$(cat <<'EOF'
+NC='\033[0m' # No Color
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+check_command() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  command -v "$1" &>/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+scone_registry_login() {
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -n "${REGISTRY_TOKEN}" && -n "${REGISTRY_USER}" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Attempting docker login..."
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "${REGISTRY_TOKEN}" | docker login ${REGISTRY} --username "${REGISTRY_USER}" --password-stdin
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Skipping docker login - REGISTRY_TOKEN or REGISTRY_USER not set or empty"
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "WARNING: Cannot access private SCONE images without login"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install Cosign if not present
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command cosign; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing Cosign..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo chmod +x /usr/local/bin/cosign
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ Cosign installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ Cosign is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install Docker if not present
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command docker; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing Docker..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -fsSL https://get.docker.com | sh
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ Docker installed successfully. Please log out and back in for group changes to take effect."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ Docker is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install GitHub CLI if not present
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command gh; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing GitHub CLI..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt update
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt install -y gh
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ GitHub CLI installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ GitHub CLI is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install kubectl if not present
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command kubectl; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing kubectl..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo chmod +x kubectl
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo mv ./kubectl /usr/local/bin/
+EOF
+)"
+pe "$(cat <<'EOF'
+  rm kubectl.sha256
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ kubectl installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ kubectl is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+install_yq_v4() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  YQ_VERSION="v4.46.1"
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt update
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt install -y --no-install-recommends xz-utils
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -L "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.tar.gz" | sudo tar xz -C /usr/local/bin
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo chmod +x /usr/local/bin/yq_linux_amd64
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo ln -sf /usr/local/bin/yq_linux_amd64 /usr/local/bin/yq
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ yq installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Check and Auto install Yq Version 4
+EOF
+)"
+pe "$(cat <<'EOF'
+if check_command yq; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    yq_version=$(yq --version 2>&1 | grep  -oE 'v[0-9]+' | cut -d'v' -f2) || yq_version=""
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo -e "${RED}❌ Found yq version $yq_version which is not supported. Installing Yq v4"
+EOF
+)"
+pe "$(cat <<'EOF'
+        install_yq_v4
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ "$yq_version" -ge 4 ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "✔️ yq v$yq_version is installed (meets requirement v4+)."
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo -e "${RED}❌ yq version $yq_version is too old. Installing Yq v4"
+EOF
+)"
+pe "$(cat <<'EOF'
+        install_yq_v4
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo -e "${RED}❌ yq is not installed. Installing Yq v4"
+EOF
+)"
+pe "$(cat <<'EOF'
+    install_yq_v4
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install other required packages
+EOF
+)"
+pe "$(cat <<'EOF'
+missing_packages=()
+EOF
+)"
+pe "$(cat <<'EOF'
+for pkg in pkg-config jq libssl-dev; do
+EOF
+)"
+pe "$(cat <<'EOF'
+  if ! dpkg -s "$pkg" &>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    missing_packages+=("$pkg")
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+done
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if [ ${#missing_packages[@]} -ne 0 ]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing missing packages: ${missing_packages[*]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt update
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt install -y "${missing_packages[@]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ All missing packages installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# sed is typically pre-installed on Ubuntu, but check anyway
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command sed; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing sed..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt update
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo apt install -y sed
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ sed installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ sed is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Check Kubernetes cluster connectivity
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! kubectl cluster-info &>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+echo "✅ All external executables are installed and ready"
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -286,34 +674,118 @@ printf '%s\n' '- generate an access token following these instructions: <https:/
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"'
-pe ''
-pe 'echo -e "${YELLOW}📦 Checking access to required container images...${NC}"'
-pe ''
-pe 'if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then'
-pe '      echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"'
-pe '    # ask user for the credentials for accessing the registry'
-pe '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )'
-pe '  kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
-pe '      scone_registry_login'
-pe 'fi'
-pe ''
-pe '  images=('
-pe '    "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION"'
-pe '    "registry.scontain.com/scone.cloud/scone-deb-pkgs:$SCONE_VERSION"'
-pe '    "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION"'
-pe '    "registry.scontain.com/public-images/glibc:2.35-v4"'
-pe '    "registry.scontain.com/public-images/glibc:2.39-v3"'
-pe '  )'
-pe '  for image in "${images[@]}"; do'
-pe '    if ! docker pull --quiet "$image" &>/dev/null; then'
-pe '      echo -e "${RED}❌ Cannot pull Docker image: $image${NC}"'
-pe '      exit 1'
-pe '    else'
-pe '      echo "✅ image '\''$image'\'' is accessible"'
-pe '    fi'
-pe '  done'
-pe '  echo -e "${GREEN}✔️ All images are OK.${NC}"'
+pe "$(cat <<'EOF'
+echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    # ask user for the credentials for accessing the registry
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+EOF
+)"
+pe "$(cat <<'EOF'
+      scone_registry_login
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+  images=(
+EOF
+)"
+pe "$(cat <<'EOF'
+    "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+    "registry.scontain.com/scone.cloud/scone-deb-pkgs:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+    "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+    "registry.scontain.com/public-images/glibc:2.35-v4"
+EOF
+)"
+pe "$(cat <<'EOF'
+    "registry.scontain.com/public-images/glibc:2.39-v3"
+EOF
+)"
+pe "$(cat <<'EOF'
+  )
+EOF
+)"
+pe "$(cat <<'EOF'
+  for image in "${images[@]}"; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if ! docker pull --quiet "$image" &>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo -e "${RED}❌ Cannot pull Docker image: $image${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+      exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo "✅ image '$image' is accessible"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  done
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo -e "${GREEN}✔️ All images are OK.${NC}"
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''

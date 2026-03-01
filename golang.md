@@ -67,7 +67,7 @@ The most straightforward way to use this image is to use a Go container as both 
 ```bash
 cd go-example
 
-cat > Dockerfile <<EOF
+cat > Dockerfile <<SEOF
 FROM registry.scontain.com/scone.cloud/golang:1.24
 
 WORKDIR /usr/src/app
@@ -80,7 +80,7 @@ COPY . .
 RUN go build -v -o /usr/local/bin/app ./...
 
 CMD ["app"]
-EOF
+SEOF
 ```
 
 You can then build and run the Docker image:

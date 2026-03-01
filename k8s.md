@@ -137,10 +137,10 @@ if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
   echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
 else
 
-cat > ./scone-registry.env <<EOF
+cat > ./scone-registry.env <<SEOF
 export REGISTRY_TOKEN="$REGISTRY_TOKEN"
 export REGISTRY_USER="$REGISTRY_USER"
-EOF
+SEOF
 
 kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \
 --from-file=$SECRET_NAME=./scone-registry.env

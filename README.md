@@ -118,10 +118,10 @@ you can just execute:
 In case you are not yet logged in, you can manually define this file as follows:
 
 ```bash
-cat > scone-registry.env <<EOF
+cat > scone-registry.env <<SEOF
 export SCONE_REGISTRY_ACCESS_TOKEN="<...>see https://sconedocs.github.io/registry/#create-an-access-token>"
 export SCONE_REGISTRY_USERNAME="<...>"
-EOF
+SEOF
 ```
 
 Next, run the following command:
