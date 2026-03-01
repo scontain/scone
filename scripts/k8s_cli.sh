@@ -11,6 +11,8 @@ printf '%s\n' '# Deploying SCONE CLI Image on Kubernetes'
 printf '%s\n' ''
 printf '%s\n' 'This document describes on how to set up a pod in Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker deamon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/k8s_cli.gif)'
+printf '%s\n' ''
 printf '%s\n' '## Prerequisites'
 printf '%s\n' ''
 printf '%s\n' ''
@@ -209,10 +211,10 @@ printf '%s\n' 'if kubectl get secret "\\$SECRET_NAME" -n "\\$CLI_NAMESPACE" >/de
 printf '%s\n' '  echo "Secret '\''\\$SECRET_NAME'\'' exists in namespace '\''\\$CLI_NAMESPACE'\'' - do not replace."'
 printf '%s\n' 'else'
 printf '%s\n' ''
-printf '%s\n' 'cat > ./scone-registry.env <<EOF'
+printf '%s\n' 'cat > ./scone-registry.env <<SEOF'
 printf '%s\n' 'export REGISTRY_TOKEN="\\$REGISTRY_TOKEN"'
 printf '%s\n' 'export REGISTRY_USER="\\$REGISTRY_USER"'
-printf '%s\n' 'EOF'
+printf '%s\n' 'SEOF'
 printf '%s\n' ''
 printf '%s\n' 'kubectl -n \\$CLI_NAMESPACE create secret generic \\$SECRET_NAME \'
 printf '%s\n' '--from-file=\\$SECRET_NAME=./scone-registry.env'
@@ -251,10 +253,10 @@ if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
   echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
 else
 
-cat > ./scone-registry.env <<EOF
+cat > ./scone-registry.env <<SEOF
 export REGISTRY_TOKEN="$REGISTRY_TOKEN"
 export REGISTRY_USER="$REGISTRY_USER"
-EOF
+SEOF
 
 kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \
 --from-file=$SECRET_NAME=./scone-registry.env

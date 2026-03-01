@@ -58,12 +58,12 @@ We verify the signature of a given container image with function `verify_image`:
 
 function create_cosign_verification_key() {
     export cosign_public_key_file="$(mktemp).pub"
-    cat > $cosign_public_key_file <<EOF
+    cat > $cosign_public_key_file <<SEOF
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErLf0HT8xZlLaoX5jNN8aVL1Yrs+P
 wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw==
 -----END PUBLIC KEY-----
-EOF
+SEOF
 }
 
 function verify_image() {

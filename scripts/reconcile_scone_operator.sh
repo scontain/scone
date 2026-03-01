@@ -11,6 +11,8 @@ printf '%s\n' '## Installation of the SCONE Platform'
 printf '%s\n' ''
 printf '%s\n' 'To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/reconcile_scone_operator.gif)'
+printf '%s\n' ''
 printf '%s\n' 'You can execute the steps automatically by running the script `scripts/reconcile_scone_operator.sh`. The script expects the cluster already be installed, i.e., it only upgrades to the latest stable version.'
 printf '%s\n' ''
 printf '%s\n' '## Determine the current stable version of the SCONE platform'
@@ -148,7 +150,7 @@ printf '%s\n' ''
 printf '%s\n' '    export GPG_PUBLIC_KEY_FILE="\\$(mktemp)-pub.gpg"'
 printf '%s\n' '    tmp_gpg="\\${GPG_PUBLIC_KEY_FILE}.base64"'
 printf '%s\n' ''
-printf '%s\n' '    cat > \\$tmp_gpg <<EOF'
+printf '%s\n' '    cat > \\$tmp_gpg <<SEOF'
 printf '%s\n' 'mQINBF5tGZkBEACPxl1oBdP5xKWB/EaEkW3UwMEnpNJeOFjVysT5B3ZfK6OGqtZDYKsQEGtptJ54'
 printf '%s\n' 'Wy9dvd33UpZUNRmCL6X1GeEd/DLd7t+sk3Cm414pC9Qmx9tkTeLMkCZb6QHufblz3kJkV1E86vre'
 printf '%s\n' 'PbrVTZ2q4cLJl4G/IlNKwHsY/7/4yEcBkEZ8L1TOgsotnLnuYOlf/XbPcF4tqdEV+H1nTHGjwcSP'
@@ -208,7 +210,7 @@ printf '%s\n' 'dTC5h5UPz9avSlLYSblGFxf84PXuEKIKWpDQzybMAfRwqBc5OTOnkkl6OXYiXLxdV
 printf '%s\n' 'QSvBZDzbO12jXPv78zVVkRjr7mljcPMB2iDRSeWO073ov1oxEeCmzzhyq8/7q0SrjR3J6g3b4k15'
 printf '%s\n' 'NSHb32Obz9x+L+3Oo/r5oYf+T0B51YvOfz6O9BxoI3icZL1KJ2MtbtmYkE/UNNnNB4XApQGoZk5i'
 printf '%s\n' 'BtcmftSsf9VCHB0IDPbyH6sro8MNyF81i5MewmQ99tdYE9UIiwNYa/10PRUClKWrEvxIOAK/K3sW'
-printf '%s\n' 'EOF'
+printf '%s\n' 'SEOF'
 printf '%s\n' ''
 printf '%s\n' '    cat "\\$tmp_gpg" | base64 -d > \\$GPG_PUBLIC_KEY_FILE'
 printf '%s\n' '}'
@@ -236,7 +238,7 @@ function create_gpg_verification_key() {
     export GPG_PUBLIC_KEY_FILE="$(mktemp)-pub.gpg"
     tmp_gpg="${GPG_PUBLIC_KEY_FILE}.base64"
 
-    cat > $tmp_gpg <<EOF
+    cat > $tmp_gpg <<SEOF
 mQINBF5tGZkBEACPxl1oBdP5xKWB/EaEkW3UwMEnpNJeOFjVysT5B3ZfK6OGqtZDYKsQEGtptJ54
 Wy9dvd33UpZUNRmCL6X1GeEd/DLd7t+sk3Cm414pC9Qmx9tkTeLMkCZb6QHufblz3kJkV1E86vre
 PbrVTZ2q4cLJl4G/IlNKwHsY/7/4yEcBkEZ8L1TOgsotnLnuYOlf/XbPcF4tqdEV+H1nTHGjwcSP
@@ -296,7 +298,7 @@ dTC5h5UPz9avSlLYSblGFxf84PXuEKIKWpDQzybMAfRwqBc5OTOnkkl6OXYiXLxdVEsaRlTtYHI4
 QSvBZDzbO12jXPv78zVVkRjr7mljcPMB2iDRSeWO073ov1oxEeCmzzhyq8/7q0SrjR3J6g3b4k15
 NSHb32Obz9x+L+3Oo/r5oYf+T0B51YvOfz6O9BxoI3icZL1KJ2MtbtmYkE/UNNnNB4XApQGoZk5i
 BtcmftSsf9VCHB0IDPbyH6sro8MNyF81i5MewmQ99tdYE9UIiwNYa/10PRUClKWrEvxIOAK/K3sW
-EOF
+SEOF
 
     cat "$tmp_gpg" | base64 -d > $GPG_PUBLIC_KEY_FILE
 }

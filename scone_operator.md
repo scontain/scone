@@ -85,7 +85,7 @@ function create_gpg_verification_key() {
     export GPG_PUBLIC_KEY_FILE="$(mktemp)-pub.gpg"
     tmp_gpg="${GPG_PUBLIC_KEY_FILE}.base64"
 
-    cat > $tmp_gpg <<EOF
+    cat > $tmp_gpg <<SEOF
 mQINBF5tGZkBEACPxl1oBdP5xKWB/EaEkW3UwMEnpNJeOFjVysT5B3ZfK6OGqtZDYKsQEGtptJ54
 Wy9dvd33UpZUNRmCL6X1GeEd/DLd7t+sk3Cm414pC9Qmx9tkTeLMkCZb6QHufblz3kJkV1E86vre
 PbrVTZ2q4cLJl4G/IlNKwHsY/7/4yEcBkEZ8L1TOgsotnLnuYOlf/XbPcF4tqdEV+H1nTHGjwcSP
@@ -145,7 +145,7 @@ dTC5h5UPz9avSlLYSblGFxf84PXuEKIKWpDQzybMAfRwqBc5OTOnkkl6OXYiXLxdVEsaRlTtYHI4
 QSvBZDzbO12jXPv78zVVkRjr7mljcPMB2iDRSeWO073ov1oxEeCmzzhyq8/7q0SrjR3J6g3b4k15
 NSHb32Obz9x+L+3Oo/r5oYf+T0B51YvOfz6O9BxoI3icZL1KJ2MtbtmYkE/UNNnNB4XApQGoZk5i
 BtcmftSsf9VCHB0IDPbyH6sro8MNyF81i5MewmQ99tdYE9UIiwNYa/10PRUClKWrEvxIOAK/K3sW
-EOF
+SEOF
 
     cat "$tmp_gpg" | base64 -d > $GPG_PUBLIC_KEY_FILE
 }

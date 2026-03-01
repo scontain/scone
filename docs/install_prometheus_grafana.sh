@@ -22,32 +22,10 @@ slow_type() {
   done
 }
 
-escape_unescaped_dollars() {
-  local input="$1"
-  local output=""
-  local prev=""
-  local ch
-  local i
-
-  for ((i=0; i<${#input}; i++)); do
-    ch="${input:i:1}"
-    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
-      output+='\\$'
-    else
-      output+="$ch"
-    fi
-    prev="$ch"
-  done
-
-  printf "%s" "$output"
-}
-
 pe() {
   local cmd="$*"
-  local display_cmd
-  display_cmd=$(escape_unescaped_dollars "$cmd")
   printf "%b" "$ORANGE"
-  slow_type "$display_cmd"
+  slow_type "$cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -76,6 +54,8 @@ printf '%s\n' '# Prometheus and Grafana Stack'
 printf '%s\n' ''
 printf '%s\n' 'Prometheus and Grafana are two widely used open-source tools for monitoring and visualizing system metrics and application performance.'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/install_prometheus_grafana.gif)'
+printf '%s\n' ''
 printf '%s\n' '- Prometheus collects and stores metrics.'
 printf '%s\n' ''
 printf '%s\n' '- Grafana queries Prometheus and displays those metrics.'
@@ -89,21 +69,57 @@ printf '%s\n' 'Install from https://github.com/prometheus-operator/kube-promethe
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# Create the namespace and CRDs, and then wait for them to be available before creating the remaining resources'
-pe '# Note that due to some CRD size we are using kubectl server-side apply feature which is generally available since kubernetes 1.22.'
-pe '# If you are using previous kubernetes versions this feature may not be available and you would need to use kubectl create instead.'
-pe 'pushd /tmp'
-pe '# ensure we do not get wrong content'
-pe 'rm -rf kube-prometheus || true'
-pe 'git clone https://github.com/prometheus-operator/kube-prometheus.git -b v0.15.0 --depth 1'
-pe 'pushd kube-prometheus'
-pe 'kubectl apply --server-side -f manifests/setup || true'
-pe 'kubectl wait \'
-pe '    --for condition=Established \'
-pe '    --all CustomResourceDefinition \'
-pe '    --namespace=monitoring || true'
-pe 'kubectl apply -f manifests/ || true'
-pe 'popd; popd'
+pe "$(cat <<'EOF'
+# Create the namespace and CRDs, and then wait for them to be available before creating the remaining resources
+EOF
+)"
+pe "$(cat <<'EOF'
+# Note that due to some CRD size we are using kubectl server-side apply feature which is generally available since kubernetes 1.22.
+EOF
+)"
+pe "$(cat <<'EOF'
+# If you are using previous kubernetes versions this feature may not be available and you would need to use kubectl create instead.
+EOF
+)"
+pe "$(cat <<'EOF'
+pushd /tmp
+EOF
+)"
+pe "$(cat <<'EOF'
+# ensure we do not get wrong content
+EOF
+)"
+pe "$(cat <<'EOF'
+rm -rf kube-prometheus || true
+EOF
+)"
+pe "$(cat <<'EOF'
+git clone https://github.com/prometheus-operator/kube-prometheus.git -b v0.15.0 --depth 1
+EOF
+)"
+pe "$(cat <<'EOF'
+pushd kube-prometheus
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl apply --server-side -f manifests/setup || true
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl wait \
+    --for condition=Established \
+    --all CustomResourceDefinition \
+    --namespace=monitoring || true
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl apply -f manifests/ || true
+EOF
+)"
+pe "$(cat <<'EOF'
+popd; popd
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -113,7 +129,10 @@ printf '%s\n' 'SCONE metrics are exposed via Prometheus and require a ServiceMon
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml'
+pe "$(cat <<'EOF'
+kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -125,8 +144,14 @@ printf '%s\n' 'The login credentials for the Grafana dashboard are:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'echo    "Login:    admin"'
-pe 'echo    "Password: admin"'
+pe "$(cat <<'EOF'
+echo    "Login:    admin"
+EOF
+)"
+pe "$(cat <<'EOF'
+echo    "Password: admin"
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''

@@ -22,32 +22,10 @@ slow_type() {
   done
 }
 
-escape_unescaped_dollars() {
-  local input="$1"
-  local output=""
-  local prev=""
-  local ch
-  local i
-
-  for ((i=0; i<${#input}; i++)); do
-    ch="${input:i:1}"
-    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
-      output+='\\$'
-    else
-      output+="$ch"
-    fi
-    prev="$ch"
-  done
-
-  printf "%s" "$output"
-}
-
 pe() {
   local cmd="$*"
-  local display_cmd
-  display_cmd=$(escape_unescaped_dollars "$cmd")
   printf "%b" "$ORANGE"
-  slow_type "$display_cmd"
+  slow_type "$cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -76,6 +54,8 @@ printf '%s\n' '# SCONE CLI'
 printf '%s\n' ''
 printf '%s\n' 'You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/install_sconecli.gif)'
+printf '%s\n' ''
 printf '%s\n' 'This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.'
 printf '%s\n' ''
 printf '%s\n' 'NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.'
@@ -103,7 +83,10 @@ printf '%s\n' 'In case you want to use the values defined in the environment var
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
+pe "$(cat <<'EOF'
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -115,7 +98,10 @@ printf '%s\n' 'Let'\''s ask the user and set the environment variables depending
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+pe "$(cat <<'EOF'
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -127,39 +113,138 @@ printf '%s\n' 'We verify the signature of a given container image with function 
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '#'
-pe '# create a file with the public key of the signer key for all scone.cloud images'
-pe '#'
-pe ''
-pe 'function create_cosign_verification_key() {'
-pe '    export cosign_public_key_file="$(mktemp).pub"'
-pe '    cat > $cosign_public_key_file <<EOF'
-pe '-----BEGIN PUBLIC KEY-----'
-pe 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErLf0HT8xZlLaoX5jNN8aVL1Yrs+P'
-pe 'wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw=='
-pe '-----END PUBLIC KEY-----'
-pe 'EOF'
-pe '}'
-pe ''
-pe 'function verify_image() {'
-pe '    local image_name'
-pe '    image_name="$1"'
-pe '    if [[ "$image_name" == "" ]]; then'
-pe '        echo "The name of the image for which we should verify the signature, was empty. Exiting."'
-pe '        exit 1'
-pe '    fi'
-pe ''
-pe '    echo "Verifying the signature of image '\''$image_name'\''"'
-pe ''
-pe '    docker pull "$image_name" >/dev/null'
-pe '    export cosign_public_key_file=${cosign_public_key_file:-""}'
-pe '    if [[ "$cosign_public_key_file" == "" ]]; then'
-pe '        create_cosign_verification_key'
-pe '    fi'
-pe '    cosign verify --key "$cosign_public_key_file" "$image_name" >/dev/null 2> /dev/null || { echo "Failed to verify signature of image '\''$image_name'\''! Exiting! Please check that '\''cosign version'\'' shows a git version >= 2.0.0. Also ensure that there is no field '\''credsStore'\'' in '\''$HOME/.docker/config.json'\''"; exit 1; }'
-pe ''
-pe '    echo " - verification was successful"'
-pe '}'
+pe "$(cat <<'EOF'
+#
+EOF
+)"
+pe "$(cat <<'EOF'
+# create a file with the public key of the signer key for all scone.cloud images
+EOF
+)"
+pe "$(cat <<'EOF'
+#
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+function create_cosign_verification_key() {
+EOF
+)"
+pe "$(cat <<'EOF'
+    export cosign_public_key_file="$(mktemp).pub"
+EOF
+)"
+pe "$(cat <<'EOF'
+    cat > $cosign_public_key_file <<SEOF
+EOF
+)"
+pe "$(cat <<'EOF'
+-----BEGIN PUBLIC KEY-----
+EOF
+)"
+pe "$(cat <<'EOF'
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErLf0HT8xZlLaoX5jNN8aVL1Yrs+P
+EOF
+)"
+pe "$(cat <<'EOF'
+wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw==
+EOF
+)"
+pe "$(cat <<'EOF'
+-----END PUBLIC KEY-----
+EOF
+)"
+pe "$(cat <<'EOF'
+SEOF
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+function verify_image() {
+EOF
+)"
+pe "$(cat <<'EOF'
+    local image_name
+EOF
+)"
+pe "$(cat <<'EOF'
+    image_name="$1"
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ "$image_name" == "" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "The name of the image for which we should verify the signature, was empty. Exiting."
+EOF
+)"
+pe "$(cat <<'EOF'
+        exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Verifying the signature of image '$image_name'"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker pull "$image_name" >/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+    export cosign_public_key_file=${cosign_public_key_file:-""}
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ "$cosign_public_key_file" == "" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        create_cosign_verification_key
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    cosign verify --key "$cosign_public_key_file" "$image_name" >/dev/null 2> /dev/null || { echo "Failed to verify signature of image '$image_name'! Exiting! Please check that 'cosign version' shows a git version >= 2.0.0. Also ensure that there is no field 'credsStore' in '$HOME/.docker/config.json'"; exit 1; }
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo " - verification was successful"
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -168,11 +253,26 @@ printf '%s\n' 'verify the image:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# default repo and image name'
-pe 'export REPO="$REGISTRY/scone.cloud"'
-pe 'export IMAGE="scone-deb-pkgs"'
-pe ''
-pe 'verify_image "$REPO/$IMAGE:$SCONE_VERSION"'
+pe "$(cat <<'EOF'
+# default repo and image name
+EOF
+)"
+pe "$(cat <<'EOF'
+export REPO="$REGISTRY/scone.cloud"
+EOF
+)"
+pe "$(cat <<'EOF'
+export IMAGE="scone-deb-pkgs"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+verify_image "$REPO/$IMAGE:$SCONE_VERSION"
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -181,11 +281,26 @@ printf '%s\n' 'to be able to copy the Debian packages to the local filesystem.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# ensure that container scone-packages does not exit'
-pe 'docker rm scone-packages 2> /dev/null || true'
-pe ''
-pe '# run container such that we can copy the packages to a local repo'
-pe 'docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev/null'
+pe "$(cat <<'EOF'
+# ensure that container scone-packages does not exit
+EOF
+)"
+pe "$(cat <<'EOF'
+docker rm scone-packages 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# run container such that we can copy the packages to a local repo
+EOF
+)"
+pe "$(cat <<'EOF'
+docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev/null
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -196,20 +311,62 @@ printf '%s\n' 'You will need to type your `sudo` password:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '# copy the packages'
-pe 'mkdir -p /tmp/packages'
-pe 'docker cp scone-packages:/ /tmp/packages'
-pe 'docker rm scone-packages'
-pe ''
-pe '# install the packages'
-pe 'sudo dpkg -i /tmp/packages/scone-common_amd64.deb '
-pe 'sudo dpkg -i /tmp/packages/scone-libc_amd64.deb '
-pe 'sudo dpkg -i /tmp/packages/scone-cli_amd64.deb '
-pe 'sudo dpkg -i /tmp/packages/k8s-scone.deb'
-pe 'sudo dpkg -i /tmp/packages/kubectl-scone.deb '
-pe ''
-pe '# clean up'
-pe 'rm -rf /tmp/packages'
+pe "$(cat <<'EOF'
+# copy the packages
+EOF
+)"
+pe "$(cat <<'EOF'
+mkdir -p /tmp/packages
+EOF
+)"
+pe "$(cat <<'EOF'
+docker cp scone-packages:/ /tmp/packages
+EOF
+)"
+pe "$(cat <<'EOF'
+docker rm scone-packages
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# install the packages
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i /tmp/packages/k8s-scone.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i /tmp/packages/kubectl-scone.deb 
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# clean up
+EOF
+)"
+pe "$(cat <<'EOF'
+rm -rf /tmp/packages
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -217,14 +374,38 @@ printf '%s\n' 'We ensure that `kubectl-scone` plugin only exists once - otherwis
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe ''
-pe 'if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then'
-pe '    P1=$(realpath /usr/bin/kubectl-scone )'
-pe '    P2=$(realpath /bin/kubectl-scone )'
-pe '    if [[ -n "$P1" && -n "$P2" && "$P1" != "$P2" ]]; then'
-pe '        rm -f "$P2"'
-pe '    fi'
-pe 'fi'
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    P1=$(realpath /usr/bin/kubectl-scone )
+EOF
+)"
+pe "$(cat <<'EOF'
+    P2=$(realpath /bin/kubectl-scone )
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -n "$P1" && -n "$P2" && "$P1" != "$P2" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        rm -f "$P2"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -232,8 +413,14 @@ printf '%s\n' 'Check that the `scone` cli is properly installed by executing:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'echo "Expecting SCONE version: $SCONE_VERSION"'
-pe 'scone --version'
+pe "$(cat <<'EOF'
+echo "Expecting SCONE version: $SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+scone --version
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -242,5 +429,8 @@ printf '%s\n' '(The minimal version is 6.0.0)'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe '  echo "✅ All scone-related executable installed"'
+pe "$(cat <<'EOF'
+  echo "✅ All scone-related executable installed"
+EOF
+)"
 

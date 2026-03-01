@@ -11,6 +11,8 @@ printf '%s\n' '# SCONE CLI'
 printf '%s\n' ''
 printf '%s\n' 'You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.'
 printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/install_sconecli.gif)'
+printf '%s\n' ''
 printf '%s\n' 'This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.'
 printf '%s\n' ''
 printf '%s\n' 'NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.'
@@ -77,12 +79,12 @@ printf '%s\n' '#'
 printf '%s\n' ''
 printf '%s\n' 'function create_cosign_verification_key() {'
 printf '%s\n' '    export cosign_public_key_file="\\$(mktemp).pub"'
-printf '%s\n' '    cat > \\$cosign_public_key_file <<EOF'
+printf '%s\n' '    cat > \\$cosign_public_key_file <<SEOF'
 printf '%s\n' '-----BEGIN PUBLIC KEY-----'
 printf '%s\n' 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErLf0HT8xZlLaoX5jNN8aVL1Yrs+P'
 printf '%s\n' 'wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw=='
 printf '%s\n' '-----END PUBLIC KEY-----'
-printf '%s\n' 'EOF'
+printf '%s\n' 'SEOF'
 printf '%s\n' '}'
 printf '%s\n' ''
 printf '%s\n' 'function verify_image() {'
@@ -112,12 +114,12 @@ printf "${RESET}"
 
 function create_cosign_verification_key() {
     export cosign_public_key_file="$(mktemp).pub"
-    cat > $cosign_public_key_file <<EOF
+    cat > $cosign_public_key_file <<SEOF
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErLf0HT8xZlLaoX5jNN8aVL1Yrs+P
 wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw==
 -----END PUBLIC KEY-----
-EOF
+SEOF
 }
 
 function verify_image() {

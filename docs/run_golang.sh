@@ -22,32 +22,10 @@ slow_type() {
   done
 }
 
-escape_unescaped_dollars() {
-  local input="$1"
-  local output=""
-  local prev=""
-  local ch
-  local i
-
-  for ((i=0; i<${#input}; i++)); do
-    ch="${input:i:1}"
-    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
-      output+='\\$'
-    else
-      output+="$ch"
-    fi
-    prev="$ch"
-  done
-
-  printf "%s" "$output"
-}
-
 pe() {
   local cmd="$*"
-  local display_cmd
-  display_cmd=$(escape_unescaped_dollars "$cmd")
   printf "%b" "$ORANGE"
-  slow_type "$display_cmd"
+  slow_type "$cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -75,6 +53,8 @@ printf "%b" "$LILAC"
 printf '%s\n' '# `golang` Confidential Computing Support'
 printf '%s\n' ''
 printf '%s\n' 'We show how to build native Go-based binaries that can be used in the context of confidential computing. Note that the compiled binaries are native libraries without any code related to confidential computing. The only difference is that the binaries are linked with a `libc` (see below). '
+printf '%s\n' ''
+printf '%s\n' '![Screencast](docs/run_golang.gif)'
 printf '%s\n' ''
 printf '%s\n' 'We show how to compile Go programs that can later inside Trusted Execution Environments (TEEs): '
 printf '%s\n' ''
@@ -136,22 +116,70 @@ printf '%s\n' 'The most straightforward way to use this image is to use a Go con
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'cd go-example'
-pe ''
-pe 'cat > Dockerfile <<EOF'
-pe 'FROM registry.scontain.com/scone.cloud/golang:1.24'
-pe ''
-pe 'WORKDIR /usr/src/app'
-pe ''
-pe '# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change'
-pe 'COPY go.mod go.sum ./'
-pe 'RUN go mod download'
-pe ''
-pe 'COPY . .'
-pe 'RUN go build -v -o /usr/local/bin/app ./...'
-pe ''
-pe 'CMD ["app"]'
-pe 'EOF'
+pe "$(cat <<'EOF'
+cd go-example
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+cat > Dockerfile <<SEOF
+EOF
+)"
+pe "$(cat <<'EOF'
+FROM registry.scontain.com/scone.cloud/golang:1.24
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+WORKDIR /usr/src/app
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
+EOF
+)"
+pe "$(cat <<'EOF'
+COPY go.mod go.sum ./
+EOF
+)"
+pe "$(cat <<'EOF'
+RUN go mod download
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+COPY . .
+EOF
+)"
+pe "$(cat <<'EOF'
+RUN go build -v -o /usr/local/bin/app ./...
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+CMD ["app"]
+EOF
+)"
+pe "$(cat <<'EOF'
+SEOF
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -159,8 +187,14 @@ printf '%s\n' 'You can then build and run the Docker image:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'docker build -f Dockerfile -t my-golang-app .'
-pe 'docker run -it --rm --name my-running-app my-golang-app'
+pe "$(cat <<'EOF'
+docker build -f Dockerfile -t my-golang-app .
+EOF
+)"
+pe "$(cat <<'EOF'
+docker run -it --rm --name my-running-app my-golang-app
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -170,7 +204,10 @@ printf '%s\n' 'There may be occasions where it is not appropriate to run your ap
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v'
+pe "$(cat <<'EOF'
+docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 go build -v
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -178,7 +215,10 @@ printf '%s\n' 'This will add your current directory as a volume to the container
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build'
+pe "$(cat <<'EOF'
+docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 make build
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -187,7 +227,10 @@ printf '%s\n' 'If you need to compile your application for a platform other than
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v'
+pe "$(cat <<'EOF'
+docker run --rm -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e GOOS=windows -e GOARCH=386 registry.scontain.com/scone.cloud/golang:1.24 go build -v
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -195,15 +238,21 @@ printf '%s\n' 'Alternatively, you can build for multiple platforms at once:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
-pe 'mkdir -p bin'
-pe 'docker run --rm -it -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\''\'
-pe '	    set -euo pipefail; \'
-pe '	    for GOOS in linux; do \'
-pe '	      for GOARCH in 386 amd64; do \'
-pe '	        out="bin/go-args-env-file-${GOOS}-${GOARCH}"; \'
-pe '	        GOOS=$GOOS GOARCH=$GOARCH /usr/local/go/bin/go build -v -o "$out" .; \'
-pe '	      done; \'
-pe '	    done'\'''
+pe "$(cat <<'EOF'
+mkdir -p bin
+EOF
+)"
+pe "$(cat <<'EOF'
+docker run --rm -it -v "$PWD":/usr/src/myapp -w /usr/src/myapp registry.scontain.com/scone.cloud/golang:1.24 bash -lc '\
+	    set -euo pipefail; \
+	    for GOOS in linux; do \
+	      for GOARCH in 386 amd64; do \
+	        out="bin/go-args-env-file-${GOOS}-${GOARCH}"; \
+	        GOOS=$GOOS GOARCH=$GOARCH /usr/local/go/bin/go build -v -o "$out" .; \
+	      done; \
+	    done'
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
