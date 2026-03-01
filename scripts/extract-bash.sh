@@ -107,8 +107,10 @@ slow_type() {
 
 pe() {
   local cmd="$*"
+  local display_cmd
+  display_cmd=$(printf "%s" "$cmd" | sed 's/\$/\\$/g')
   printf "%b" "$ORANGE"
-  slow_type "$cmd"
+  slow_type "$display_cmd"
   printf "%b" "$RESET"
   printf "\n"
 
@@ -137,6 +139,10 @@ EOF
 
 escape_single_quotes() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
+escape_dollars_for_display() {
+  printf "%s" "$1" | sed 's/\$/\\$/g'
 }
 
 if [[ "$mode" == "docs-pe" ]]; then
@@ -195,7 +201,7 @@ flush_code_block() {
   echo 'printf "${ORANGE}"' >> "$TMP_OUTPUT"
   echo "cat <<'EOF'" >> "$TMP_OUTPUT"
   for line in "${code_buffer[@]}"; do
-    echo "$line" >> "$TMP_OUTPUT"
+    escape_dollars_for_display "$line" >> "$TMP_OUTPUT"
   done
   echo "EOF" >> "$TMP_OUTPUT"
   echo 'printf "${RESET}"' >> "$TMP_OUTPUT"
