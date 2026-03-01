@@ -1,12 +1,55 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
 
-VIOLET='\033[38;5;141m'
-ORANGE='\033[38;5;208m'
-RESET='\033[0m'
+TYPE_SPEED="${TYPE_SPEED:-25}"
+PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"
+SHELLRC="${SHELLRC:-/dev/null}"
+PROMPT="${PROMPT:-$'\[\e[1;32m\]demo\[\e[0m\]:\[\e[1;34m\]~\[\e[0m\]\$ '}"
+COLUMNS="${COLUMNS:-100}"
+LINES="${LINES:-26}"
+ORANGE="${ORANGE:-\033[38;5;208m}"
+LILAC="${LILAC:-\033[38;5;141m}"
+RESET="${RESET:-\033[0m}"
 
-printf "${VIOLET}"
+slow_type() {
+  local text="$*"
+  local delay
+  delay=$(awk "BEGIN { print 1 / $TYPE_SPEED }")
+  for ((i=0; i<${#text}; i++)); do
+    printf "%s" "${text:i:1}"
+    sleep "$delay"
+  done
+}
+
+pe() {
+  local cmd="$*"
+  printf "%b" "$ORANGE"
+  slow_type "$cmd"
+  printf "%b" "$RESET"
+  printf "\n"
+
+  if [[ -n "${PE_BUFFER:-}" ]]; then
+    PE_BUFFER+=$'\n'
+  fi
+  PE_BUFFER+="$cmd"
+
+  # Execute only when buffered lines form a complete shell command.
+  if bash -n <(printf '%s\n' "$PE_BUFFER") 2>/dev/null; then
+    eval "$PE_BUFFER"
+    PE_BUFFER=""
+  fi
+
+  sleep "$PAUSE_AFTER_CMD"
+}
+
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+export COLUMNS LINES
+export PS1="$PROMPT"
+stty cols "$COLUMNS" rows "$LINES"
+
+printf "%b" "$LILAC"
 cat <<'EOF'
 # Prometheus and Grafana Stack
 
@@ -24,45 +67,25 @@ If you already have Prometheus running in your cluster, you can skip this sectio
 Install from https://github.com/prometheus-operator/kube-prometheus.
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-# Create the namespace and CRDs, and then wait for them to be available before creating the remaining resources
-# Note that due to some CRD size we are using kubectl server-side apply feature which is generally available since kubernetes 1.22.
-# If you are using previous kubernetes versions this feature may not be available and you would need to use kubectl create instead.
-pushd /tmp
-# ensure we do not get wrong content
-rm -rf kube-prometheus || true
-git clone https://github.com/prometheus-operator/kube-prometheus.git -b v0.15.0 --depth 1
-pushd kube-prometheus
-kubectl apply --server-side -f manifests/setup || true
-kubectl wait \
-    --for condition=Established \
-    --all CustomResourceDefinition \
-    --namespace=monitoring || true
-kubectl apply -f manifests/ || true
-popd; popd
-EOF
-printf "${RESET}"
+pe '# Create the namespace and CRDs, and then wait for them to be available before creating the remaining resources'
+pe '# Note that due to some CRD size we are using kubectl server-side apply feature which is generally available since kubernetes 1.22.'
+pe '# If you are using previous kubernetes versions this feature may not be available and you would need to use kubectl create instead.'
+pe 'pushd /tmp'
+pe '# ensure we do not get wrong content'
+pe 'rm -rf kube-prometheus || true'
+pe 'git clone https://github.com/prometheus-operator/kube-prometheus.git -b v0.15.0 --depth 1'
+pe 'pushd kube-prometheus'
+pe 'kubectl apply --server-side -f manifests/setup || true'
+pe 'kubectl wait \'
+pe '    --for condition=Established \'
+pe '    --all CustomResourceDefinition \'
+pe '    --namespace=monitoring || true'
+pe 'kubectl apply -f manifests/ || true'
+pe 'popd; popd'
 
-# Create the namespace and CRDs, and then wait for them to be available before creating the remaining resources
-# Note that due to some CRD size we are using kubectl server-side apply feature which is generally available since kubernetes 1.22.
-# If you are using previous kubernetes versions this feature may not be available and you would need to use kubectl create instead.
-pushd /tmp
-# ensure we do not get wrong content
-rm -rf kube-prometheus || true
-git clone https://github.com/prometheus-operator/kube-prometheus.git -b v0.15.0 --depth 1
-pushd kube-prometheus
-kubectl apply --server-side -f manifests/setup || true
-kubectl wait \
-    --for condition=Established \
-    --all CustomResourceDefinition \
-    --namespace=monitoring || true
-kubectl apply -f manifests/ || true
-popd; popd
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 ## Enabling Metrics Collection (ServiceMonitor)
@@ -70,17 +93,11 @@ cat <<'EOF'
 SCONE metrics are exposed via Prometheus and require a ServiceMonitor to be applied before dashboards can display data.
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml
-EOF
-printf "${RESET}"
+pe 'kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml'
 
-kubectl apply -f prometheus-grafana-manifests/service-monitor.yaml
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 ## Grafana Dashboard
@@ -90,19 +107,12 @@ Before importing the SCONE dashboards, you must be able to access the Grafana UI
 The login credentials for the Grafana dashboard are:
 
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-cat <<'EOF'
-echo    "Login:    admin"
-echo    "Password: admin"
-EOF
-printf "${RESET}"
+pe 'echo    "Login:    admin"'
+pe 'echo    "Password: admin"'
 
-echo    "Login:    admin"
-echo    "Password: admin"
-
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 cat <<'EOF'
 
 On the computer where your browser run, you can execute:
@@ -183,5 +193,5 @@ scone_page_allocator_mremap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.4
 # TYPE scone_page_allocator_munmap_calls gauge
 scone_page_allocator_munmap_calls{run_id="9fe39eadbef32e20",scone_version="6.0.4"} 27
 EOF
-printf "${RESET}"
+printf "%b" "$RESET"
 
