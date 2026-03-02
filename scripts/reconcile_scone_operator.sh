@@ -20,7 +20,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export SCONE_VERSION=\\$(cat stable.txt)'
+printf '%s\n' 'export SCONE_VERSION=$(cat stable.txt)'
 printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
 printf "${RESET}"
 
@@ -39,7 +39,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval \\$(tplenv --file environment-variables.md --create-values-file --context --eval \\${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 printf "${RESET}"
 
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
@@ -52,25 +52,25 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Get the current Kubernetes context'
-printf '%s\n' 'K8S_CONTEXT=\\$(kubectl config current-context 2>/dev/null)'
+printf '%s\n' 'K8S_CONTEXT=$(kubectl config current-context 2>/dev/null)'
 printf '%s\n' ''
-printf '%s\n' 'if [[ -z "\\$K8S_CONTEXT" ]]; then'
+printf '%s\n' 'if [[ -z "$K8S_CONTEXT" ]]; then'
 printf '%s\n' '  echo "❌ Could not determine the current Kubernetes context."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "📦 Current Kubernetes context: \\$K8S_CONTEXT"'
+printf '%s\n' 'echo "📦 Current Kubernetes context: $K8S_CONTEXT"'
 printf '%s\n' ''
 printf '%s\n' '# Ask for confirmation'
-printf '%s\n' 'read -rp "Do you want to proceed install SCONE version \\$SCONE_VERSION with this context? [y/N] " confirm'
-printf '%s\n' 'confirm=\\${confirm,,}  # Convert to lowercase'
+printf '%s\n' 'read -rp "Do you want to proceed install SCONE version $SCONE_VERSION with this context? [y/N] " confirm'
+printf '%s\n' 'confirm=${confirm,,}  # Convert to lowercase'
 printf '%s\n' ''
-printf '%s\n' 'if [[ "\\$confirm" != "y" && "\\$confirm" != "yes" ]]; then'
+printf '%s\n' 'if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then'
 printf '%s\n' '  echo "❌ Aborted by user."'
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'echo "✅ Proceeding with context: \\$K8S_CONTEXT"'
+printf '%s\n' 'echo "✅ Proceeding with context: $K8S_CONTEXT"'
 printf "${RESET}"
 
 # Get the current Kubernetes context
@@ -105,9 +105,9 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'mkdir -p /tmp/SCONE_OPERATOR_CONTROLLER'
 printf '%s\n' 'cd /tmp/SCONE_OPERATOR_CONTROLLER'
-printf '%s\n' 'curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/\\$SCONE_VERSION/operator_controller > operator_controller'
+printf '%s\n' 'curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller > operator_controller'
 printf '%s\n' 'chmod a+x operator_controller'
-printf '%s\n' 'echo "Downloaded script '\''operator_controller'\'' into directory \\$PWD"'
+printf '%s\n' 'echo "Downloaded script '\''operator_controller'\'' into directory $PWD"'
 printf "${RESET}"
 
 mkdir -p /tmp/SCONE_OPERATOR_CONTROLLER
@@ -125,9 +125,9 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/\\$SCONE_VERSION/operator_controller.asc > operator_controller.asc'
+printf '%s\n' 'curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller.asc > operator_controller.asc'
 printf '%s\n' 'echo "Downloaded signature of '\''operator_controller'\'' to file '\''operator_controller.asc'\''"'
-printf '%s\n' 'export GPG_PUBLIC_KEY_FILE=\\${GPG_PUBLIC_KEY_FILE:-""}'
+printf '%s\n' 'export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}'
 printf "${RESET}"
 
 curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/$SCONE_VERSION/operator_controller.asc > operator_controller.asc
@@ -147,10 +147,10 @@ printf "${ORANGE}"
 printf '%s\n' 'function create_gpg_verification_key() {'
 printf '%s\n' '    local tmp_gpg'
 printf '%s\n' ''
-printf '%s\n' '    export GPG_PUBLIC_KEY_FILE="\\$(mktemp)-pub.gpg"'
-printf '%s\n' '    tmp_gpg="\\${GPG_PUBLIC_KEY_FILE}.base64"'
+printf '%s\n' '    export GPG_PUBLIC_KEY_FILE="$(mktemp)-pub.gpg"'
+printf '%s\n' '    tmp_gpg="${GPG_PUBLIC_KEY_FILE}.base64"'
 printf '%s\n' ''
-printf '%s\n' '    cat > \\$tmp_gpg <<SEOF'
+printf '%s\n' '    cat > $tmp_gpg <<SEOF'
 printf '%s\n' 'mQINBF5tGZkBEACPxl1oBdP5xKWB/EaEkW3UwMEnpNJeOFjVysT5B3ZfK6OGqtZDYKsQEGtptJ54'
 printf '%s\n' 'Wy9dvd33UpZUNRmCL6X1GeEd/DLd7t+sk3Cm414pC9Qmx9tkTeLMkCZb6QHufblz3kJkV1E86vre'
 printf '%s\n' 'PbrVTZ2q4cLJl4G/IlNKwHsY/7/4yEcBkEZ8L1TOgsotnLnuYOlf/XbPcF4tqdEV+H1nTHGjwcSP'
@@ -212,7 +212,7 @@ printf '%s\n' 'NSHb32Obz9x+L+3Oo/r5oYf+T0B51YvOfz6O9BxoI3icZL1KJ2MtbtmYkE/UNNnNB
 printf '%s\n' 'BtcmftSsf9VCHB0IDPbyH6sro8MNyF81i5MewmQ99tdYE9UIiwNYa/10PRUClKWrEvxIOAK/K3sW'
 printf '%s\n' 'SEOF'
 printf '%s\n' ''
-printf '%s\n' '    cat "\\$tmp_gpg" | base64 -d > \\$GPG_PUBLIC_KEY_FILE'
+printf '%s\n' '    cat "$tmp_gpg" | base64 -d > $GPG_PUBLIC_KEY_FILE'
 printf '%s\n' '}'
 printf '%s\n' ''
 printf '%s\n' '#'
@@ -222,13 +222,13 @@ printf '%s\n' ''
 printf '%s\n' 'SIGNER="5BCAD31DCC8D5D722B7B7ABD2EBE04E7CC816D32"'
 printf '%s\n' ''
 printf '%s\n' 'function verify_file() {'
-printf '%s\n' '    file=\\$1'
+printf '%s\n' '    file=$1'
 printf '%s\n' ''
-printf '%s\n' '    export GPG_PUBLIC_KEY_FILE=\\${GPG_PUBLIC_KEY_FILE:-""}'
-printf '%s\n' '    if [[ "\\$GPG_PUBLIC_KEY_FILE" == "" ]]; then'
+printf '%s\n' '    export GPG_PUBLIC_KEY_FILE=${GPG_PUBLIC_KEY_FILE:-""}'
+printf '%s\n' '    if [[ "$GPG_PUBLIC_KEY_FILE" == "" ]]; then'
 printf '%s\n' '        create_gpg_verification_key'
 printf '%s\n' '    fi'
-printf '%s\n' '    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring \\$GPG_PUBLIC_KEY_FILE --verify --status-fd=1 "\\$file.asc" "\\$file" 2>/dev/null | grep -e " VALIDSIG \\$SIGNER" >/dev/null || { echo "Signature check FAILED" ; return 1; }'
+printf '%s\n' '    LC_ALL=en_US.UTF-8 gpg --no-default-keyring --keyring $GPG_PUBLIC_KEY_FILE --verify --status-fd=1 "$file.asc" "$file" 2>/dev/null | grep -e " VALIDSIG $SIGNER" >/dev/null || { echo "Signature check FAILED" ; return 1; }'
 printf '%s\n' '}'
 printf "${RESET}"
 
@@ -374,7 +374,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' './operator_controller --set-version \\$SCONE_VERSION  --only-plugin  --reconcile --update'
+printf '%s\n' './operator_controller --set-version $SCONE_VERSION  --only-plugin  --reconcile --update'
 printf "${RESET}"
 
 ./operator_controller --set-version $SCONE_VERSION  --only-plugin  --reconcile --update
@@ -393,15 +393,15 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
-printf '%s\n' '    export DCAP_KEY=\\${DCAP_KEY:-\\$DEFAULT_DCAP_KEY}'
-printf '%s\n' '    if [[ "\\$DCAP_KEY" == "\\$DEFAULT_DCAP_KEY" ]] ; then'
+printf '%s\n' '    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}'
+printf '%s\n' '    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then'
 printf '%s\n' '        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"'
-printf '%s\n' '        EXISTING_DCAP_KEY=\\$(kubectl get las las -o json 2> /dev/null | jq -r '\''.spec.dcapKey'\'' || echo "null" )'
+printf '%s\n' '        EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '\''.spec.dcapKey'\'' || echo "null" )'
 printf '%s\n' ''
-printf '%s\n' '        if [[ "\\$EXISTING_DCAP_KEY" == "null" ]] ; then'
-printf '%s\n' '            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=\\$DEFAULT_DCAP_KEY - not recommended."'
+printf '%s\n' '        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then'
+printf '%s\n' '            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."'
 printf '%s\n' '        else'
-printf '%s\n' '            DCAP_KEY="\\$EXISTING_DCAP_KEY"'
+printf '%s\n' '            DCAP_KEY="$EXISTING_DCAP_KEY"'
 printf '%s\n' '            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."'
 printf '%s\n' '        fi'
 printf '%s\n' '    fi'
@@ -429,13 +429,13 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Check if DCAP_KEY is empty or unset'
-printf '%s\n' 'if [[ "\\$DCAP_KEY" == "\\$DEFAULT_DCAP_KEY" ]]; then'
+printf '%s\n' 'if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then'
 printf '%s\n' '  while true; do'
 printf '%s\n' '    read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input'
 printf '%s\n' ''
 printf '%s\n' '    # Check if input is 32 hex chars (case-insensitive)'
-printf '%s\n' '    if [[ "\\$input" =~ ^[0-9a-fA-F]{32}\\$ ]]; then'
-printf '%s\n' '      DCAP_KEY="\\$input"'
+printf '%s\n' '    if [[ "$input" =~ ^[0-9a-fA-F]{32}$ ]]; then'
+printf '%s\n' '      DCAP_KEY="$input"'
 printf '%s\n' '      export DCAP_KEY'
 printf '%s\n' '      echo "✅ DCAP_KEY set."'
 printf '%s\n' '      break'
@@ -471,8 +471,8 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'kubectl get deployment scone-controller-manager -n scone-system -o json | \'
-printf '%s\n' '  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":\\$SCONE_VERSION\"))" && \'
-printf '%s\n' '  { echo "SCONE Version \\$SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."'
+printf '%s\n' '  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \'
+printf '%s\n' '  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."'
 printf "${RESET}"
 
 kubectl get deployment scone-controller-manager -n scone-system -o json | \
@@ -523,9 +523,9 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'if [[ \\$install_sconeapps_secret == 1 ]] ; then'
+printf '%s\n' 'if [[ $install_sconeapps_secret == 1 ]] ; then'
 printf '%s\n' '    # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval \\$(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )'
+printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -541,7 +541,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '    ./operator_controller --set-version \\$SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "\\$DCAP_KEY" --secret-operator  --username \\$REGISTRY_USER --access-token \\$REGISTRY_TOKEN --email info@scontain.com'
+printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com'
 printf "${RESET}"
 
     ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
@@ -556,7 +556,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'else'
-printf '%s\n' '    ./operator_controller --set-version \\$SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "\\$DCAP_KEY"'
+printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
@@ -572,7 +572,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'operator_cleanup'
-printf '%s\n' 'echo "✅ SCONE Operator upgraded to version \\$SCONE_VERSION."'
+printf '%s\n' 'echo "✅ SCONE Operator upgraded to version $SCONE_VERSION."'
 printf "${RESET}"
 
 operator_cleanup

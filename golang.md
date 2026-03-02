@@ -83,10 +83,15 @@ CMD ["app"]
 SEOF
 ```
 
-You can then build and run the Docker image:
+You can then build the Docker image. 
 
 ```bash
 docker build -f Dockerfile -t my-golang-app .
+```
+
+Next, we run the newly created image. Note that we do not map any `/config` files in the image: you will see warnings that the config files cannot be found. 
+
+```bash
 docker run -it --rm --name my-running-app my-golang-app
 ```
 

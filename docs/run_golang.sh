@@ -183,7 +183,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'You can then build and run the Docker image:'
+printf '%s\n' 'You can then build the Docker image. '
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -191,6 +191,13 @@ pe "$(cat <<'EOF'
 docker build -f Dockerfile -t my-golang-app .
 EOF
 )"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Next, we run the newly created image. Note that we do not map any `/config` files in the image: you will see warnings that the config files cannot be found. '
+printf '%s\n' ''
+printf "%b" "$RESET"
+
 pe "$(cat <<'EOF'
 docker run -it --rm --name my-running-app my-golang-app
 EOF

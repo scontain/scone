@@ -17,3 +17,4 @@ overwrite
 k8s/deployment.yaml
 kubeconfig
 Values.credentials.yaml
+registy.credentials.yaml

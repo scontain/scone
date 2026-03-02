@@ -22,7 +22,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'check_command() {'
-printf '%s\n' '  command -v "\\$1" &>/dev/null'
+printf '%s\n' '  command -v "$1" &>/dev/null'
 printf '%s\n' '}'
 printf '%s\n' ''
 printf '%s\n' '# Auto-install kubectl if not present'
@@ -93,7 +93,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval \\$(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval \\${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
+printf '%s\n' 'eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
 printf "${RESET}"
 
 eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
@@ -105,11 +105,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'if [ -z "\\${REGISTRY_USER+x}" ]; then'
+printf '%s\n' 'if [ -z "${REGISTRY_USER+x}" ]; then'
 printf '%s\n' '  echo "Environment variable REGISTRY_USER is not set - please define and retry." '
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
-printf '%s\n' 'if [ -z "\\${REGISTRY_TOKEN+x}" ]; then'
+printf '%s\n' 'if [ -z "${REGISTRY_TOKEN+x}" ]; then'
 printf '%s\n' '  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." '
 printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
@@ -159,7 +159,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval \\$(tplenv --file environment-variables-k8s.md --create-values-file --context --eval \\${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' 'eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 printf "${RESET}"
 
 eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
@@ -179,45 +179,45 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl create ns \\$CLI_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -'
+printf '%s\n' 'kubectl create ns $CLI_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -'
 printf '%s\n' ''
 printf '%s\n' 'SECRET_NAME="scone-registry"'
 printf '%s\n' ''
-printf '%s\n' 'if kubectl get secret "\\$SECRET_NAME" -n "\\$CLI_NAMESPACE" >/dev/null 2>&1; then'
-printf '%s\n' '  echo "Secret '\''\\$SECRET_NAME'\'' exists in namespace '\''\\$CLI_NAMESPACE'\'' - do not replace."'
+printf '%s\n' 'if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then'
+printf '%s\n' '  echo "Secret '\''$SECRET_NAME'\'' exists in namespace '\''$CLI_NAMESPACE'\'' - do not replace."'
 printf '%s\n' 'else'
-printf '%s\n' '  echo "Secret '\''\\$SECRET_NAME'\'' not found in namespace '\''\\$CLI_NAMESPACE'\'' - Creating it."'
-printf '%s\n' '  kubectl -n \\$CLI_NAMESPACE create secret docker-registry "\\$SECRET_NAME" \'
+printf '%s\n' '  echo "Secret '\''$SECRET_NAME'\'' not found in namespace '\''$CLI_NAMESPACE'\'' - Creating it."'
+printf '%s\n' '  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \'
 printf '%s\n' '    --docker-server=registry.scontain.com \'
-printf '%s\n' '    --docker-username="\\$REGISTRY_USER" \'
-printf '%s\n' '    --docker-password="\\$REGISTRY_TOKEN"'
+printf '%s\n' '    --docker-username="$REGISTRY_USER" \'
+printf '%s\n' '    --docker-password="$REGISTRY_TOKEN"'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' 'SECRET_NAME="sconeapps"'
 printf '%s\n' ''
-printf '%s\n' 'if kubectl get secret "\\$SECRET_NAME" -n "\\$CLI_NAMESPACE" >/dev/null 2>&1; then'
-printf '%s\n' '  echo "Secret '\''\\$SECRET_NAME'\'' exists in namespace '\''\\$CLI_NAMESPACE'\'' - do not replace."'
+printf '%s\n' 'if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then'
+printf '%s\n' '  echo "Secret '\''$SECRET_NAME'\'' exists in namespace '\''$CLI_NAMESPACE'\'' - do not replace."'
 printf '%s\n' 'else'
-printf '%s\n' '  echo "Secret '\''\\$SECRET_NAME'\'' not found in namespace '\''\\$CLI_NAMESPACE'\'' - Creating it."'
-printf '%s\n' '  kubectl -n \\$CLI_NAMESPACE create secret docker-registry "\\$SECRET_NAME" \'
+printf '%s\n' '  echo "Secret '\''$SECRET_NAME'\'' not found in namespace '\''$CLI_NAMESPACE'\'' - Creating it."'
+printf '%s\n' '  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \'
 printf '%s\n' '    --docker-server=registry.scontain.com \'
-printf '%s\n' '    --docker-username="\\$REGISTRY_USER" \'
-printf '%s\n' '    --docker-password="\\$REGISTRY_TOKEN"'
+printf '%s\n' '    --docker-username="$REGISTRY_USER" \'
+printf '%s\n' '    --docker-password="$REGISTRY_TOKEN"'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' 'SECRET_NAME="scone-registry-env"'
 printf '%s\n' ''
-printf '%s\n' 'if kubectl get secret "\\$SECRET_NAME" -n "\\$CLI_NAMESPACE" >/dev/null 2>&1; then'
-printf '%s\n' '  echo "Secret '\''\\$SECRET_NAME'\'' exists in namespace '\''\\$CLI_NAMESPACE'\'' - do not replace."'
+printf '%s\n' 'if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then'
+printf '%s\n' '  echo "Secret '\''$SECRET_NAME'\'' exists in namespace '\''$CLI_NAMESPACE'\'' - do not replace."'
 printf '%s\n' 'else'
 printf '%s\n' ''
 printf '%s\n' 'cat > ./scone-registry.env <<SEOF'
-printf '%s\n' 'export REGISTRY_TOKEN="\\$REGISTRY_TOKEN"'
-printf '%s\n' 'export REGISTRY_USER="\\$REGISTRY_USER"'
+printf '%s\n' 'export REGISTRY_TOKEN="$REGISTRY_TOKEN"'
+printf '%s\n' 'export REGISTRY_USER="$REGISTRY_USER"'
 printf '%s\n' 'SEOF'
 printf '%s\n' ''
-printf '%s\n' 'kubectl -n \\$CLI_NAMESPACE create secret generic \\$SECRET_NAME \'
-printf '%s\n' '--from-file=\\$SECRET_NAME=./scone-registry.env'
+printf '%s\n' 'kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \'
+printf '%s\n' '--from-file=$SECRET_NAME=./scone-registry.env'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
@@ -305,7 +305,7 @@ printf "${ORANGE}"
 printf '%s\n' 'tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml'
 printf '%s\n' '# ensure we load the latest container image'
 printf '%s\n' 'kubectl apply -f ./k8s/deployment.yaml'
-printf '%s\n' 'kubectl -n "\\${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
+printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
 printf "${RESET}"
 
 tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
@@ -321,24 +321,24 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'wait_for_pod_logs() {'
-printf '%s\n' '  local ns="\\${1:-default}"'
-printf '%s\n' '  local label="\\${2:?Usage: wait_for_pod_logs <namespace> <label>}"'
-printf '%s\n' '  local timeout="\\${3:-200s}"'
+printf '%s\n' '  local ns="${1:-default}"'
+printf '%s\n' '  local label="${2:?Usage: wait_for_pod_logs <namespace> <label>}"'
+printf '%s\n' '  local timeout="${3:-200s}"'
 printf '%s\n' ''
-printf '%s\n' '  echo "⏳ Waiting for pod with label \\$label in namespace \\$ns..."'
-printf '%s\n' '  kubectl wait pod -n "\\$ns" -l "\\$label" --for=condition=Ready --timeout="\\$timeout" || {'
+printf '%s\n' '  echo "⏳ Waiting for pod with label $label in namespace $ns..."'
+printf '%s\n' '  kubectl wait pod -n "$ns" -l "$label" --for=condition=Ready --timeout="$timeout" || {'
 printf '%s\n' '    echo "❌ Timeout waiting for pod to become Ready."'
 printf '%s\n' '    return 1'
 printf '%s\n' '  }'
 printf '%s\n' ''
 printf '%s\n' '  local pod'
-printf '%s\n' '  pod=\\$(kubectl get pod -n "\\$ns" -l "\\$label" -o jsonpath='\''{.items[0].metadata.name}'\'')'
+printf '%s\n' '  pod=$(kubectl get pod -n "$ns" -l "$label" -o jsonpath='\''{.items[0].metadata.name}'\'')'
 printf '%s\n' ''
-printf '%s\n' '  echo "📜 Showing first 10 lines of logs from pod: \\$pod"'
-printf '%s\n' '  kubectl logs -n "\\$ns" "\\$pod" | head -n 10'
+printf '%s\n' '  echo "📜 Showing first 10 lines of logs from pod: $pod"'
+printf '%s\n' '  kubectl logs -n "$ns" "$pod" | head -n 10'
 printf '%s\n' '}'
 printf '%s\n' ''
-printf '%s\n' 'wait_for_pod_logs \\$CLI_NAMESPACE app=scone-toolbox'
+printf '%s\n' 'wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox'
 printf "${RESET}"
 
 wait_for_pod_logs() {
@@ -368,7 +368,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl exec -n \\$CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help'
+printf '%s\n' 'kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help'
 printf "${RESET}"
 
 kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
@@ -380,7 +380,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl exec -n \\$CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash'
+printf '%s\n' 'kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash'
 printf "${RESET}"
 
 kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash

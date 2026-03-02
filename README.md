@@ -7,39 +7,40 @@ This repo contains several markdown files that explain how to install the SCONE 
 
 ## Installation
 
-The SCONE Confidential Computing Platform consists of components running on your local computer and components running in a Kubernetes cluster. 
+The SCONE Confidential Computing Platform consists of components running on your local computer (for develompment) and components running in a Kubernetes cluster (for development and production). We show how to run the development components in a Kubernetes cluster.
 
-### Local Computer
+### Local Installation
 
-First, if you want to install on a local computer or a development VM (must be modern x86 computer), follow the following steps:
+First, if you want to install on the development components on your local computer or a development VM, follow the following steps. 
 
-- [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`. In a final step, the script installs the SCONE CLI by executing `./scripts/install_sconecli.sh`.
+ > **Note**: Right now, we assume that your computer is a x86 computer. Note that emulation of a x86 CPUs is not sufficient - we need some
+ > instructions like, e.g., `rdrnd`, that are not emulated. Hence, we show below how to running the develop components in a Kubernetes cluster consisting of x86 computers. 
+
+- [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`.
 
 ![Screencast](docs/prerequisite_check.gif)
 
-- [`sconecli.md`](sconecli.md): a description on how to install the `scone` CLI on your host / development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install the latest stable version of the SCONE CLI. Note that this script is called by `./scripts/prerequisite_check.sh`, i.e., one only needs this script to upgrade the SCONE CLI.
+- [`sconecli.md`](sconecli.md): describes how to install the `scone` CLI on your computer or development VM. To speed up the process, you can execute the script `./scripts/install_sconecli.sh` to install either the latest stable version (default) or any other version of the SCONE CLI.
 
 ![Screencast](docs/install_sconecli.gif)
 
-## Installation in Kubernetes Cluster
+## Installation of Kubernetes Cluster (Development and Production Components)
 
-In case you have no dedicated development VM, you could run as a container in a Kubernetes cluster (running x86 computers):
+In case you have no dedicated x86 development VM, you could run the development components as part of a Kubernetes cluster (running x86 computers):
 
-- [`prerequisite_check.md`](prerequisite_check.md): run `./scripts/prerequisite_check.sh` to ensure that you have `kubectl` and `cargo` installed. Note: this will install more commands than needed - you might only want to install missing components manually instead.
+- [`prerequisite_check.md`](prerequisite_check.md): run `./scripts/prerequisite_check.sh` to ensure that you have `kubectl` and `cargo` installed.
 
 ![Screencast](docs/prerequisite_check.gif)
 
-- [`k8s.md`](k8s.md) describes the steps to deploy the SCONE commands inside a Kubernetes cluster: these steps are part of script `./scripts/k8s_cli.sh`. 
+Next, install the SCONE platform and a first CAS instance on your Kubernetes cluster. These components are needed to run the confidential application, i.e., the cluster is expected to run Kubernetes nodes that support confidential computing.
 
-![Screencast](docs/k8s_cli.gif)
+> **NOTE:** We can provide you with a plugin for `kubectl` to create confidential Kubernetes cluster on premise or on common cloud providers. Just drop us an email at info@scontian.com
 
-Second, install the SCONE platform and a first CAS instance on your Kubernetes cluster:
-
-- [`scone_operator.md`](scone_operator.md): a description on how to install or upgrade the SCONE platform in a Kubernetes cluster. To speed up the process, you can execute the script `./scripts/reconcile_scone_operator.sh`.
+- [`scone_operator.md`](scone_operator.md): describes how to install or upgrade the SCONE platform in a Kubernetes cluster. To speed up the process, you can execute the script `./scripts/reconcile_scone_operator.sh`.
 
 ![Screencast](docs/reconcile_scone_operator.gif)
 
-- [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS - unless you defined environment variables `CAS` and/or `CAS_NAMESPACE`.
+- [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS.
 
 ![Screencast](docs/install_cas.gif)
 
@@ -49,27 +50,74 @@ Second, install the SCONE platform and a first CAS instance on your Kubernetes c
 
 - Inside the container, you can build confidential applications like our [confidential Java App](https://github.com/scontain/java-args-env-file). 
 
+- [`k8s.md`](k8s.md) describes the steps to deploy the SCONE commands inside a Kubernetes cluster: these steps are part of script `./scripts/k8s_cli.sh`.
+
+![Screencast](docs/k8s_cli.gif)
+
 ## Tutorials
 
-- [confidential Java App](https://github.com/scontain/java-args-env-file): we show how to run a cloud-native Java service as a confidential, cloud-native Java service on Intel SGX, Intel TDX, or AMD SEV SNP.
+- [scone-td-build](https://github.com/scontainug/scone-td-build-demos): we show how to transform cloud-native applications into confidential cloud-native applications running on top of Intel TDX, AMD SEV SNP, or Intel TDX.
+
+- [confidential Java App](https://github.com/scontain/java-args-env-file): shows how to run a cloud-native Java service as a confidential, cloud-native Java service on Intel SGX, Intel TDX, or AMD SEV SNP.
 
 - [golang.md](golang.md): SCONE Golang support documentation and workflow.
 
 ![Screencast](docs/run_golang.gif)
 
-- [golang support](https://github.com/scontain/golang): we provide container images with the latest `Go` versions for building native applications. We show how to build a native `Go` application `caddy` into a [`confidential caddy`](https://github.com/scontainug/caddy) applications using [`scone-signer`](https://sconedocs.github.io/CAS_cli/#scone-signer).
+  - [golang support](https://github.com/scontain/golang): we provide container images with the latest `Go` versions for building native applications. 
+  - We show how to build a native `Go` application `caddy` into a [`confidential caddy`](https://github.com/scontainug/caddy) applications using [`scone-signer`](https://sconedocs.github.io/CAS_cli/#scone-signer).
 
-## SCONE CLI Docker Image
+## SCONE Workshop Container Image
 
-### Copy and create the registry env
+We maintain a pre-built container image at <registry.scontain.com/workshop/scone> that contains all SCONE development tools. 
+
+
+### Pull Credentials
+
+Within this container image, we need access to the `registry.scontain.com`: the credentials are stored in file `scone-registry.env`. 
+
+- In case you are already logged into `registry.scontain.com` with your local docker instance, you can just execute:
+
+    ```bash
+    ./scripts/extract_scone-registry-env.sh
+    ```
+
+    to create file `scone-registry.env`
+
+- In case you are not yet logged in, you can manually define this file as follows:
 
 ```bash
-cp scone-registry.env.template scone-registry.env
+tplenv --file scone-registry.env.template --output scone-registry.env --values registy.credentials.yaml --create-values-file --force
 ```
 
-Provide the correct credentials. To generate an access token, follow these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
+### Run the Workshop Image
 
-### Build the image
+Create a container using the local image:
+
+```bash
+export KUBECONFIG_PATH=${KUBECONFIG:-$HOME/.kube/config}
+docker run -it --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v $KUBECONFIG_PATH:/kubeconfig \
+    -v ./scone-registry.env:/scone-registry/scone-registry-env \
+    registry.scontain.com/workshop/scone
+```
+
+> **Note:** `./scripts/k8s_cli.sh` the workshop image within a Kubernetes cluster. Since we need Docker to create container images, we also run a Docker engine in the Kubernetes cluster.
+
+## Background
+
+### Automatic Script Extraction
+
+All markdown files are associated with a script that executes the individual steps of the script.
+
+- `scripts/extract-all-scripts.sh`: most of the scripts in the directory `scripts` are automatically derived from the markdown files. If one updates the Markdown files, the generated scripts can be updated by executing `scripts/extract-all-scripts.sh`.
+
+- `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores them in a script file.
+
+Generate updated screencasts by executing `make`.
+
+### Building the workshop image
 
 ```bash
 export HOSTIP=$(ip route show default | awk '/default/ {print $3}')
@@ -91,55 +139,3 @@ Next, you can tag and push your image. For example, we push to:
 docker tag scone:latest registry.scontain.com/workshop/scone
 docker push registry.scontain.com/workshop/scone
 ```
-
-### Run the image
-
-Create a container using the local image:
-
-```bash
-export KUBECONFIG_PATH=${KUBECONFIG:-$HOME/.kube/config}
-docker run -it --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v $KUBECONFIG_PATH:/kubeconfig \
-    -v ./scone-registry.env:/scone-registry/scone-registry-env \
-    scone:latest
-```
-
-### Pre-built Container Image
-
-We also maintain a pre-built image at <registry.scontain.com/workshop/scone>. You need to 
-define file `scone-registry.env` first. In case you are already logged into `registry.scontain.com`,
-you can just execute:
-
-```bash
-./scripts/extract_scone-registry-env.sh
-```
-
-In case you are not yet logged in, you can manually define this file as follows:
-
-```bash
-cat > scone-registry.env <<SEOF
-export SCONE_REGISTRY_ACCESS_TOKEN="<...>see https://sconedocs.github.io/registry/#create-an-access-token>"
-export SCONE_REGISTRY_USERNAME="<...>"
-SEOF
-```
-
-Next, run the following command:
-
-```bash
-docker run -it --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v $KUBECONFIG_PATH:/kubeconfig \
-    -v ./scone-registry.env:/scone-registry/scone-registry-env \
-    registry.scontain.com/workshop/scone
-```
-
-## Automatic Script Extraction
-
-All markdown files are associated with a script that executes the individual steps of the script.
-
-- `scripts/extract-all-scripts.sh`: almost all scripts in the directory `scripts` are automatically derived from the markdown files. If one updates the Markdown files, the generated scripts can be updated by executing `scripts/extract-all-scripts.sh`.
-
-- `scripts/extract-bash.sh`: a simple script that extracts all `bash` and `sh` blocks from a given markdown file and stores them in a script file.
-
-Generate updated screencasts by executing `make`.
