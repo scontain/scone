@@ -139,26 +139,6 @@ escape_single_quotes() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g"
 }
 
-escape_dollars_for_display() {
-  local input="$1"
-  local output=""
-  local prev=""
-  local ch
-  local i
-
-  for ((i=0; i<${#input}; i++)); do
-    ch="${input:i:1}"
-    if [[ "$ch" == '$' && "$prev" != '\' ]]; then
-      output+='\\$'
-    else
-      output+="$ch"
-    fi
-    prev="$ch"
-  done
-
-  printf "%s" "$output"
-}
-
 emit_printf_lines() {
   local output_file="$1"
   shift
@@ -251,11 +231,7 @@ flush_code_block() {
   fi
 
   echo 'printf "${ORANGE}"' >> "$TMP_OUTPUT"
-  local escaped_code_buffer=()
-  for line in "${code_buffer[@]}"; do
-    escaped_code_buffer+=("$(escape_dollars_for_display "$line")")
-  done
-  emit_printf_lines "$TMP_OUTPUT" "${escaped_code_buffer[@]}"
+  emit_printf_lines "$TMP_OUTPUT" "${code_buffer[@]}"
   echo 'printf "${RESET}"' >> "$TMP_OUTPUT"
   echo "" >> "$TMP_OUTPUT"
   for line in "${code_buffer[@]}"; do
