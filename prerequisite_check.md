@@ -37,7 +37,7 @@ Set the following environment variable to `--force` if you want to be asked inte
 
 
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:
+but that are not set yet. In case `--force` is set, the values of all environment variables need to be confirmed by the user:
 
 ```
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
@@ -52,7 +52,7 @@ eval $(tplenv --file environment-variables.md --create-values-file --context --e
 ## Checking Commands
 
 To run our commands and to transform manifests and container images,
-we need a set of executable. We install the following external `executable` on
+we need a set of executables. We install the following external executables on
 the current machine:
 
 - `cosign`: needed to sign and verify the signature of container images

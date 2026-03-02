@@ -52,7 +52,7 @@ echo    "Login:    admin"
 echo    "Password: admin"
 ```
 
-On the computer where your browser run, you can execute:
+On the computer where your browser runs, you can execute:
 
 ```
 kubectl port-forward -n monitoring svc/grafana 3000:3000
