@@ -7,14 +7,14 @@ This repo contains several markdown files that explain how to install the SCONE 
 
 ## Installation
 
-The SCONE Confidential Computing Platform consists of components running on your local computer (for develompment) and components running in a Kubernetes cluster (for development and production). We show how to run the development components in a Kubernetes cluster.
+The SCONE Confidential Computing Platform consists of components running on your local computer (for development) and components running in a Kubernetes cluster (for development and production). We show how to run the development components in a Kubernetes cluster.
 
 ### Local Installation
 
-First, if you want to install on the development components on your local computer or a development VM, follow the following steps. 
+First, if you want to install the development components on your local computer or a development VM, follow these steps.
 
- > **Note**: Right now, we assume that your computer is a x86 computer. Note that emulation of a x86 CPUs is not sufficient - we need some
- > instructions like, e.g., `rdrnd`, that are not emulated. Hence, we show below how to running the develop components in a Kubernetes cluster consisting of x86 computers. 
+ > **Note**: Right now, we assume that your computer is an x86 computer. Note that emulation of x86 CPUs is not sufficient - we need some
+ > instructions like `rdrnd` that are not emulated. Hence, we show below how to run the development components in a Kubernetes cluster consisting of x86 computers.
 
 - [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`.
 
@@ -34,13 +34,13 @@ In case you have no dedicated x86 development VM, you could run the development 
 
 Next, install the SCONE platform and a first CAS instance on your Kubernetes cluster. These components are needed to run the confidential application, i.e., the cluster is expected to run Kubernetes nodes that support confidential computing.
 
-> **NOTE:** We can provide you with a plugin for `kubectl` to create confidential Kubernetes cluster on premise or on common cloud providers. Just drop us an email at info@scontian.com
+> **NOTE:** We can provide you with a plugin for `kubectl` to create a confidential Kubernetes cluster on-premises or on common cloud providers. Just drop us an email at info@scontain.com.
 
 - [`scone_operator.md`](scone_operator.md): describes how to install or upgrade the SCONE platform in a Kubernetes cluster. To speed up the process, you can execute the script `./scripts/reconcile_scone_operator.sh`.
 
 ![Screencast](docs/reconcile_scone_operator.gif)
 
-- [`CAS.md`](CAS.md): a description on how to create a CAS instance. You can execute as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS.
+- [`CAS.md`](CAS.md): a description of how to create a CAS instance. You can execute it as a script: `./scripts/install_cas.sh`. The script asks for the name and the namespace of the CAS.
 
 ![Screencast](docs/install_cas.gif)
 
@@ -65,7 +65,7 @@ Next, install the SCONE platform and a first CAS instance on your Kubernetes clu
 ![Screencast](docs/run_golang.gif)
 
   - [golang support](https://github.com/scontain/golang): we provide container images with the latest `Go` versions for building native applications. 
-  - We show how to build a native `Go` application `caddy` into a [`confidential caddy`](https://github.com/scontainug/caddy) applications using [`scone-signer`](https://sconedocs.github.io/CAS_cli/#scone-signer).
+  - We show how to build a native `Go` application `caddy` into a [`confidential caddy`](https://github.com/scontainug/caddy) application using [`scone-signer`](https://sconedocs.github.io/CAS_cli/#scone-signer).
 
 ## SCONE Workshop Container Image
 
@@ -103,7 +103,7 @@ docker run -it --rm \
     registry.scontain.com/workshop/scone
 ```
 
-> **Note:** `./scripts/k8s_cli.sh` the workshop image within a Kubernetes cluster. Since we need Docker to create container images, we also run a Docker engine in the Kubernetes cluster.
+> **Note:** `./scripts/k8s_cli.sh` deploys the workshop image within a Kubernetes cluster. Since we need Docker to create container images, we also run a Docker engine in the Kubernetes cluster.
 
 ## Background
 

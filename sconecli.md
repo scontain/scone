@@ -33,7 +33,7 @@ In case you want to use the values defined in the environment variables and file
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
 
-In case the values of the environment variables need to confirmed by the user, set it to `--force`: 
+In case the values of the environment variables need to be confirmed by the user, set it to `--force`:
 
 ```
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"

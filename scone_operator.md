@@ -14,7 +14,7 @@ export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
 
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:
+but that are not set yet. In case `--force` is set, the values of all environment variables need to be confirmed by the user:
 
 ```
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"

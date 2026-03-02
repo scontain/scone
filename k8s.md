@@ -1,6 +1,6 @@
 # Deploying SCONE CLI Image on Kubernetes
 
-This document describes on how to set up a pod in Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker deamon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.
+This document describes how to set up a pod in a Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker daemon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.
 
 ![Screencast](docs/k8s_cli.gif)
 
@@ -22,7 +22,7 @@ else
 fi
 ```
 
-Next, we check that we havve access to a Kubernetes cluster. This Kubernetes cluster is used to install a pod to run the transformation of applications.
+Next, we check that we have access to a Kubernetes cluster. This Kubernetes cluster is used to install a pod to run the transformation of applications.
 
 ```bash
 # checking that we have access to a cluster
@@ -33,11 +33,11 @@ kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1;
 
 The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, we need to enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)
 
-> Note: Enabling TCP on the Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable the TCP when you are done using the docker deamon.
+> Note: Enabling TCP on Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable TCP when you are done using the Docker daemon.
 
 ## Deployment
 
-You need to login to the docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you have not yet registered with `gitlab.scontain.com`, please check <https://sconedocs.github.io/registry/> on how to register an account. 
+You need to log in to the Docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you have not yet registered with `gitlab.scontain.com`, please check <https://sconedocs.github.io/registry/> on how to register an account.
 
 Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. 
 
@@ -47,7 +47,7 @@ We can ask the user for the credentials of the repository:
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 ```
 
-If we want to use the values from file `Values.yaml`, we set this environment variables as follows:
+If we want to use the values from file `Values.yaml`, we set these environment variables as follows:
 
 ```bash
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
