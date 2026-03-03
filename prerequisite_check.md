@@ -30,18 +30,10 @@ By default, we install the latest stable version of SCONE. You can overwrite the
 
 ```bash
 export SCONE_VERSION=$(cat stable.txt)
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
-
-Set the following environment variable to `--force` if you want to be asked interactively for the SCONE_VERSION:
-
 
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet. In case `--force` is set, the values of all environment variables need to be confirmed by the user:
-
-```
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-```
+but that are not set yet.
 
 Let's ask the user and set the environment variables depending on the input of the user:
 

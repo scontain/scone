@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 
 TYPE_SPEED="${TYPE_SPEED:-25}"
 PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"

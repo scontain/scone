@@ -27,18 +27,6 @@ We assume in this description that you run a Debian-based distribution like Ubun
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
 but that are not set yet. 
 
-In case you want to use the values defined in the environment variables and file `Values.yaml`, please set:
-
-```bash
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
-```
-
-In case the values of the environment variables need to be confirmed by the user, set it to `--force`:
-
-```
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-```
-
 Let's ask the user and set the environment variables depending on the input of the user:
 
 ```bash

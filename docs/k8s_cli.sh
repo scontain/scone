@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 
 TYPE_SPEED="${TYPE_SPEED:-25}"
 PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"
@@ -132,21 +133,6 @@ printf '%s\n' ''
 printf '%s\n' 'You need to log in to the Docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you have not yet registered with `gitlab.scontain.com`, please check <https://sconedocs.github.io/registry/> on how to register an account.'
 printf '%s\n' ''
 printf '%s\n' 'Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. '
-printf '%s\n' ''
-printf '%s\n' 'We can ask the user for the credentials of the repository:'
-printf '%s\n' ''
-printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
-printf '%s\n' ''
-printf '%s\n' 'If we want to use the values from file `Values.yaml`, we set these environment variables as follows:'
-printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
-EOF
-)"
-
-printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Next, we set all environment variables related to the registry credentials.'
 printf '%s\n' ''
