@@ -155,7 +155,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'On the computer where your browser run, you can execute:'
+printf '%s\n' 'On the computer where your browser runs, you can execute:'
 printf '%s\n' ''
 printf '%s\n' 'kubectl port-forward -n monitoring svc/grafana 3000:3000'
 printf '%s\n' ''

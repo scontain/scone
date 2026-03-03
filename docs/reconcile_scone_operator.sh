@@ -74,7 +74,7 @@ EOF
 printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
-printf '%s\n' 'but that are not set yet. In case `--force` is set, the values of all environment variables need to confirmed by the user:'
+printf '%s\n' 'but that are not set yet. In case `--force` is set, the values of all environment variables need to be confirmed by the user:'
 printf '%s\n' ''
 printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
 printf '%s\n' ''

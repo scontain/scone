@@ -90,7 +90,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'In case the values of the environment variables need to confirmed by the user, set it to `--force`: '
+printf '%s\n' 'In case the values of the environment variables need to be confirmed by the user, set it to `--force`:'
 printf '%s\n' ''
 printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
 printf '%s\n' ''
