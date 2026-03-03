@@ -9,7 +9,7 @@ RESET='\033[0m'
 printf "${VIOLET}"
 printf '%s\n' '# Deploying SCONE CLI Image on Kubernetes'
 printf '%s\n' ''
-printf '%s\n' 'This document describes on how to set up a pod in Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker deamon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.'
+printf '%s\n' 'This document describes how to set up a pod in a Kubernetes cluster that contains all the tools to transform cloud-native applications into confidential applications. To do so, we need a Docker daemon that we use to transform existing native container images of the application into confidential container images used by the confidential cloud-native application.'
 printf '%s\n' ''
 printf '%s\n' '![Screencast](docs/k8s_cli.gif)'
 printf '%s\n' ''
@@ -46,7 +46,7 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Next, we check that we havve access to a Kubernetes cluster. This Kubernetes cluster is used to install a pod to run the transformation of applications.'
+printf '%s\n' 'Next, we check that we have access to a Kubernetes cluster. This Kubernetes cluster is used to install a pod to run the transformation of applications.'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -64,11 +64,11 @@ printf '%s\n' '## Enabling TCP on Docker Daemon'
 printf '%s\n' ''
 printf '%s\n' 'The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, we need to enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)'
 printf '%s\n' ''
-printf '%s\n' '> Note: Enabling TCP on the Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable the TCP when you are done using the docker deamon.'
+printf '%s\n' '> Note: Enabling TCP on Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable TCP when you are done using the Docker daemon.'
 printf '%s\n' ''
 printf '%s\n' '## Deployment'
 printf '%s\n' ''
-printf '%s\n' 'You need to login to the docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you have not yet registered with `gitlab.scontain.com`, please check <https://sconedocs.github.io/registry/> on how to register an account. '
+printf '%s\n' 'You need to log in to the Docker registry `registry.scontain.com` with an account that has access to the namespace `scone.cloud`. If you have not yet registered with `gitlab.scontain.com`, please check <https://sconedocs.github.io/registry/> on how to register an account.'
 printf '%s\n' ''
 printf '%s\n' 'Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. '
 printf '%s\n' ''
@@ -76,7 +76,7 @@ printf '%s\n' 'We can ask the user for the credentials of the repository:'
 printf '%s\n' ''
 printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
 printf '%s\n' ''
-printf '%s\n' 'If we want to use the values from file `Values.yaml`, we set this environment variables as follows:'
+printf '%s\n' 'If we want to use the values from file `Values.yaml`, we set these environment variables as follows:'
 printf '%s\n' ''
 printf "${RESET}"
 
