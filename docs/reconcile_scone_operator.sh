@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 
 TYPE_SPEED="${TYPE_SPEED:-25}"
 PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"
@@ -66,17 +67,11 @@ pe "$(cat <<'EOF'
 export SCONE_VERSION=$(cat stable.txt)
 EOF
 )"
-pe "$(cat <<'EOF'
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
-printf '%s\n' 'but that are not set yet. In case `--force` is set, the values of all environment variables need to be confirmed by the user:'
-printf '%s\n' ''
-printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
+printf '%s\n' 'but that are not set yet.'
 printf '%s\n' ''
 printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
 printf '%s\n' ''

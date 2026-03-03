@@ -71,6 +71,7 @@ write_default_header() {
     echo "#!/usr/bin/env bash"
     echo
     echo "set -euo pipefail"
+    echo 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
     echo
     echo "VIOLET='\\033[38;5;141m'"
     echo "ORANGE='\\033[38;5;208m'"
@@ -84,6 +85,7 @@ write_docs_header() {
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 
 TYPE_SPEED="${TYPE_SPEED:-25}"
 PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"

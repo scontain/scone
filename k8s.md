@@ -41,18 +41,6 @@ You need to log in to the Docker registry `registry.scontain.com` with an accoun
 
 Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. 
 
-We can ask the user for the credentials of the repository:
-
-```
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-```
-
-If we want to use the values from file `Values.yaml`, we set these environment variables as follows:
-
-```bash
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
-```
-
 Next, we set all environment variables related to the registry credentials.
 
 ```bash
