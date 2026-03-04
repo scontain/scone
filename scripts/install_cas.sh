@@ -252,11 +252,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)'
+printf '%s\n' 'export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)'
 printf '%s\n' 'echo "The lastest stable version of SCONE is $VERSION"'
 printf "${RESET}"
 
-VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
 echo "The lastest stable version of SCONE is $VERSION"
 
 printf "${VIOLET}"
@@ -410,45 +410,13 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'echo "✅ Using environment variable CAS (if it exists): ${CAS:-}"'
-printf '%s\n' '# Prompt for CAS (CAS instance name)'
-printf '%s\n' 'while [[ -z "${CAS:-}" ]]; do'
-printf '%s\n' '  read -rp "Enter the name of the CAS instance (CAS): " CAS'
-printf '%s\n' 'done'
-printf '%s\n' ''
-printf '%s\n' 'echo "✅ Using environment variable CAS_NAMESPACE (if it exists): ${CAS_NAMESPACE:-}"'
-printf '%s\n' '# Prompt for CAS_NAMESPACE (Kubernetes namespace)'
-printf '%s\n' 'while [[ -z "${CAS_NAMESPACE:-}" ]]; do'
-printf '%s\n' '  read -rp "Enter the Kubernetes namespace for CAS (default: default): " CAS_NAMESPACE'
-printf '%s\n' '  CAS_NAMESPACE="${CAS_NAMESPACE:-default}"'
-printf '%s\n' 'done'
-printf '%s\n' ''
-printf '%s\n' '# Export the variables'
-printf '%s\n' 'export CAS'
-printf '%s\n' 'export CAS_NAMESPACE'
-printf '%s\n' ''
+printf '%s\n' 'eval $(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
 printf '%s\n' '# Confirm to the user'
 printf '%s\n' 'echo "✅ Using CAS: $CAS"'
 printf '%s\n' 'echo "✅ Using namespace: $CAS_NAMESPACE"'
 printf "${RESET}"
 
-echo "✅ Using environment variable CAS (if it exists): ${CAS:-}"
-# Prompt for CAS (CAS instance name)
-while [[ -z "${CAS:-}" ]]; do
-  read -rp "Enter the name of the CAS instance (CAS): " CAS
-done
-
-echo "✅ Using environment variable CAS_NAMESPACE (if it exists): ${CAS_NAMESPACE:-}"
-# Prompt for CAS_NAMESPACE (Kubernetes namespace)
-while [[ -z "${CAS_NAMESPACE:-}" ]]; do
-  read -rp "Enter the Kubernetes namespace for CAS (default: default): " CAS_NAMESPACE
-  CAS_NAMESPACE="${CAS_NAMESPACE:-default}"
-done
-
-# Export the variables
-export CAS
-export CAS_NAMESPACE
-
+eval $(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 # Confirm to the user
 echo "✅ Using CAS: $CAS"
 echo "✅ Using namespace: $CAS_NAMESPACE"

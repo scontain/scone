@@ -433,7 +433,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -721,71 +721,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-echo "✅ Using environment variable CAS (if it exists): ${CAS:-}"
-EOF
-)"
-pe "$(cat <<'EOF'
-# Prompt for CAS (CAS instance name)
-EOF
-)"
-pe "$(cat <<'EOF'
-while [[ -z "${CAS:-}" ]]; do
-EOF
-)"
-pe "$(cat <<'EOF'
-  read -rp "Enter the name of the CAS instance (CAS): " CAS
-EOF
-)"
-pe "$(cat <<'EOF'
-done
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-echo "✅ Using environment variable CAS_NAMESPACE (if it exists): ${CAS_NAMESPACE:-}"
-EOF
-)"
-pe "$(cat <<'EOF'
-# Prompt for CAS_NAMESPACE (Kubernetes namespace)
-EOF
-)"
-pe "$(cat <<'EOF'
-while [[ -z "${CAS_NAMESPACE:-}" ]]; do
-EOF
-)"
-pe "$(cat <<'EOF'
-  read -rp "Enter the Kubernetes namespace for CAS (default: default): " CAS_NAMESPACE
-EOF
-)"
-pe "$(cat <<'EOF'
-  CAS_NAMESPACE="${CAS_NAMESPACE:-default}"
-EOF
-)"
-pe "$(cat <<'EOF'
-done
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-# Export the variables
-EOF
-)"
-pe "$(cat <<'EOF'
-export CAS
-EOF
-)"
-pe "$(cat <<'EOF'
-export CAS_NAMESPACE
-EOF
-)"
-pe "$(cat <<'EOF'
-
+eval $(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 EOF
 )"
 pe "$(cat <<'EOF'

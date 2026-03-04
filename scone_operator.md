@@ -19,6 +19,7 @@ Let's ask the user and set the environment variables depending on the input of t
 
 ```bash
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+export VERSION=SCONE_VERSION
 ```
 
 ## Make sure that we actually want to update the current cluster
