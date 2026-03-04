@@ -3,3 +3,6 @@ environment:
   SCONE_VERSION: 7.0.0-alpha.1
   CLI_IMAGE: registry.scontain.com/workshop/scone
   CLI_NAMESPACE: scone-tools
+  CAS: cas1
+  CAS_NAMESPACE: default
+  VERSION: 6.0.2

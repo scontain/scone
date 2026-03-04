@@ -81,6 +81,10 @@ pe "$(cat <<'EOF'
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 EOF
 )"
+pe "$(cat <<'EOF'
+export VERSION=SCONE_VERSION
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''

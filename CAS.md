@@ -134,7 +134,7 @@ fi
 5. Determine the current stable version of the SCONE platform:
 
 ```bash
-VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
 echo "The lastest stable version of SCONE is $VERSION"
 ```
 
@@ -214,23 +214,7 @@ fi
 7. Determine the name and the namespace of the CAS instance
 
 ```bash
-echo "✅ Using environment variable CAS (if it exists): ${CAS:-}"
-# Prompt for CAS (CAS instance name)
-while [[ -z "${CAS:-}" ]]; do
-  read -rp "Enter the name of the CAS instance (CAS): " CAS
-done
-
-echo "✅ Using environment variable CAS_NAMESPACE (if it exists): ${CAS_NAMESPACE:-}"
-# Prompt for CAS_NAMESPACE (Kubernetes namespace)
-while [[ -z "${CAS_NAMESPACE:-}" ]]; do
-  read -rp "Enter the Kubernetes namespace for CAS (default: default): " CAS_NAMESPACE
-  CAS_NAMESPACE="${CAS_NAMESPACE:-default}"
-done
-
-# Export the variables
-export CAS
-export CAS_NAMESPACE
-
+eval $(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 # Confirm to the user
 echo "✅ Using CAS: $CAS"
 echo "✅ Using namespace: $CAS_NAMESPACE"
