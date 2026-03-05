@@ -186,53 +186,6 @@ pe "$(cat <<'EOF'
 
 EOF
 )"
-pe "$(cat <<'EOF'
-if [[ -z "${SSH_PUB_KEY:-}" ]]; then
-EOF
-)"
-pe "$(cat <<'EOF'
-  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."
-EOF
-)"
-pe "$(cat <<'EOF'
-  exit 1
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-if [[ ! -f Values.credentials.yaml ]]; then
-EOF
-)"
-pe "$(cat <<'EOF'
-  printf '%s\n' \
-    'environment:' \
-    '  REGISTRY: registry.scontain.com' \
-    '  REGISTRY_USER: ""' \
-    '  REGISTRY_TOKEN: ""' \
-    '  # SSH public key used for passwordless SSH access to the toolbox container.' \
-    '  SSH_PUB_KEY: ""' \
-    > Values.credentials.yaml
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-yq -i '.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)' Values.credentials.yaml
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -242,45 +195,6 @@ printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
 eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
-EOF
-)"
-
-printf "%b" "$LILAC"
-printf '%s\n' ''
-printf '%s\n' 'To be sure, we check that both variables are defined:'
-printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-if [ -z "${REGISTRY_USER+x}" ]; then
-EOF
-)"
-pe "$(cat <<'EOF'
-  echo "Environment variable REGISTRY_USER is not set - please define and retry." 
-EOF
-)"
-pe "$(cat <<'EOF'
-  exit 1
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
-EOF
-)"
-pe "$(cat <<'EOF'
-if [ -z "${REGISTRY_TOKEN+x}" ]; then
-EOF
-)"
-pe "$(cat <<'EOF'
-  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." 
-EOF
-)"
-pe "$(cat <<'EOF'
-  exit 1
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
 EOF
 )"
 
@@ -521,6 +435,14 @@ tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
+# delete old deployment...
+EOF
+)"
+pe "$(cat <<'EOF'
+{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
+EOF
+)"
+pe "$(cat <<'EOF'
 # ensure we load the latest container image
 EOF
 )"
@@ -547,11 +469,19 @@ kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
 EOF
 )"
 pe "$(cat <<'EOF'
-
+kill $(cat /tmp/pf-2222.pid) || true
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22
+rm /tmp/pf-2222.pid || true
+EOF
+)"
+pe "$(cat <<'EOF'
+echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" 
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
 EOF
 )"
 
@@ -559,121 +489,43 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
 printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-ssh -p 2222 root@127.0.0.1
-EOF
-)"
-
-printf "%b" "$LILAC"
+printf '%s\n' 'ssh -p 2222 root@127.0.0.1'
 printf '%s\n' ''
 printf '%s\n' 'If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:'
 printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-SSH_CONFIG="${HOME}/.ssh/config"
-EOF
-)"
-pe "$(cat <<'EOF'
-HOST_ALIAS="scone-toolbox-k8s"
-EOF
-)"
-pe "$(cat <<'EOF'
-BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
-EOF
-)"
-pe "$(cat <<'EOF'
-END_MARKER="# <<< ${HOST_ALIAS} <<<"
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-mkdir -p "${HOME}/.ssh"
-EOF
-)"
-pe "$(cat <<'EOF'
-chmod 700 "${HOME}/.ssh"
-EOF
-)"
-pe "$(cat <<'EOF'
-touch "${SSH_CONFIG}"
-EOF
-)"
-pe "$(cat <<'EOF'
-chmod 600 "${SSH_CONFIG}"
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-tmp_config="$(mktemp)"
-EOF
-)"
-pe "$(cat <<'EOF'
-awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
-EOF
-)"
-pe "$(cat <<'EOF'
-  $0 == begin {skip=1; next}
-EOF
-)"
-pe "$(cat <<'EOF'
-  $0 == end   {skip=0; next}
-EOF
-)"
-pe "$(cat <<'EOF'
-  !skip       {print}
-EOF
-)"
-pe "$(cat <<'EOF'
-' "${SSH_CONFIG}" > "${tmp_config}"
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-printf '%s\n' \
-  "${BEGIN_MARKER}" \
-  "Host ${HOST_ALIAS}" \
-  "  HostName 127.0.0.1" \
-  "  Port 2222" \
-  "  User root" \
-  "  ServerAliveInterval 30" \
-  "  StrictHostKeyChecking accept-new" \
-  "${END_MARKER}" \
-  >> "${tmp_config}"
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-mv "${tmp_config}" "${SSH_CONFIG}"
-EOF
-)"
-
-printf "%b" "$LILAC"
+printf '%s\n' 'SSH_CONFIG="${HOME}/.ssh/config"'
+printf '%s\n' 'HOST_ALIAS="scone-toolbox-k8s"'
+printf '%s\n' 'BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"'
+printf '%s\n' 'END_MARKER="# <<< ${HOST_ALIAS} <<<"'
+printf '%s\n' ''
+printf '%s\n' 'mkdir -p "${HOME}/.ssh"'
+printf '%s\n' 'chmod 700 "${HOME}/.ssh"'
+printf '%s\n' 'touch "${SSH_CONFIG}"'
+printf '%s\n' 'chmod 600 "${SSH_CONFIG}"'
+printf '%s\n' ''
+printf '%s\n' 'tmp_config="$(mktemp)"'
+printf '%s\n' 'awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '\'''
+printf '%s\n' '  $0 == begin {skip=1; next}'
+printf '%s\n' '  $0 == end   {skip=0; next}'
+printf '%s\n' '  !skip       {print}'
+printf '%s\n' ''\'' "${SSH_CONFIG}" > "${tmp_config}"'
+printf '%s\n' ''
+printf '%s\n' 'printf '\''%s\n'\'' \'
+printf '%s\n' '  "${BEGIN_MARKER}" \'
+printf '%s\n' '  "Host ${HOST_ALIAS}" \'
+printf '%s\n' '  "  HostName 127.0.0.1" \'
+printf '%s\n' '  "  Port 2222" \'
+printf '%s\n' '  "  User root" \'
+printf '%s\n' '  "  ServerAliveInterval 30" \'
+printf '%s\n' '  "  StrictHostKeyChecking accept-new" \'
+printf '%s\n' '  "${END_MARKER}" \'
+printf '%s\n' '  >> "${tmp_config}"'
+printf '%s\n' ''
+printf '%s\n' 'mv "${tmp_config}" "${SSH_CONFIG}"'
 printf '%s\n' ''
 printf '%s\n' 'Then connect using the alias:'
 printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-ssh scone-toolbox-k8s
-EOF
-)"
-
-printf "%b" "$LILAC"
+printf '%s\n' 'ssh scone-toolbox-k8s'
 printf '%s\n' ''
 printf '%s\n' '##  Watch the logs of the pod'
 printf '%s\n' ''

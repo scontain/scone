@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-"--force"}
 
 VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'
@@ -93,23 +93,6 @@ printf '%s\n' '    fi'
 printf '%s\n' '  done'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' 'if [[ -z "${SSH_PUB_KEY:-}" ]]; then'
-printf '%s\n' '  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."'
-printf '%s\n' '  exit 1'
-printf '%s\n' 'fi'
-printf '%s\n' ''
-printf '%s\n' 'if [[ ! -f Values.credentials.yaml ]]; then'
-printf '%s\n' '  printf '\''%s\n'\'' \'
-printf '%s\n' '    '\''environment:'\'' \'
-printf '%s\n' '    '\''  REGISTRY: registry.scontain.com'\'' \'
-printf '%s\n' '    '\''  REGISTRY_USER: ""'\'' \'
-printf '%s\n' '    '\''  REGISTRY_TOKEN: ""'\'' \'
-printf '%s\n' '    '\''  # SSH public key used for passwordless SSH access to the toolbox container.'\'' \'
-printf '%s\n' '    '\''  SSH_PUB_KEY: ""'\'' \'
-printf '%s\n' '    > Values.credentials.yaml'
-printf '%s\n' 'fi'
-printf '%s\n' ''
-printf '%s\n' 'yq -i '\''.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)'\'' Values.credentials.yaml'
 printf "${RESET}"
 
 if [[ -z "${SSH_PUB_KEY:-}" ]]; then
@@ -123,23 +106,6 @@ if [[ -z "${SSH_PUB_KEY:-}" ]]; then
   done
 fi
 
-if [[ -z "${SSH_PUB_KEY:-}" ]]; then
-  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."
-  exit 1
-fi
-
-if [[ ! -f Values.credentials.yaml ]]; then
-  printf '%s\n' \
-    'environment:' \
-    '  REGISTRY: registry.scontain.com' \
-    '  REGISTRY_USER: ""' \
-    '  REGISTRY_TOKEN: ""' \
-    '  # SSH public key used for passwordless SSH access to the toolbox container.' \
-    '  SSH_PUB_KEY: ""' \
-    > Values.credentials.yaml
-fi
-
-yq -i '.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)' Values.credentials.yaml
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -152,32 +118,6 @@ printf '%s\n' 'eval $(tplenv --values Values.credentials.yaml --file registry.cr
 printf "${RESET}"
 
 eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
-
-printf "${VIOLET}"
-printf '%s\n' ''
-printf '%s\n' 'To be sure, we check that both variables are defined:'
-printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' 'if [ -z "${REGISTRY_USER+x}" ]; then'
-printf '%s\n' '  echo "Environment variable REGISTRY_USER is not set - please define and retry." '
-printf '%s\n' '  exit 1'
-printf '%s\n' 'fi'
-printf '%s\n' 'if [ -z "${REGISTRY_TOKEN+x}" ]; then'
-printf '%s\n' '  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." '
-printf '%s\n' '  exit 1'
-printf '%s\n' 'fi'
-printf "${RESET}"
-
-if [ -z "${REGISTRY_USER+x}" ]; then
-  echo "Environment variable REGISTRY_USER is not set - please define and retry." 
-  exit 1
-fi
-if [ -z "${REGISTRY_TOKEN+x}" ]; then
-  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." 
-  exit 1
-fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -358,12 +298,16 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml'
+printf '%s\n' '# delete old deployment...'
+printf '%s\n' '{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"'
 printf '%s\n' '# ensure we load the latest container image'
 printf '%s\n' 'kubectl apply -f ./k8s/deployment.yaml'
 printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
 printf "${RESET}"
 
 tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
+# delete old deployment...
+{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
 kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
@@ -379,34 +323,27 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \'
 printf '%s\n' '  --for=condition=Ready --timeout=300s'
-printf '%s\n' ''
-printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22'
+printf '%s\n' 'kill $(cat /tmp/pf-2222.pid) || true'
+printf '%s\n' 'rm /tmp/pf-2222.pid || true'
+printf '%s\n' 'echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" '
+printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid'
 printf "${RESET}"
 
 kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
   --for=condition=Ready --timeout=300s
-
-kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22
+kill $(cat /tmp/pf-2222.pid) || true
+rm /tmp/pf-2222.pid || true
+echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" 
+kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
 
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
 printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
 printf '%s\n' 'ssh -p 2222 root@127.0.0.1'
-printf "${RESET}"
-
-ssh -p 2222 root@127.0.0.1
-
-printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:'
 printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
 printf '%s\n' 'SSH_CONFIG="${HOME}/.ssh/config"'
 printf '%s\n' 'HOST_ALIAS="scone-toolbox-k8s"'
 printf '%s\n' 'BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"'
@@ -436,51 +373,10 @@ printf '%s\n' '  "${END_MARKER}" \'
 printf '%s\n' '  >> "${tmp_config}"'
 printf '%s\n' ''
 printf '%s\n' 'mv "${tmp_config}" "${SSH_CONFIG}"'
-printf "${RESET}"
-
-SSH_CONFIG="${HOME}/.ssh/config"
-HOST_ALIAS="scone-toolbox-k8s"
-BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
-END_MARKER="# <<< ${HOST_ALIAS} <<<"
-
-mkdir -p "${HOME}/.ssh"
-chmod 700 "${HOME}/.ssh"
-touch "${SSH_CONFIG}"
-chmod 600 "${SSH_CONFIG}"
-
-tmp_config="$(mktemp)"
-awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
-  $0 == begin {skip=1; next}
-  $0 == end   {skip=0; next}
-  !skip       {print}
-' "${SSH_CONFIG}" > "${tmp_config}"
-
-printf '%s\n' \
-  "${BEGIN_MARKER}" \
-  "Host ${HOST_ALIAS}" \
-  "  HostName 127.0.0.1" \
-  "  Port 2222" \
-  "  User root" \
-  "  ServerAliveInterval 30" \
-  "  StrictHostKeyChecking accept-new" \
-  "${END_MARKER}" \
-  >> "${tmp_config}"
-
-mv "${tmp_config}" "${SSH_CONFIG}"
-
-printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'Then connect using the alias:'
 printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
 printf '%s\n' 'ssh scone-toolbox-k8s'
-printf "${RESET}"
-
-ssh scone-toolbox-k8s
-
-printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '##  Watch the logs of the pod'
 printf '%s\n' ''

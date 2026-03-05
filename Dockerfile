@@ -124,11 +124,15 @@ COPY . /root/scone
 # The secret can be provided using: --secret id=kubeconfig,src=$HOME/.kube/config
 ENV DOCKER_CONFIG=/root/.docker
 
+RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
+
 RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
     --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
     docker version && \
     cd /root/scone \
-    && VERSION=7.0.0-alpha.1 ./scripts/prerequisite_check.sh
+    && export PATH=$HOME/.cargo/bin:$PATH \
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=7.0.0-alpha.1 ./scripts/prerequisite_check.sh \
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=7.0.0-alpha.1 ./scripts/install_sconecli.sh
 
 # check if newer local k8s-scone is available and use it
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
@@ -142,8 +146,6 @@ RUN --mount=type=bind,source=overwrite,target=/overwrite \
 
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/bin/kubectl-scone ] && cp /overwrite/bin/kubectl-scone $HOME/.cargo/bin/kubectl-scone || true
-
-RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

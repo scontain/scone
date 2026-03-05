@@ -71,7 +71,7 @@ write_default_header() {
     echo "#!/usr/bin/env bash"
     echo
     echo "set -euo pipefail"
-    echo 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
+    echo 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-"--force"}'
     echo
     echo "VIOLET='\\033[38;5;141m'"
     echo "ORANGE='\\033[38;5;208m'"
