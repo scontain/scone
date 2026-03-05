@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES=${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-"--force"}
 
 VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'

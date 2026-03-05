@@ -59,42 +59,12 @@ if [[ -z "${SSH_PUB_KEY:-}" ]]; then
   done
 fi
 
-if [[ -z "${SSH_PUB_KEY:-}" ]]; then
-  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."
-  exit 1
-fi
-
-if [[ ! -f Values.credentials.yaml ]]; then
-  printf '%s\n' \
-    'environment:' \
-    '  REGISTRY: registry.scontain.com' \
-    '  REGISTRY_USER: ""' \
-    '  REGISTRY_TOKEN: ""' \
-    '  # SSH public key used for passwordless SSH access to the toolbox container.' \
-    '  SSH_PUB_KEY: ""' \
-    > Values.credentials.yaml
-fi
-
-yq -i '.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)' Values.credentials.yaml
 ```
 
 Next, we set all environment variables related to the registry credentials.
 
 ```bash
 eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
-```
-
-To be sure, we check that both variables are defined:
-
-```bash
-if [ -z "${REGISTRY_USER+x}" ]; then
-  echo "Environment variable REGISTRY_USER is not set - please define and retry." 
-  exit 1
-fi
-if [ -z "${REGISTRY_TOKEN+x}" ]; then
-  echo "Environment variable REGISTRY_TOKEN is not set  - please define and retry." 
-  exit 1
-fi
 ```
 
 ## Container Image
@@ -195,6 +165,8 @@ We change the image name in `deployment.yaml` file for the one you pushed in ste
 
 ```bash
 tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
+# delete old deployment...
+{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
 kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
@@ -207,19 +179,21 @@ After deployment, wait until the toolbox pod is `Ready`, then forward local port
 ```bash
 kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
   --for=condition=Ready --timeout=300s
-
-kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22
+kill $(cat /tmp/pf-2222.pid) || true
+rm /tmp/pf-2222.pid || true
+echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" 
+kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
 ```
 
 In another terminal, connect via SSH (password login is disabled, key-based login only):
 
-```bash
+```
 ssh -p 2222 root@127.0.0.1
 ```
 
 If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:
 
-```bash
+```
 SSH_CONFIG="${HOME}/.ssh/config"
 HOST_ALIAS="scone-toolbox-k8s"
 BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
@@ -253,7 +227,7 @@ mv "${tmp_config}" "${SSH_CONFIG}"
 
 Then connect using the alias:
 
-```bash
+```
 ssh scone-toolbox-k8s
 ```
 
