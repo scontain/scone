@@ -31,6 +31,12 @@ spec:
           env:
             - name: DOCKER_HOST
               value: tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375
+            - name: SSH_PUB_KEY
+              value: "${SSH_PUB_KEY}"
+          ports:
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
           tty: true
           stdin: true
           resources:

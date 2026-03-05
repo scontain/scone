@@ -134,6 +134,108 @@ printf '%s\n' 'You need to log in to the Docker registry `registry.scontain.com`
 printf '%s\n' ''
 printf '%s\n' 'Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. '
 printf '%s\n' ''
+printf '%s\n' '## SSH Key for Toolbox Access'
+printf '%s\n' ''
+printf '%s\n' 'The toolbox container starts `sshd` automatically with password authentication disabled. To allow SSH login, we pass your public key in environment variable `SSH_PUB_KEY`.'
+printf '%s\n' ''
+printf '%s\n' 'The following snippet tries to initialize `SSH_PUB_KEY` from your local `~/.ssh` directory and writes it into `Values.credentials.yaml`:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+if [[ -z "${SSH_PUB_KEY:-}" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  for key_file in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -f "$key_file" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      export SSH_PUB_KEY
+EOF
+)"
+pe "$(cat <<'EOF'
+      SSH_PUB_KEY="$(head -n 1 "$key_file")"
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo "Using SSH public key from $key_file"
+EOF
+)"
+pe "$(cat <<'EOF'
+      break
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  done
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -z "${SSH_PUB_KEY:-}" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."
+EOF
+)"
+pe "$(cat <<'EOF'
+  exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ ! -f Values.credentials.yaml ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  printf '%s\n' \
+    'environment:' \
+    '  REGISTRY: registry.scontain.com' \
+    '  REGISTRY_USER: ""' \
+    '  REGISTRY_TOKEN: ""' \
+    '  # SSH public key used for passwordless SSH access to the toolbox container.' \
+    '  SSH_PUB_KEY: ""' \
+    > Values.credentials.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+yq -i '.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)' Values.credentials.yaml
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
 printf '%s\n' 'Next, we set all environment variables related to the registry credentials.'
 printf '%s\n' ''
 printf "%b" "$RESET"
@@ -428,6 +530,146 @@ EOF
 )"
 pe "$(cat <<'EOF'
 kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '## SSH Access via Port-Forward'
+printf '%s\n' ''
+printf '%s\n' 'After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
+  --for=condition=Ready --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+ssh -p 2222 root@127.0.0.1
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+SSH_CONFIG="${HOME}/.ssh/config"
+EOF
+)"
+pe "$(cat <<'EOF'
+HOST_ALIAS="scone-toolbox-k8s"
+EOF
+)"
+pe "$(cat <<'EOF'
+BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
+EOF
+)"
+pe "$(cat <<'EOF'
+END_MARKER="# <<< ${HOST_ALIAS} <<<"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+mkdir -p "${HOME}/.ssh"
+EOF
+)"
+pe "$(cat <<'EOF'
+chmod 700 "${HOME}/.ssh"
+EOF
+)"
+pe "$(cat <<'EOF'
+touch "${SSH_CONFIG}"
+EOF
+)"
+pe "$(cat <<'EOF'
+chmod 600 "${SSH_CONFIG}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+tmp_config="$(mktemp)"
+EOF
+)"
+pe "$(cat <<'EOF'
+awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
+EOF
+)"
+pe "$(cat <<'EOF'
+  $0 == begin {skip=1; next}
+EOF
+)"
+pe "$(cat <<'EOF'
+  $0 == end   {skip=0; next}
+EOF
+)"
+pe "$(cat <<'EOF'
+  !skip       {print}
+EOF
+)"
+pe "$(cat <<'EOF'
+' "${SSH_CONFIG}" > "${tmp_config}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+printf '%s\n' \
+  "${BEGIN_MARKER}" \
+  "Host ${HOST_ALIAS}" \
+  "  HostName 127.0.0.1" \
+  "  Port 2222" \
+  "  User root" \
+  "  ServerAliveInterval 30" \
+  "  StrictHostKeyChecking accept-new" \
+  "${END_MARKER}" \
+  >> "${tmp_config}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+mv "${tmp_config}" "${SSH_CONFIG}"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Then connect using the alias:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+ssh scone-toolbox-k8s
 EOF
 )"
 

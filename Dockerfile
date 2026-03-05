@@ -47,6 +47,7 @@ RUN apt-get update && \
     less \
     dnsutils \
     bash-completion && \
+    apt-get install -y --no-install-recommends openssh-server && \
     apt-get update && \
     apt-get -y install sudo && \
     \
@@ -107,6 +108,15 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rs.sh \
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+RUN mkdir -p /var/run/sshd /root/.ssh && chmod 700 /root/.ssh && \
+    printf '%s\n' \
+      'PasswordAuthentication no' \
+      'KbdInteractiveAuthentication no' \
+      'ChallengeResponseAuthentication no' \
+      'PubkeyAuthentication yes' \
+      'PermitRootLogin prohibit-password' \
+      > /etc/ssh/sshd_config.d/99-scone.conf
 
 COPY . /root/scone
 # Run prerequisite check during build to fail fast if something is missing

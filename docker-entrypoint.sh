@@ -3,6 +3,20 @@ set -euo pipefail
 
 source /scone-registry/scone-registry-env
 
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+
+if [[ -n "${SSH_PUB_KEY:-}" ]]; then
+  if ! grep -qxF "$SSH_PUB_KEY" ~/.ssh/authorized_keys; then
+    echo "$SSH_PUB_KEY" >>~/.ssh/authorized_keys
+  fi
+fi
+
+ssh-keygen -A
+/usr/sbin/sshd
+
 mkdir -p ~/.kube
 if [[ -f /kubeconfig ]]; then
   cp /kubeconfig ~/.kube/config

@@ -41,6 +41,43 @@ You need to log in to the Docker registry `registry.scontain.com` with an accoun
 
 Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. 
 
+## SSH Key for Toolbox Access
+
+The toolbox container starts `sshd` automatically with password authentication disabled. To allow SSH login, we pass your public key in environment variable `SSH_PUB_KEY`.
+
+The following snippet tries to initialize `SSH_PUB_KEY` from your local `~/.ssh` directory and writes it into `Values.credentials.yaml`:
+
+```bash
+if [[ -z "${SSH_PUB_KEY:-}" ]]; then
+  for key_file in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do
+    if [[ -f "$key_file" ]]; then
+      export SSH_PUB_KEY
+      SSH_PUB_KEY="$(head -n 1 "$key_file")"
+      echo "Using SSH public key from $key_file"
+      break
+    fi
+  done
+fi
+
+if [[ -z "${SSH_PUB_KEY:-}" ]]; then
+  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."
+  exit 1
+fi
+
+if [[ ! -f Values.credentials.yaml ]]; then
+  printf '%s\n' \
+    'environment:' \
+    '  REGISTRY: registry.scontain.com' \
+    '  REGISTRY_USER: ""' \
+    '  REGISTRY_TOKEN: ""' \
+    '  # SSH public key used for passwordless SSH access to the toolbox container.' \
+    '  SSH_PUB_KEY: ""' \
+    > Values.credentials.yaml
+fi
+
+yq -i '.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)' Values.credentials.yaml
+```
+
 Next, we set all environment variables related to the registry credentials.
 
 ```bash
@@ -161,6 +198,63 @@ tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
 kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+```
+
+## SSH Access via Port-Forward
+
+After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:
+
+```bash
+kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
+  --for=condition=Ready --timeout=300s
+
+kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22
+```
+
+In another terminal, connect via SSH (password login is disabled, key-based login only):
+
+```bash
+ssh -p 2222 root@127.0.0.1
+```
+
+If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:
+
+```bash
+SSH_CONFIG="${HOME}/.ssh/config"
+HOST_ALIAS="scone-toolbox-k8s"
+BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
+END_MARKER="# <<< ${HOST_ALIAS} <<<"
+
+mkdir -p "${HOME}/.ssh"
+chmod 700 "${HOME}/.ssh"
+touch "${SSH_CONFIG}"
+chmod 600 "${SSH_CONFIG}"
+
+tmp_config="$(mktemp)"
+awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
+  $0 == begin {skip=1; next}
+  $0 == end   {skip=0; next}
+  !skip       {print}
+' "${SSH_CONFIG}" > "${tmp_config}"
+
+printf '%s\n' \
+  "${BEGIN_MARKER}" \
+  "Host ${HOST_ALIAS}" \
+  "  HostName 127.0.0.1" \
+  "  Port 2222" \
+  "  User root" \
+  "  ServerAliveInterval 30" \
+  "  StrictHostKeyChecking accept-new" \
+  "${END_MARKER}" \
+  >> "${tmp_config}"
+
+mv "${tmp_config}" "${SSH_CONFIG}"
+```
+
+Then connect using the alias:
+
+```bash
+ssh scone-toolbox-k8s
 ```
 
 ##  Watch the logs of the pod
