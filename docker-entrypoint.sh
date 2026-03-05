@@ -33,9 +33,9 @@ if ! kubectl cluster-info &>/dev/null; then
   echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
 fi
 
-if [[ -n "${SCONE_REGISTRY_ACCESS_TOKEN}" && -n "${SCONE_REGISTRY_USERNAME}" ]]; then
+if [[ -n "${REGISTRY_TOKEN+x}" && -n "${REGISTRY_USER+x}" ]]; then
     echo "Attempting docker login..."
-    echo "${SCONE_REGISTRY_ACCESS_TOKEN}" | docker login registry.scontain.com --username "${SCONE_REGISTRY_USERNAME}" --password-stdin
+    echo "${REGISTRY_TOKEN}" | docker login registry.scontain.com --username "${REGISTRY_USER}" --password-stdin
     echo "Docker login successful."
 fi
 
