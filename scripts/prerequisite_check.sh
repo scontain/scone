@@ -63,10 +63,20 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export SCONE_VERSION=$(cat stable.txt)'
+printf '%s\n' 'if [ -z "${SCONE_VERSION+x}" ]; then'
+printf '%s\n' '  export SCONE_VERSION=$(cat stable.txt)'
+printf '%s\n' '  echo "SCONE_VERSION not set - using stable.txt: $SCONE_VERSION"'
+printf '%s\n' 'else'
+printf '%s\n' '  echo "SCONE_VERSION is set to $SCONE_VERSION"'
+printf '%s\n' 'fi'
 printf "${RESET}"
 
-export SCONE_VERSION=$(cat stable.txt)
+if [ -z "${SCONE_VERSION+x}" ]; then
+  export SCONE_VERSION=$(cat stable.txt)
+  echo "SCONE_VERSION not set - using stable.txt: $SCONE_VERSION"
+else
+  echo "SCONE_VERSION is set to $SCONE_VERSION"
+fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
