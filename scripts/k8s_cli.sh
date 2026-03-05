@@ -73,6 +73,76 @@ printf '%s\n' 'You need to log in to the Docker registry `registry.scontain.com`
 printf '%s\n' ''
 printf '%s\n' 'Please determine your username and create an access token with read permission for registries - as described in <https://sconedocs.github.io/registry/>. '
 printf '%s\n' ''
+printf '%s\n' '## SSH Key for Toolbox Access'
+printf '%s\n' ''
+printf '%s\n' 'The toolbox container starts `sshd` automatically with password authentication disabled. To allow SSH login, we pass your public key in environment variable `SSH_PUB_KEY`.'
+printf '%s\n' ''
+printf '%s\n' 'The following snippet tries to initialize `SSH_PUB_KEY` from your local `~/.ssh` directory and writes it into `Values.credentials.yaml`:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'if [[ -z "${SSH_PUB_KEY:-}" ]]; then'
+printf '%s\n' '  for key_file in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do'
+printf '%s\n' '    if [[ -f "$key_file" ]]; then'
+printf '%s\n' '      export SSH_PUB_KEY'
+printf '%s\n' '      SSH_PUB_KEY="$(head -n 1 "$key_file")"'
+printf '%s\n' '      echo "Using SSH public key from $key_file"'
+printf '%s\n' '      break'
+printf '%s\n' '    fi'
+printf '%s\n' '  done'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' 'if [[ -z "${SSH_PUB_KEY:-}" ]]; then'
+printf '%s\n' '  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."'
+printf '%s\n' '  exit 1'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' 'if [[ ! -f Values.credentials.yaml ]]; then'
+printf '%s\n' '  printf '\''%s\n'\'' \'
+printf '%s\n' '    '\''environment:'\'' \'
+printf '%s\n' '    '\''  REGISTRY: registry.scontain.com'\'' \'
+printf '%s\n' '    '\''  REGISTRY_USER: ""'\'' \'
+printf '%s\n' '    '\''  REGISTRY_TOKEN: ""'\'' \'
+printf '%s\n' '    '\''  # SSH public key used for passwordless SSH access to the toolbox container.'\'' \'
+printf '%s\n' '    '\''  SSH_PUB_KEY: ""'\'' \'
+printf '%s\n' '    > Values.credentials.yaml'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' 'yq -i '\''.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)'\'' Values.credentials.yaml'
+printf "${RESET}"
+
+if [[ -z "${SSH_PUB_KEY:-}" ]]; then
+  for key_file in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do
+    if [[ -f "$key_file" ]]; then
+      export SSH_PUB_KEY
+      SSH_PUB_KEY="$(head -n 1 "$key_file")"
+      echo "Using SSH public key from $key_file"
+      break
+    fi
+  done
+fi
+
+if [[ -z "${SSH_PUB_KEY:-}" ]]; then
+  echo "No SSH public key detected in ~/.ssh. Please set SSH_PUB_KEY manually before continuing."
+  exit 1
+fi
+
+if [[ ! -f Values.credentials.yaml ]]; then
+  printf '%s\n' \
+    'environment:' \
+    '  REGISTRY: registry.scontain.com' \
+    '  REGISTRY_USER: ""' \
+    '  REGISTRY_TOKEN: ""' \
+    '  # SSH public key used for passwordless SSH access to the toolbox container.' \
+    '  SSH_PUB_KEY: ""' \
+    > Values.credentials.yaml
+fi
+
+yq -i '.environment.SSH_PUB_KEY = strenv(SSH_PUB_KEY)' Values.credentials.yaml
+
+printf "${VIOLET}"
+printf '%s\n' ''
 printf '%s\n' 'Next, we set all environment variables related to the registry credentials.'
 printf '%s\n' ''
 printf "${RESET}"
@@ -297,6 +367,118 @@ tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
 kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' '## SSH Access via Port-Forward'
+printf '%s\n' ''
+printf '%s\n' 'After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \'
+printf '%s\n' '  --for=condition=Ready --timeout=300s'
+printf '%s\n' ''
+printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22'
+printf "${RESET}"
+
+kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
+  --for=condition=Ready --timeout=300s
+
+kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'ssh -p 2222 root@127.0.0.1'
+printf "${RESET}"
+
+ssh -p 2222 root@127.0.0.1
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'SSH_CONFIG="${HOME}/.ssh/config"'
+printf '%s\n' 'HOST_ALIAS="scone-toolbox-k8s"'
+printf '%s\n' 'BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"'
+printf '%s\n' 'END_MARKER="# <<< ${HOST_ALIAS} <<<"'
+printf '%s\n' ''
+printf '%s\n' 'mkdir -p "${HOME}/.ssh"'
+printf '%s\n' 'chmod 700 "${HOME}/.ssh"'
+printf '%s\n' 'touch "${SSH_CONFIG}"'
+printf '%s\n' 'chmod 600 "${SSH_CONFIG}"'
+printf '%s\n' ''
+printf '%s\n' 'tmp_config="$(mktemp)"'
+printf '%s\n' 'awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '\'''
+printf '%s\n' '  $0 == begin {skip=1; next}'
+printf '%s\n' '  $0 == end   {skip=0; next}'
+printf '%s\n' '  !skip       {print}'
+printf '%s\n' ''\'' "${SSH_CONFIG}" > "${tmp_config}"'
+printf '%s\n' ''
+printf '%s\n' 'printf '\''%s\n'\'' \'
+printf '%s\n' '  "${BEGIN_MARKER}" \'
+printf '%s\n' '  "Host ${HOST_ALIAS}" \'
+printf '%s\n' '  "  HostName 127.0.0.1" \'
+printf '%s\n' '  "  Port 2222" \'
+printf '%s\n' '  "  User root" \'
+printf '%s\n' '  "  ServerAliveInterval 30" \'
+printf '%s\n' '  "  StrictHostKeyChecking accept-new" \'
+printf '%s\n' '  "${END_MARKER}" \'
+printf '%s\n' '  >> "${tmp_config}"'
+printf '%s\n' ''
+printf '%s\n' 'mv "${tmp_config}" "${SSH_CONFIG}"'
+printf "${RESET}"
+
+SSH_CONFIG="${HOME}/.ssh/config"
+HOST_ALIAS="scone-toolbox-k8s"
+BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
+END_MARKER="# <<< ${HOST_ALIAS} <<<"
+
+mkdir -p "${HOME}/.ssh"
+chmod 700 "${HOME}/.ssh"
+touch "${SSH_CONFIG}"
+chmod 600 "${SSH_CONFIG}"
+
+tmp_config="$(mktemp)"
+awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
+  $0 == begin {skip=1; next}
+  $0 == end   {skip=0; next}
+  !skip       {print}
+' "${SSH_CONFIG}" > "${tmp_config}"
+
+printf '%s\n' \
+  "${BEGIN_MARKER}" \
+  "Host ${HOST_ALIAS}" \
+  "  HostName 127.0.0.1" \
+  "  Port 2222" \
+  "  User root" \
+  "  ServerAliveInterval 30" \
+  "  StrictHostKeyChecking accept-new" \
+  "${END_MARKER}" \
+  >> "${tmp_config}"
+
+mv "${tmp_config}" "${SSH_CONFIG}"
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Then connect using the alias:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'ssh scone-toolbox-k8s'
+printf "${RESET}"
+
+ssh scone-toolbox-k8s
 
 printf "${VIOLET}"
 printf '%s\n' ''
