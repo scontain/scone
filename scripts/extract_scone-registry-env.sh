@@ -163,8 +163,8 @@ write_env() {
   local user="$1" token="$2"
   umask 077
   cat >"$OUT_FILE" <<EOF
-export SCONE_REGISTRY_ACCESS_TOKEN="${token}"
-export SCONE_REGISTRY_USERNAME="${user}"
+export REGISTRY_TOKEN="${token}"
+export REGISTRY_USER="${user}"
 EOF
   ok "Wrote $OUT_FILE"
 }
