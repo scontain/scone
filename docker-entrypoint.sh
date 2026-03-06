@@ -59,5 +59,18 @@ echo 'alias k=kubectl; complete -F __start_kubectl k' >>~/.bashrc
 echo 'export PATH=$HOME/.cargo/bin:$PATH' >>~/.bashrc
 git config --global credential.helper cache
 
+
+if [[ -n "${DOCKER_HOST:-}" ]]; then
+  echo "export DOCKER_HOST=${DOCKER_HOST}" >>~/.bashrc
+fi
+if [[ -n "${DIND_SERVICE_PORT_DOCKER:-}" ]]; then
+  echo "export DIND_SERVICE_PORT_DOCKER=${DIND_SERVICE_PORT_DOCKER}" >>~/.bashrc
+fi
+if [[ -n "${DOCKER_CONFIG:-}" ]]; then
+  echo "export DOCKER_CONFIG=${DOCKER_CONFIG}" >>~/.bashrc
+fi
+
+
+
 cd
 exec "$@"

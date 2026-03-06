@@ -524,13 +524,13 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'if [[ $install_sconeapps_secret == 1 ]] ; then'
 printf '%s\n' '    # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )'
+printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )'
 printf '%s\n' ''
 printf "${RESET}"
 
 if [[ $install_sconeapps_secret == 1 ]] ; then
     # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )
 
 
 printf "${VIOLET}"

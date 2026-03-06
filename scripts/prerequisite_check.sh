@@ -376,7 +376,7 @@ printf '%s\n' ''
 printf '%s\n' 'if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then'
 printf '%s\n' '      echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"'
 printf '%s\n' '    # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )'
+printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )'
 printf '%s\n' '  kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' '      scone_registry_login'
 printf '%s\n' 'fi'
@@ -406,7 +406,7 @@ echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
 if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
     # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
   kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
       scone_registry_login
 fi

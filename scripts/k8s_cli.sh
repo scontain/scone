@@ -114,10 +114,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
+printf '%s\n' 'eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
 printf "${RESET}"
 
-eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -401,7 +401,7 @@ printf '%s\n' '  echo "📜 Showing first 10 lines of logs from pod: $pod"'
 printf '%s\n' '  kubectl logs -n "$ns" "$pod" | head -n 10'
 printf '%s\n' '}'
 printf '%s\n' ''
-printf '%s\n' 'wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox'
+printf '%s\n' 'wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox || true'
 printf "${RESET}"
 
 wait_for_pod_logs() {
@@ -422,10 +422,10 @@ wait_for_pod_logs() {
   kubectl logs -n "$ns" "$pod" | head -n 10
 }
 
-wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
+wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox || true
 
 printf "${VIOLET}"
-printf '%s\n' '   '
+printf '%s\n' '  '
 printf '%s\n' '##  Run the SCONE CLI using help'
 printf '%s\n' ''
 printf "${RESET}"

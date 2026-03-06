@@ -30,7 +30,7 @@ but that are not set yet.
 Let's ask the user and set the environment variables depending on the input of the user:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --eval --context ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 ```
 
 The SCONE CLI is available as Debian packages as part of a container image. 
