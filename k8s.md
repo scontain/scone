@@ -169,7 +169,7 @@ tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 { kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
-kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 ```
 
 ## SSH Access via Port-Forward
