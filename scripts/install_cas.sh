@@ -551,7 +551,7 @@ printf '%s\n' '    if [ -f "${CAS_CONFIG_DIR}/config.toml" ] && grep -q '\''^\[d
 printf '%s\n' '      sed -i '\''/^\[dcap\]/,/^$/d'\'' "${CAS_CONFIG_DIR}/config.toml"'
 printf '%s\n' '    fi'
 printf '%s\n' '    sleep 0.2'
-printf '%s\n' '  done) &'
+printf '%s\n' '  done) >/dev/null 2>&1 &'
 printf '%s\n' '  echo $!'
 printf '%s\n' '}'
 printf '%s\n' ''
@@ -576,7 +576,7 @@ strip_dcap_from_config() {
       sed -i '/^\[dcap\]/,/^$/d' "${CAS_CONFIG_DIR}/config.toml"
     fi
     sleep 0.2
-  done) &
+  done) >/dev/null 2>&1 &
   echo $!
 }
 

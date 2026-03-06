@@ -291,7 +291,7 @@ strip_dcap_from_config() {
       sed -i '/^\[dcap\]/,/^$/d' "${CAS_CONFIG_DIR}/config.toml"
     fi
     sleep 0.2
-  done) &
+  done) >/dev/null 2>&1 &
   echo $!
 }
 
