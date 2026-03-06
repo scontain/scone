@@ -14,7 +14,7 @@ export SSH_PUB_KEY="${SSH_PUB_KEY:-none}"
 export REGISTRY_USER="${REGISTRY_USER:-${SCONE_REGISTRY_USERNAME:-}}"
 export REGISTRY_TOKEN="${REGISTRY_TOKEN:-${SCONE_REGISTRY_ACCESS_TOKEN:-}}"
 
-eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 
 # Log into the registry
 echo "${REGISTRY_TOKEN}" | docker login registry.scontain.com --username "${REGISTRY_USER}" --password-stdin

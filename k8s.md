@@ -4,8 +4,6 @@ This document describes how to set up a pod in a Kubernetes cluster that contain
 
 ![Screencast](docs/k8s_cli.gif)
 
-![Screencast](docs/k8s_cli.gif)
-
 ## Prerequisites
 
 
@@ -66,6 +64,10 @@ fi
 Next, we set all environment variables related to the registry credentials.
 
 ```bash
+# Map SCONE_REGISTRY_* env vars to the names expected by tplenv
+export REGISTRY_USER="${REGISTRY_USER:-${SCONE_REGISTRY_USERNAME:-}}"
+export REGISTRY_TOKEN="${REGISTRY_TOKEN:-${SCONE_REGISTRY_ACCESS_TOKEN:-}}"
+
 eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 ```
 
