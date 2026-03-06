@@ -240,6 +240,21 @@ printf '%s\n' 'if ! kubectl cluster-info &>/dev/null; then'
 printf '%s\n' '  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"'
 printf '%s\n' 'fi'
 printf '%s\n' ''
+printf '%s\n' '# Check that DCAP_KEY is set for reconcile_scone_operator.sh'
+printf '%s\n' 'if [[ -z "${DCAP_KEY:-}" ]]; then'
+printf '%s\n' '  echo -e "${YELLOW}WARNING: DCAP_KEY is not set.${NC}"'
+printf '%s\n' '  echo "The SCONE operator requires a valid Intel DCAP API key."'
+printf '%s\n' '  echo "Please visit https://api.portal.trustedservices.intel.com/manage-subscriptions"'
+printf '%s\n' '  echo "to generate or copy your DCAP API Key, then export it:"'
+printf '%s\n' '  echo "  export DCAP_KEY=\"your-32-char-hex-key\""'
+printf '%s\n' 'else'
+printf '%s\n' '  if [[ "$DCAP_KEY" =~ ^[0-9a-fA-F]{32}$ ]]; then'
+printf '%s\n' '    echo "✔️ DCAP_KEY is set and valid."'
+printf '%s\n' '  else'
+printf '%s\n' '    echo -e "${RED}❌ DCAP_KEY is set but not a valid 32-character hex string.${NC}"'
+printf '%s\n' '  fi'
+printf '%s\n' 'fi'
+printf '%s\n' ''
 printf '%s\n' 'echo "✅ All external executables are installed and ready"'
 printf "${RESET}"
 
@@ -368,6 +383,21 @@ fi
 # Check Kubernetes cluster connectivity
 if ! kubectl cluster-info &>/dev/null; then
   echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"
+fi
+
+# Check that DCAP_KEY is set for reconcile_scone_operator.sh
+if [[ -z "${DCAP_KEY:-}" ]]; then
+  echo -e "${YELLOW}WARNING: DCAP_KEY is not set.${NC}"
+  echo "The SCONE operator requires a valid Intel DCAP API key."
+  echo "Please visit https://api.portal.trustedservices.intel.com/manage-subscriptions"
+  echo "to generate or copy your DCAP API Key, then export it:"
+  echo "  export DCAP_KEY=\"your-32-char-hex-key\""
+else
+  if [[ "$DCAP_KEY" =~ ^[0-9a-fA-F]{32}$ ]]; then
+    echo "✔️ DCAP_KEY is set and valid."
+  else
+    echo -e "${RED}❌ DCAP_KEY is set but not a valid 32-character hex string.${NC}"
+  fi
 fi
 
 echo "✅ All external executables are installed and ready"
