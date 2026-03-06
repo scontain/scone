@@ -64,7 +64,7 @@ fi
 Next, we set all environment variables related to the registry credentials.
 
 ```bash
-eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 ```
 
 ## Container Image
@@ -252,9 +252,9 @@ wait_for_pod_logs() {
   kubectl logs -n "$ns" "$pod" | head -n 10
 }
 
-wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
+wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox || true
 ```
-   
+  
 ##  Run the SCONE CLI using help
 
 ```bash

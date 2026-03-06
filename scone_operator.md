@@ -277,7 +277,7 @@ ask the user to input the values for these variables:
 ```bash
 if [[ $install_sconeapps_secret == 1 ]] ; then
     # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )
 
 ```
 

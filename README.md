@@ -87,7 +87,7 @@ Within this container image, we need access to the `registry.scontain.com`: the 
 - In case you are not yet logged in, you can manually define this file as follows:
 
 ```bash
-tplenv --file scone-registry.env.template --output scone-registry.env --values registy.credentials.yaml --create-values-file --force
+tplenv --file scone-registry.env.template --output scone-registry.env --values registy.credentials.yaml --create-values-file --context --force
 ```
 
 ### Run the Workshop Image
@@ -124,6 +124,9 @@ export HOSTIP=$(ip route show default | awk '/default/ {print $3}')
 export HOSTIP="172.17.0.1" # as seen from the docker container
 docker context create dind \
   --docker "host=tcp://${HOSTIP}:2375" || true
+
+rm registy.credentials.yaml || true
+rm Values.credentials.yaml || true
 
 docker --context dind  buildx build \
     --secret id=kubeconfig,src=$HOME/.kube/config  \

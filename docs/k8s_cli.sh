@@ -194,7 +194,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 EOF
 )"
 
@@ -604,12 +604,12 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox
+wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox || true
 EOF
 )"
 
 printf "%b" "$LILAC"
-printf '%s\n' '   '
+printf '%s\n' '  '
 printf '%s\n' '##  Run the SCONE CLI using help'
 printf '%s\n' ''
 printf "%b" "$RESET"

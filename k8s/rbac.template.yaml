@@ -33,7 +33,7 @@ rules:
   verbs: ["get","list","watch"]
 - apiGroups: ["cas.scone.cloud"]
   resources: ["encryptedpolicies", "signedpolicies"]
-  verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -41,8 +41,11 @@ metadata:
   name: scone-runner
   namespace: $CLI_NAMESPACE
 rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
   - apiGroups: [""]
-    resources: ["pods","pods/log", "configmaps", "secrets", "deployments", "services"]
+    resources: ["pods","pods/log", "pods/portforward", "configmaps", "secrets", "deployments", "services", "replicationcontrollers"]
     verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
   - apiGroups: [""]
     resources: ["pods/exec", "pods/attach"]
@@ -54,8 +57,21 @@ rules:
     resources: ["services"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
-    resources: ["deployments"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
     verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["services.scone.cloud"]
+    resources: ["cas"]
+    verbs: ["get","list","watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["cas.scone.cloud"]
+    resources: ["encryptedpolicies", "signedpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+
 ---
 # RoleBinding in kube-system
 apiVersion: rbac.authorization.k8s.io/v1

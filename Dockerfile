@@ -126,6 +126,8 @@ ENV DOCKER_CONFIG=/root/.docker
 
 RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
 
+ENV RUSTUP_PERMIT_COPY_RENAME=1
+
 RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
     --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
     docker version && \
@@ -139,13 +141,29 @@ RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/bin/k8s-scone ] && cp /overwrite/bin/k8s-scone /usr/bin/k8s-scone || true
 
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/scone-td-build ] && cp /overwrite/bin/scone-td-build $HOME/.cargo/bin/scone-td-build || true
+    [ -f /overwrite/bin/scone-td-build ] && cp /overwrite/bin/scone-td-build $HOME/.cargo/bin/scone-td-build || true
 
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/kubectl-provision ] && cp /overwrite/kubectl-provision $HOME/.cargo/bin/kubectl-provision || true
+    [ -f /overwrite/bin/kubectl-provision ] && cp /overwrite/bin/kubectl-provision $HOME/.cargo/bin/kubectl-provision || true
 
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/bin/kubectl-scone ] && cp /overwrite/bin/kubectl-scone $HOME/.cargo/bin/kubectl-scone || true
+
+RUN --mount=type=bind,source=overwrite,target=/overwrite \
+    [ -f /overwrite/bin/kubectl-scone-azure ] && cp /overwrite/bin/kubectl-scone-azure $HOME/.cargo/bin/kubectl-scone-azure || true
+
+    RUN apt-get update \
+ && apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg \
+ && mkdir -p /etc/apt/keyrings \
+ && curl -sLS https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+ && chmod go+r /etc/apt/keyrings/microsoft.gpg
+
+RUN AZ_REPO=$(lsb_release -cs) \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" \
+    > /etc/apt/sources.list.d/azure-cli.list
+
+RUN apt-get update && apt-get install -y azure-cli
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
