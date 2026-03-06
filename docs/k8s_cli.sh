@@ -451,7 +451,7 @@ kubectl apply -f ./k8s/deployment.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 EOF
 )"
 

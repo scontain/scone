@@ -302,7 +302,7 @@ printf '%s\n' '# delete old deployment...'
 printf '%s\n' '{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"'
 printf '%s\n' '# ensure we load the latest container image'
 printf '%s\n' 'kubectl apply -f ./k8s/deployment.yaml'
-printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
+printf '%s\n' '# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
 printf "${RESET}"
 
 tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
@@ -310,7 +310,7 @@ tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 { kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
-kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
+# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 
 printf "${VIOLET}"
 printf '%s\n' ''
