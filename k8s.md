@@ -72,7 +72,7 @@ eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --
 In our pod, we use a pre-built image `registry.scontain.com/workshop/scone`
 
 ```bash
-export CLI_IMAGE="registry.scontain.com/workshop/scone"
+export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
 ```
 
 ## Creating Namespace and Secrets

@@ -1,4 +1,5 @@
-FROM registry.scontain.com/cicd/sconecli:6.1.0-rc.0 AS sconectl
+ARG SCONE_VERSION="7.0.0-alpha.1"
+FROM registry.scontain.com/cicd/sconecli:${SCONE_VERSION} AS sconectl
 
 FROM registry.scontain.com/cicd/container-diff AS builder
 
@@ -6,7 +7,7 @@ FROM ubuntu:24.04
 ARG DOCKER_HOST
 ARG KUBECTL_VERSION="v1.33.2"
 ARG YQ_VERSION="v4.46.1"
-ARG SCONE_VERSION="7.0.0-alpha.1"
+ARG SCONE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive 
 
 COPY --from=sconectl \

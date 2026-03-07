@@ -119,6 +119,15 @@ Generate updated screencasts by executing `make`.
 
 ### Building the workshop image
 
+The build-script:
+
+````
+./scripts/build.sh --version <SCONE_VERSION>
+./scripts/build.sh --version <SCONE_VERSION> --test
+```
+
+build the `scone-td-build` image as follows:
+
 ```bash
 export HOSTIP=$(ip route show default | awk '/default/ {print $3}')
 export HOSTIP="172.17.0.1" # as seen from the docker container
@@ -147,3 +156,4 @@ docker tag scone:latest registry.scontain.com/workshop/scone:$SCONE_VERSION
 docker push registry.scontain.com/workshop/scone
 docker push registry.scontain.com/workshop/scone:$SCONE_VERSION
 ```
+
