@@ -299,18 +299,16 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml'
 printf '%s\n' '# delete old deployment...'
-printf '%s\n' '{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"'
+printf '%s\n' '{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"'
 printf '%s\n' '# ensure we load the latest container image'
 printf '%s\n' 'kubectl apply -f ./k8s/deployment.yaml'
-printf '%s\n' '# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox'
 printf "${RESET}"
 
 tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 # delete old deployment...
-{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
+{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
-# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -318,25 +316,11 @@ printf '%s\n' '## SSH Access via Port-Forward'
 printf '%s\n' ''
 printf '%s\n' 'After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:'
 printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
 printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \'
 printf '%s\n' '  --for=condition=Ready --timeout=300s'
 printf '%s\n' 'kill $(cat /tmp/pf-2222.pid) || true'
 printf '%s\n' 'rm /tmp/pf-2222.pid || true'
-printf '%s\n' 'echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" '
 printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid'
-printf "${RESET}"
-
-kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
-  --for=condition=Ready --timeout=300s
-kill $(cat /tmp/pf-2222.pid) || true
-rm /tmp/pf-2222.pid || true
-echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" 
-kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
-
-printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
 printf '%s\n' ''

@@ -17,7 +17,7 @@ cargo install retry-spinner --root overwrite
 
 export CARGO_NET_GIT_FETCH_WITH_CLI=true
 
-cargo install --git https://github.com/scontain/k8s-scone.git --branch am/update-secret-kind --root overwrite scone-td-build
+cargo install --git https://github.com/scontain/k8s-scone.git --branch main --root overwrite scone-td-build
 
 cargo install --git https://github.com/scontain/kubectl-plugin --branch main --root overwrite kubectl-scone
 

@@ -6,6 +6,7 @@ FROM ubuntu:24.04
 ARG DOCKER_HOST
 ARG KUBECTL_VERSION="v1.33.2"
 ARG YQ_VERSION="v4.46.1"
+ARG SCONE_VERSION="7.0.0-alpha.1"
 ENV DEBIAN_FRONTEND=noninteractive 
 
 COPY --from=sconectl \
@@ -122,7 +123,6 @@ COPY . /root/scone
 # Run prerequisite check during build to fail fast if something is missing
 # Use a secret mount to provide kubeconfig during build time
 # The secret can be provided using: --secret id=kubeconfig,src=$HOME/.kube/config
-ENV DOCKER_CONFIG=/root/.docker
 
 RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
 
@@ -133,8 +133,10 @@ RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
     docker version && \
     cd /root/scone \
     && export PATH=$HOME/.cargo/bin:$PATH \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=7.0.0-alpha.1 ./scripts/prerequisite_check.sh \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=7.0.0-alpha.1 ./scripts/install_sconecli.sh
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/prerequisite_check.sh \
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/install_sconecli.sh
+
+ENV DOCKER_CONFIG=/root/.docker
 
 # check if newer local k8s-scone is available and use it
 RUN --mount=type=bind,source=overwrite,target=/overwrite \

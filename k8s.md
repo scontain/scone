@@ -166,22 +166,20 @@ We change the image name in `deployment.yaml` file for the one you pushed in ste
 ```bash
 tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
 # delete old deployment...
-{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
+{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 # ensure we load the latest container image
 kubectl apply -f ./k8s/deployment.yaml
-# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
 ```
 
 ## SSH Access via Port-Forward
 
 After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:
 
-```bash
+```
 kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
   --for=condition=Ready --timeout=300s
 kill $(cat /tmp/pf-2222.pid) || true
 rm /tmp/pf-2222.pid || true
-echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" 
 kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
 ```
 
