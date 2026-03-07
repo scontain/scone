@@ -128,10 +128,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export CLI_IMAGE="registry.scontain.com/workshop/scone"'
+printf '%s\n' 'export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"'
 printf "${RESET}"
 
-export CLI_IMAGE="registry.scontain.com/workshop/scone"
+export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
 
 printf "${VIOLET}"
 printf '%s\n' ''
