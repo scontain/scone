@@ -128,11 +128,14 @@ docker context create dind \
 rm registy.credentials.yaml || true
 rm Values.credentials.yaml || true
 
+export SCONE_VERSION=$(cat stable.txt)
+
 docker --context dind  buildx build \
     --secret id=kubeconfig,src=$HOME/.kube/config  \
     --secret id=dockerconfig,src=$HOME/.docker/config.json \
     --build-arg DOCKER_HOST="tcp://${HOSTIP}:2375" \
     -t scone:latest \
+    --build-arg SCONE_VERSION \
     --file Dockerfile .
 ```
 
@@ -140,5 +143,7 @@ Next, you can tag and push your image. For example, we push to:
 
 ```bash
 docker tag scone:latest registry.scontain.com/workshop/scone
+docker tag scone:latest registry.scontain.com/workshop/scone:$SCONE_VERSION
 docker push registry.scontain.com/workshop/scone
+docker push registry.scontain.com/workshop/scone:$SCONE_VERSION
 ```

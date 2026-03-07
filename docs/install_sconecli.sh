@@ -306,7 +306,7 @@ mkdir -p /tmp/packages
 EOF
 )"
 pe "$(cat <<'EOF'
-docker cp scone-packages:/ /tmp/packages
+docker cp scone-packages:/packages /tmp || docker cp scone-packages:/ /tmp/packages
 EOF
 )"
 pe "$(cat <<'EOF'

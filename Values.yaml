@@ -1,8 +1,9 @@
 environment:
   REGISTRY: registry.scontain.com
-  SCONE_VERSION: 7.0.0-alpha.1
+  SCONE_VERSION: 6.1.0-rc.0
   CLI_IMAGE: registry.scontain.com/workshop/scone
-  CLI_NAMESPACE: scone-tools
+  CLI_NAMESPACE: my-tools
   CAS: cas1
   CAS_NAMESPACE: default
   VERSION: 6.0.2
+  SSH_PUB_KEY: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4SVqOrSaxa88Qwq7GRVf0quyR+1RHwCvfutXLIJFUoQRVp/35shQ3KOFirxGyHy0WV9zs6Jl/EQT0UGy87+ufy+4F5kvLPnfrCi7KQtoBwZjNWko4B5TgmZEuWKygHXLdJVXkCeLyiPlPkL+JGbikMEKkt+Ummex/n7RjOm2UEi7cjI1fxR2xO/147Mjqh7e2Mjlg2xAZKQLiN04FBnTkVvG6qygsR2eDPza7KyEeZTCgkLhEnrCke9RTlUXgRPo69ZyxAD8nh8alx8cRjZIsXrPhdqfF9SCsNPGYHVcEWid+RdGTgQaP/rAUH9lCFbdcOTfrZi7CciRhA2Exu9gH christoffetzer@Christofs-MacBook.local

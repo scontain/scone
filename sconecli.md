@@ -105,7 +105,7 @@ You will need to type your `sudo` password:
 ```bash
 # copy the packages
 mkdir -p /tmp/packages
-docker cp scone-packages:/ /tmp/packages
+docker cp scone-packages:/packages /tmp || docker cp scone-packages:/ /tmp/packages
 docker rm scone-packages
 
 # install the packages

@@ -439,7 +439,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete -n "${CLI_NAMESPACE}" deployment/scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
+{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -450,10 +450,6 @@ pe "$(cat <<'EOF'
 kubectl apply -f ./k8s/deployment.yaml
 EOF
 )"
-pe "$(cat <<'EOF'
-# kubectl -n "${CLI_NAMESPACE}" rollout restart deployment/scone-toolbox
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -461,31 +457,11 @@ printf '%s\n' '## SSH Access via Port-Forward'
 printf '%s\n' ''
 printf '%s\n' 'After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:'
 printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
-  --for=condition=Ready --timeout=300s
-EOF
-)"
-pe "$(cat <<'EOF'
-kill $(cat /tmp/pf-2222.pid) || true
-EOF
-)"
-pe "$(cat <<'EOF'
-rm /tmp/pf-2222.pid || true
-EOF
-)"
-pe "$(cat <<'EOF'
-echo "kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &" 
-EOF
-)"
-pe "$(cat <<'EOF'
-kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
-EOF
-)"
-
-printf "%b" "$LILAC"
+printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \'
+printf '%s\n' '  --for=condition=Ready --timeout=300s'
+printf '%s\n' 'kill $(cat /tmp/pf-2222.pid) || true'
+printf '%s\n' 'rm /tmp/pf-2222.pid || true'
+printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid'
 printf '%s\n' ''
 printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
 printf '%s\n' ''
