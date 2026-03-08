@@ -181,7 +181,13 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' '# copy the packages'
 printf '%s\n' 'mkdir -p /tmp/packages'
-printf '%s\n' 'docker cp scone-packages:/packages /tmp || docker cp scone-packages:/ /tmp/packages'
+printf '%s\n' 'docker cp scone-packages:/packages /tmp || {'
+printf '%s\n' '    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;'
+printf '%s\n' '    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;'
+printf '%s\n' '    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;'
+printf '%s\n' '    docker cp scone-packages:/k8s-scone.deb /tmp/packages;'
+printf '%s\n' '    docker cp scone-packages:/kubectl-scone.deb /tmp/packages;'
+printf '%s\n' '}'
 printf '%s\n' 'docker rm scone-packages'
 printf '%s\n' ''
 printf '%s\n' '# install the packages'
@@ -197,7 +203,13 @@ printf "${RESET}"
 
 # copy the packages
 mkdir -p /tmp/packages
-docker cp scone-packages:/packages /tmp || docker cp scone-packages:/ /tmp/packages
+docker cp scone-packages:/packages /tmp || {
+    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
+    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
+    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
+    docker cp scone-packages:/k8s-scone.deb /tmp/packages;
+    docker cp scone-packages:/kubectl-scone.deb /tmp/packages;
+}
 docker rm scone-packages
 
 # install the packages
