@@ -13,6 +13,8 @@ with the help of `scripts/install-rust.sh` that checks if `rust` and important c
 ./scripts/install-rust.sh
 # ensure PATH is properly set:
 export PATH=$HOME/.cargo/bin:$PATH
+# add to PATH of all scripts
+grep -q '.cargo/bin' ~/.bashrc || echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 ```
 
 We use helper programs `tplenv` and `retry-spinner`. Hence, we ensure that they are installed:
@@ -100,6 +102,9 @@ if ! check_command docker; then
 else
   echo "✔️ Docker is already installed."
 fi
+
+# Ensure that we can run docker without being root
+./scripts/check_docker_setup.sh
 
 # Auto-install GitHub CLI if not present
 if ! check_command gh; then

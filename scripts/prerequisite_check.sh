@@ -25,12 +25,16 @@ printf '%s\n' '# ensuring that rust is installed'
 printf '%s\n' './scripts/install-rust.sh'
 printf '%s\n' '# ensure PATH is properly set:'
 printf '%s\n' 'export PATH=$HOME/.cargo/bin:$PATH'
+printf '%s\n' '# add to PATH of all scripts'
+printf '%s\n' 'grep -q '\''.cargo/bin'\'' ~/.bashrc || echo '\''export PATH="$HOME/.cargo/bin:$PATH"'\'' >> ~/.bashrc'
 printf "${RESET}"
 
 # ensuring that rust is installed
 ./scripts/install-rust.sh
 # ensure PATH is properly set:
 export PATH=$HOME/.cargo/bin:$PATH
+# add to PATH of all scripts
+grep -q '.cargo/bin' ~/.bashrc || echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -142,6 +146,9 @@ printf '%s\n' '  echo "✔️ Docker installed successfully. Please log out and 
 printf '%s\n' 'else'
 printf '%s\n' '  echo "✔️ Docker is already installed."'
 printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' '# Ensure that we can run docker without being root'
+printf '%s\n' './scripts/check_docker_setup.sh'
 printf '%s\n' ''
 printf '%s\n' '# Auto-install GitHub CLI if not present'
 printf '%s\n' 'if ! check_command gh; then'
@@ -269,6 +276,9 @@ if ! check_command docker; then
 else
   echo "✔️ Docker is already installed."
 fi
+
+# Ensure that we can run docker without being root
+./scripts/check_docker_setup.sh
 
 # Auto-install GitHub CLI if not present
 if ! check_command gh; then

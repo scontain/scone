@@ -16,7 +16,7 @@ First, if you want to install the development components on your local computer 
  > **Note**: Right now, we assume that your computer is an x86 computer. Note that emulation of x86 CPUs is not sufficient - we need some
  > instructions like `rdrnd` that are not emulated. Hence, we show below how to run the development components in a Kubernetes cluster consisting of x86 computers.
 
-- [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `./scripts/prerequisite_check.sh`.
+- [`prerequisite_check.md`](prerequisite_check.md): explains how to install all required prerequisites for running `scone`-related commands. To speed up the process, you can execute the script `. ./scripts/prerequisite_check.sh`. Note that the first `.` is needed to update the PATH.
 
 ![Screencast](docs/prerequisite_check.gif)
 
@@ -28,7 +28,7 @@ First, if you want to install the development components on your local computer 
 
 In case you have no dedicated x86 development VM, you could run the development components as part of a Kubernetes cluster (running x86 computers):
 
-- [`prerequisite_check.md`](prerequisite_check.md): run `./scripts/prerequisite_check.sh` to ensure that you have `kubectl` and `cargo` installed.
+- [`prerequisite_check.md`](prerequisite_check.md): run `. ./scripts/prerequisite_check.sh` to ensure that you have `kubectl` and `cargo` installed.
 
 ![Screencast](docs/prerequisite_check.gif)
 
