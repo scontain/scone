@@ -1,67 +1,60 @@
 # Checking Prerequisites
 
-## Ensure that `cargo` is installed
+## Ensure `cargo` Is Installed
 
-We install some utilities with the help of `cargo`. Hence, we first ensure that `rust` and `cargo` are installed
-with the help of `scripts/install-rust.sh` that checks if `rust` and important components are installed and installs
-`rust`. 
+We install some utilities with `cargo`, so we first ensure that `rust` and `cargo` are installed. Use `scripts/install-rust.sh`, which checks for `rust` and required components and installs them if needed.
 
 ![Screencast](docs/prerequisite_check.gif)
 
 ```bash
-# ensuring that rust is installed
+# Ensure rust is installed
 ./scripts/install-rust.sh
-# ensure PATH is properly set:
+# Ensure PATH is set correctly
 export PATH=$HOME/.cargo/bin:$PATH
-# add to PATH of all scripts
+# Add to PATH for all future shells
 grep -q '.cargo/bin' ~/.bashrc || echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 ```
 
-We use helper programs `tplenv` and `retry-spinner`. Hence, we ensure that they are installed:
+We use the helper programs `tplenv` and `retry-spinner`, so ensure they are installed:
 
 ```bash
-# ensuring that tplenv is installed
+# Ensure tplenv is installed
 cargo install tplenv
-# ensuring that retry-spinner is installed
+# Ensure retry-spinner is installed
 cargo install retry-spinner
 ```
 
 ## Environment Variables
 
-By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `SCONE_VERSION` to the SCONE version that you want to install:
+By default, we install the latest stable SCONE version. You can override this by setting `SCONE_VERSION` to the version you want to install:
 
 ```bash
 export SCONE_VERSION=$(cat stable.txt)
 ```
 
-`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
-but that are not set yet.
+`tplenv` asks for all environment variables described in `environment-variables.md` that are not yet set.
 
-Let's ask the user and set the environment variables depending on the input of the user:
+Run the following to prompt for and set missing variables:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
-## Checking Commands
+## Check Commands
 
-To run our commands and to transform manifests and container images,
-we need a set of executables. We install the following external executables on
-the current machine:
+To run our commands and transform manifests and container images, we need a set of executables. We install the following tools on the current machine:
 
-- `cosign`: needed to sign and verify the signature of container images
-- `docker`: needed to build and run docker images
-- `kubectl`: command line interface for Kubernetes
-- `yq`: command to access yaml documents
-- `sed`: simple editor to manipulate text files
-- `gh`: GitHub command line interface
-- `pkg-config`: A tool for discovering compiler and linker flags
-- `jq`: command to access json documents
-- `libssl-dev`: ssl development tools
+- `cosign`: signs and verifies container image signatures
+- `docker`: builds and runs Docker images
+- `kubectl`: command-line interface for Kubernetes
+- `yq`: processes YAML documents
+- `sed`: manipulates text files
+- `gh`: GitHub command-line interface
+- `pkg-config`: discovers compiler and linker flags
+- `jq`: processes JSON documents
+- `libssl-dev`: SSL development tools
 
-> NOTE: If the script fails on the first run with error:
-> `Errors were encountered while processing: scone-glibc`
-> please run a second time.
+> **Note:** If the script fails on the first run with `Errors were encountered while processing: scone-glibc`, run it a second time.
 
 ```bash
 GREEN='\033[0;32m'
@@ -143,7 +136,7 @@ install_yq_v4() {
   echo "✔️ yq installed successfully."
 }
 
-# Check and Auto install Yq Version 4
+# Check and auto-install yq v4
 if check_command yq; then
     yq_version=$(yq --version 2>&1 | grep  -oE 'v[0-9]+' | cut -d'v' -f2) || yq_version=""
     if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then
@@ -194,12 +187,11 @@ fi
 echo "✅ All external executables are installed and ready"
 ```
 
-## Check access to `scone.cloud` images
+## Check Access to `scone.cloud` Images
 
-We check that we can pull some SCONE container images that we need to execute
-the transformations. If this fail, please do the following:
+Check that you can pull the SCONE container images required for transformations. If this fails, do the following:
 
-- generate an access token following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
+- Generate an access token by following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>
 
 ```bash
 echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"
@@ -232,6 +224,6 @@ fi
   echo -e "${GREEN}✔️ All images are OK.${NC}"
 ```
 
-## Install SCONE CLI tools
+## Install SCONE CLI Tools
 
-We succeeded to pull the required, images. Next, we can install the `scone`-replated executable. To do so, you can run script `./scripts/install_sconecli.sh`.
+The required images are now available. Next, install the `scone`-related executables by running `./scripts/install_sconecli.sh`.
