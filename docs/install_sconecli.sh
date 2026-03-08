@@ -306,7 +306,31 @@ mkdir -p /tmp/packages
 EOF
 )"
 pe "$(cat <<'EOF'
-docker cp scone-packages:/packages /tmp || docker cp scone-packages:/ /tmp/packages
+docker cp scone-packages:/packages /tmp || {
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/k8s-scone.deb /tmp/packages;
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/kubectl-scone.deb /tmp/packages;
+EOF
+)"
+pe "$(cat <<'EOF'
+}
 EOF
 )"
 pe "$(cat <<'EOF'

@@ -207,7 +207,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-export CLI_IMAGE="registry.scontain.com/workshop/scone"
+export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
 EOF
 )"
 
