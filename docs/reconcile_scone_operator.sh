@@ -82,7 +82,7 @@ eval $(tplenv --file environment-variables.md --create-values-file --context --e
 EOF
 )"
 pe "$(cat <<'EOF'
-export VERSION=SCONE_VERSION
+export VERSION=$SCONE_VERSION
 EOF
 )"
 

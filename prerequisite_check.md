@@ -202,7 +202,7 @@ if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERS
       echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
     # ask user for the credentials for accessing the registry
   eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
-  kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+    kubectl create secret docker-registry sconeapps --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN || true
       scone_registry_login
 fi
 

@@ -125,8 +125,8 @@ Build with:
 These commands build the `scone-td-build` image as follows:
 
 ```bash
-export HOSTIP=$(ip route show default | awk '/default/ {print $3}')
-export HOSTIP="172.17.0.1" # as seen from the docker container
+# HOSTIP as seen from within the docker container
+export HOSTIP="172.17.0.1" 
 docker context create dind \
   --docker "host=tcp://${HOSTIP}:2375" || true
 

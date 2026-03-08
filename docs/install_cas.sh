@@ -250,7 +250,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  # exit 1
+  exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
