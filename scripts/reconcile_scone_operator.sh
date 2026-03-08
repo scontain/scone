@@ -37,11 +37,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
-printf '%s\n' 'export VERSION=SCONE_VERSION'
+printf '%s\n' 'export VERSION=$SCONE_VERSION'
 printf "${RESET}"
 
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
-export VERSION=SCONE_VERSION
+export VERSION=$SCONE_VERSION
 
 printf "${VIOLET}"
 printf '%s\n' ''

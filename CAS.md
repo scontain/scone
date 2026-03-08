@@ -72,7 +72,7 @@ STATE=$(kubectl get las las -o jsonpath='{.status.state}' 2>/dev/null || true)
 if [[ "$STATE" != "HEALTHY" ]]; then
   echo "❌ Error: LAS state is '$STATE' (expected: HEALTHY)."
   echo "ℹ️  Please verify that the LAS is running correctly."
-  # exit 1
+  exit 1
 fi
 
 echo "✅ LAS state is HEALTHY."

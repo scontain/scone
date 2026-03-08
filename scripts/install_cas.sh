@@ -132,7 +132,7 @@ printf '%s\n' ''
 printf '%s\n' 'if [[ "$STATE" != "HEALTHY" ]]; then'
 printf '%s\n' '  echo "❌ Error: LAS state is '\''$STATE'\'' (expected: HEALTHY)."'
 printf '%s\n' '  echo "ℹ️  Please verify that the LAS is running correctly."'
-printf '%s\n' '  # exit 1'
+printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' 'echo "✅ LAS state is HEALTHY."'
@@ -144,7 +144,7 @@ STATE=$(kubectl get las las -o jsonpath='{.status.state}' 2>/dev/null || true)
 if [[ "$STATE" != "HEALTHY" ]]; then
   echo "❌ Error: LAS state is '$STATE' (expected: HEALTHY)."
   echo "ℹ️  Please verify that the LAS is running correctly."
-  # exit 1
+  exit 1
 fi
 
 echo "✅ LAS state is HEALTHY."
