@@ -10,55 +10,53 @@ RESET='\033[0m'
 printf "${VIOLET}"
 printf '%s\n' '# Checking Prerequisites'
 printf '%s\n' ''
-printf '%s\n' '## Ensure that `cargo` is installed'
+printf '%s\n' '## Ensure `cargo` Is Installed'
 printf '%s\n' ''
-printf '%s\n' 'We install some utilities with the help of `cargo`. Hence, we first ensure that `rust` and `cargo` are installed'
-printf '%s\n' 'with the help of `scripts/install-rust.sh` that checks if `rust` and important components are installed and installs'
-printf '%s\n' '`rust`. '
+printf '%s\n' 'We install some utilities with `cargo`, so we first ensure that `rust` and `cargo` are installed. Use `scripts/install-rust.sh`, which checks for `rust` and required components and installs them if needed.'
 printf '%s\n' ''
 printf '%s\n' '![Screencast](docs/prerequisite_check.gif)'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# ensuring that rust is installed'
+printf '%s\n' '# Ensure rust is installed'
 printf '%s\n' './scripts/install-rust.sh'
-printf '%s\n' '# ensure PATH is properly set:'
+printf '%s\n' '# Ensure PATH is set correctly'
 printf '%s\n' 'export PATH=$HOME/.cargo/bin:$PATH'
-printf '%s\n' '# add to PATH of all scripts'
+printf '%s\n' '# Add to PATH for all future shells'
 printf '%s\n' 'grep -q '\''.cargo/bin'\'' ~/.bashrc || echo '\''export PATH="$HOME/.cargo/bin:$PATH"'\'' >> ~/.bashrc'
 printf "${RESET}"
 
-# ensuring that rust is installed
+# Ensure rust is installed
 ./scripts/install-rust.sh
-# ensure PATH is properly set:
+# Ensure PATH is set correctly
 export PATH=$HOME/.cargo/bin:$PATH
-# add to PATH of all scripts
+# Add to PATH for all future shells
 grep -q '.cargo/bin' ~/.bashrc || echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'We use helper programs `tplenv` and `retry-spinner`. Hence, we ensure that they are installed:'
+printf '%s\n' 'We use the helper programs `tplenv` and `retry-spinner`, so ensure they are installed:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# ensuring that tplenv is installed'
+printf '%s\n' '# Ensure tplenv is installed'
 printf '%s\n' 'cargo install tplenv'
-printf '%s\n' '# ensuring that retry-spinner is installed'
+printf '%s\n' '# Ensure retry-spinner is installed'
 printf '%s\n' 'cargo install retry-spinner'
 printf "${RESET}"
 
-# ensuring that tplenv is installed
+# Ensure tplenv is installed
 cargo install tplenv
-# ensuring that retry-spinner is installed
+# Ensure retry-spinner is installed
 cargo install retry-spinner
 
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '## Environment Variables'
 printf '%s\n' ''
-printf '%s\n' 'By default, we install the latest stable version of SCONE. You can overwrite the version by setting environment variable `SCONE_VERSION` to the SCONE version that you want to install:'
+printf '%s\n' 'By default, we install the latest stable SCONE version. You can override this by setting `SCONE_VERSION` to the version you want to install:'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -70,40 +68,35 @@ export SCONE_VERSION=$(cat stable.txt)
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
-printf '%s\n' 'but that are not set yet.'
+printf '%s\n' '`tplenv` asks for all environment variables described in `environment-variables.md` that are not yet set.'
 printf '%s\n' ''
-printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
+printf '%s\n' 'Run the following to prompt for and set missing variables:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## Checking Commands'
+printf '%s\n' '## Check Commands'
 printf '%s\n' ''
-printf '%s\n' 'To run our commands and to transform manifests and container images,'
-printf '%s\n' 'we need a set of executables. We install the following external executables on'
-printf '%s\n' 'the current machine:'
+printf '%s\n' 'To run our commands and transform manifests and container images, we need a set of executables. We install the following tools on the current machine:'
 printf '%s\n' ''
-printf '%s\n' '- `cosign`: needed to sign and verify the signature of container images'
-printf '%s\n' '- `docker`: needed to build and run docker images'
-printf '%s\n' '- `kubectl`: command line interface for Kubernetes'
-printf '%s\n' '- `yq`: command to access yaml documents'
-printf '%s\n' '- `sed`: simple editor to manipulate text files'
-printf '%s\n' '- `gh`: GitHub command line interface'
-printf '%s\n' '- `pkg-config`: A tool for discovering compiler and linker flags'
-printf '%s\n' '- `jq`: command to access json documents'
-printf '%s\n' '- `libssl-dev`: ssl development tools'
+printf '%s\n' '- `cosign`: signs and verifies container image signatures'
+printf '%s\n' '- `docker`: builds and runs Docker images'
+printf '%s\n' '- `kubectl`: command-line interface for Kubernetes'
+printf '%s\n' '- `yq`: processes YAML documents'
+printf '%s\n' '- `sed`: manipulates text files'
+printf '%s\n' '- `gh`: GitHub command-line interface'
+printf '%s\n' '- `pkg-config`: discovers compiler and linker flags'
+printf '%s\n' '- `jq`: processes JSON documents'
+printf '%s\n' '- `libssl-dev`: SSL development tools'
 printf '%s\n' ''
-printf '%s\n' '> NOTE: If the script fails on the first run with error:'
-printf '%s\n' '> `Errors were encountered while processing: scone-glibc`'
-printf '%s\n' '> please run a second time.'
+printf '%s\n' '> **Note:** If the script fails on the first run with `Errors were encountered while processing: scone-glibc`, run it a second time.'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -187,7 +180,7 @@ printf '%s\n' '  sudo ln -sf /usr/local/bin/yq_linux_amd64 /usr/local/bin/yq'
 printf '%s\n' '  echo "✔️ yq installed successfully."'
 printf '%s\n' '}'
 printf '%s\n' ''
-printf '%s\n' '# Check and Auto install Yq Version 4'
+printf '%s\n' '# Check and auto-install yq v4'
 printf '%s\n' 'if check_command yq; then'
 printf '%s\n' '    yq_version=$(yq --version 2>&1 | grep  -oE '\''v[0-9]+'\'' | cut -d'\''v'\'' -f2) || yq_version=""'
 printf '%s\n' '    if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then'
@@ -317,7 +310,7 @@ install_yq_v4() {
   echo "✔️ yq installed successfully."
 }
 
-# Check and Auto install Yq Version 4
+# Check and auto-install yq v4
 if check_command yq; then
     yq_version=$(yq --version 2>&1 | grep  -oE 'v[0-9]+' | cut -d'v' -f2) || yq_version=""
     if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then
@@ -369,12 +362,11 @@ echo "✅ All external executables are installed and ready"
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## Check access to `scone.cloud` images'
+printf '%s\n' '## Check Access to `scone.cloud` Images'
 printf '%s\n' ''
-printf '%s\n' 'We check that we can pull some SCONE container images that we need to execute'
-printf '%s\n' 'the transformations. If this fail, please do the following:'
+printf '%s\n' 'Check that you can pull the SCONE container images required for transformations. If this fails, do the following:'
 printf '%s\n' ''
-printf '%s\n' '- generate an access token following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>'
+printf '%s\n' '- Generate an access token by following these instructions: <https://sconedocs.github.io/registry/#create-an-access-token>'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -440,8 +432,8 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## Install SCONE CLI tools'
+printf '%s\n' '## Install SCONE CLI Tools'
 printf '%s\n' ''
-printf '%s\n' 'We succeeded to pull the required, images. Next, we can install the `scone`-replated executable. To do so, you can run script `./scripts/install_sconecli.sh`.'
+printf '%s\n' 'The required images are now available. Next, install the `scone`-related executables by running `./scripts/install_sconecli.sh`.'
 printf "${RESET}"
 
