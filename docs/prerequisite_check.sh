@@ -79,6 +79,14 @@ pe "$(cat <<'EOF'
 export PATH=$HOME/.cargo/bin:$PATH
 EOF
 )"
+pe "$(cat <<'EOF'
+# add to PATH of all scripts
+EOF
+)"
+pe "$(cat <<'EOF'
+grep -q '.cargo/bin' ~/.bashrc || echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -304,6 +312,18 @@ EOF
 )"
 pe "$(cat <<'EOF'
 fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Ensure that we can run docker without being root
+EOF
+)"
+pe "$(cat <<'EOF'
+./scripts/check_docker_setup.sh
 EOF
 )"
 pe "$(cat <<'EOF'
