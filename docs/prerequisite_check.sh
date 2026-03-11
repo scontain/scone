@@ -144,6 +144,7 @@ printf '%s\n' ''
 printf '%s\n' '- `cosign`: signs and verifies container image signatures'
 printf '%s\n' '- `docker`: builds and runs Docker images'
 printf '%s\n' '- `kubectl`: command-line interface for Kubernetes'
+printf '%s\n' '- `helm`: package manager for Kubernetes'
 printf '%s\n' '- `yq`: processes YAML documents'
 printf '%s\n' '- `sed`: manipulates text files'
 printf '%s\n' '- `gh`: GitHub command-line interface'
@@ -421,6 +422,42 @@ EOF
 )"
 pe "$(cat <<'EOF'
   echo "✔️ kubectl is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install Helm if not present
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command helm; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "📥 Installing Helm..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ Helm installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✔️ Helm is already installed."
 EOF
 )"
 pe "$(cat <<'EOF'

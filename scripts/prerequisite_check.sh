@@ -89,6 +89,7 @@ printf '%s\n' ''
 printf '%s\n' '- `cosign`: signs and verifies container image signatures'
 printf '%s\n' '- `docker`: builds and runs Docker images'
 printf '%s\n' '- `kubectl`: command-line interface for Kubernetes'
+printf '%s\n' '- `helm`: package manager for Kubernetes'
 printf '%s\n' '- `yq`: processes YAML documents'
 printf '%s\n' '- `sed`: manipulates text files'
 printf '%s\n' '- `gh`: GitHub command-line interface'
@@ -168,6 +169,15 @@ printf '%s\n' '  rm kubectl.sha256'
 printf '%s\n' '  echo "✔️ kubectl installed successfully."'
 printf '%s\n' 'else'
 printf '%s\n' '  echo "✔️ kubectl is already installed."'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' '# Auto-install Helm if not present'
+printf '%s\n' 'if ! check_command helm; then'
+printf '%s\n' '  echo "📥 Installing Helm..."'
+printf '%s\n' '  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash'
+printf '%s\n' '  echo "✔️ Helm installed successfully."'
+printf '%s\n' 'else'
+printf '%s\n' '  echo "✔️ Helm is already installed."'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' 'install_yq_v4() {'
@@ -298,6 +308,15 @@ if ! check_command kubectl; then
   echo "✔️ kubectl installed successfully."
 else
   echo "✔️ kubectl is already installed."
+fi
+
+# Auto-install Helm if not present
+if ! check_command helm; then
+  echo "📥 Installing Helm..."
+  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  echo "✔️ Helm installed successfully."
+else
+  echo "✔️ Helm is already installed."
 fi
 
 install_yq_v4() {
