@@ -540,7 +540,7 @@ printf '%s\n' '  exit 1'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" --no-docker --no-image-signature-check ; then
   echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
   exit 1
 fi
