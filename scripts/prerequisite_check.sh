@@ -223,6 +223,19 @@ printf '%s\n' 'else'
 printf '%s\n' '  echo "✔️ sed is already installed."'
 printf '%s\n' 'fi'
 printf '%s\n' ''
+printf '%s\n' '# Check and auto-install helm'
+printf '%s\n' 'if ! check_command helm; then'
+printf '%s\n' '  echo "📥 Installing helm..."'
+printf '%s\n' '  sudo apt-get install curl gpg apt-transport-https --yes'
+printf '%s\n' '  curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null'
+printf '%s\n' '  echo "deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list'
+printf '%s\n' '  sudo apt update'
+printf '%s\n' '  sudo apt-get install helm'
+printf '%s\n' '  echo "✔️ helm installed successfully."'
+printf '%s\n' 'else'
+printf '%s\n' '  echo "✔️ helm is already installed."'
+printf '%s\n' 'fi'
+printf '%s\n' ''
 printf '%s\n' '# Check Kubernetes cluster connectivity'
 printf '%s\n' 'if ! kubectl cluster-info &>/dev/null; then'
 printf '%s\n' '  echo -e "${RED}❌ No Kubernetes cluster detected via kubectl. Is your cluster running?${NC}"'
@@ -351,6 +364,19 @@ if ! check_command sed; then
   echo "✔️ sed installed successfully."
 else
   echo "✔️ sed is already installed."
+fi
+
+# Check and auto-install helm'
+if ! check_command helm; then
+  echo "📥 Installing helm..."
+  sudo apt-get install curl gpg apt-transport-https --yes
+  curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+  echo "deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+  sudo apt update
+  sudo apt-get install helm
+  echo "✔️ helm installed successfully."
+else
+  echo "✔️ helm is already installed."
 fi
 
 # Check Kubernetes cluster connectivity
