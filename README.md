@@ -18,7 +18,7 @@ If you want to install the development components on your local machine or on a 
 
 ![Screencast](docs/prerequisite_check.gif)
 
-- [`sconecli.md`](sconecli.md): describes how to install the `scone` CLI on your machine or development VM. To speed up the process, run `./scripts/install_sconecli.sh` to install either the latest stable version (default) or another SCONE CLI version.
+- [`sconecli.md`](sconecli.md): describes how to install the required SCONE workflow commands (`scone`, `kubectl-scone`, `kubectl-scone-azure`, `scone-td-build`) on your machine or development VM. To speed up the process, run `./scripts/install_sconecli.sh` to install either the latest stable version (default) or another SCONE version.
 
 ![Screencast](docs/install_sconecli.gif)
 
