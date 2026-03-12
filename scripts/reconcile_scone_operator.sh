@@ -8,7 +8,7 @@ ORANGE='\033[38;5;208m'
 RESET='\033[0m'
 
 printf "${VIOLET}"
-printf '%s\n' '## Installation of the SCONE Platform'
+printf '%s\n' '# Installation of the SCONE Platform'
 printf '%s\n' ''
 printf '%s\n' 'To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.'
 printf '%s\n' ''
@@ -95,7 +95,7 @@ echo "✅ Proceeding with context: $K8S_CONTEXT"
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## Download the script to install the SCONE platform:'
+printf '%s\n' '## Download the script to install the SCONE platform'
 printf '%s\n' ''
 printf '%s\n' 'To simplify the cleanup, we download the installation script into a temporary directory:'
 printf '%s\n' ''
@@ -117,7 +117,7 @@ echo "Downloaded script 'operator_controller' into directory $PWD"
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## Verify the signature of the script:'
+printf '%s\n' '## Verify the signature of the script'
 printf '%s\n' ''
 printf '%s\n' 'Download the signature of the operator controller:'
 printf '%s\n' ''
@@ -334,7 +334,7 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'Please check that output is empty. Stop if error message `Signature check FAILED` is printed.'
 printf '%s\n' ''
-printf '%s\n' '## Verifying if the cluster is properly installed:'
+printf '%s\n' '## Verifying if the cluster is properly installed'
 printf '%s\n' ''
 printf '%s\n' 'We first define a cleanup function to cleanup after the `operator_controller`:'
 printf '%s\n' ''
@@ -382,41 +382,53 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '## Set your Intel API Key'
 printf '%s\n' ''
-printf '%s\n' 'To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
+printf '%s\n' 'For non-Azure clusters, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
 printf '%s\n' ''
 printf '%s\n' 'export DCAP_KEY="..."'
+printf '%s\n' ''
+printf '%s\n' 'For Azure clusters, do not create a DCAP key in the Intel portal. Keep `DCAP_KEY` unset (or at the default placeholder), and install or update the operator without `--dcap-api`. The code blocks below detect Azure nodes and skip the DCAP lookup, prompt, and argument automatically.'
 printf '%s\n' ''
 printf '%s\n' 'In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
-printf '%s\n' '    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}'
-printf '%s\n' '    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then'
-printf '%s\n' '        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"'
-printf '%s\n' '        EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '\''.spec.dcapKey'\'' || echo "null" )'
+printf '%s\n' '    export IS_AZURE_CLUSTER=0'
+printf '%s\n' '    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then'
+printf '%s\n' '        export IS_AZURE_CLUSTER=1'
+printf '%s\n' '    else'
+printf '%s\n' '        export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
+printf '%s\n' '        export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}'
+printf '%s\n' '        if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then'
+printf '%s\n' '            echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"'
+printf '%s\n' '            EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '\''.spec.dcapKey'\'' || echo "null")'
 printf '%s\n' ''
-printf '%s\n' '        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then'
-printf '%s\n' '            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."'
-printf '%s\n' '        else'
-printf '%s\n' '            DCAP_KEY="$EXISTING_DCAP_KEY"'
-printf '%s\n' '            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."'
+printf '%s\n' '            if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then'
+printf '%s\n' '                echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."'
+printf '%s\n' '            else'
+printf '%s\n' '                DCAP_KEY="$EXISTING_DCAP_KEY"'
+printf '%s\n' '                echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."'
+printf '%s\n' '            fi'
 printf '%s\n' '        fi'
 printf '%s\n' '    fi'
 printf "${RESET}"
 
-    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
-    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
-    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
-        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null" )
+    export IS_AZURE_CLUSTER=0
+    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then
+        export IS_AZURE_CLUSTER=1
+    else
+        export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+        export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+        if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+            echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+            EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null")
 
-        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
-            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
-        else
-            DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+            if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
+                echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
+            else
+                DCAP_KEY="$EXISTING_DCAP_KEY"
+                echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+            fi
         fi
     fi
 
@@ -428,7 +440,10 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Check if DCAP_KEY is empty or unset'
-printf '%s\n' 'if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then'
+printf '%s\n' 'if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then'
+printf '%s\n' '  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."'
+printf '%s\n' '  OPERATOR_DCAP_ARGS=()'
+printf '%s\n' 'elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then'
 printf '%s\n' '  while true; do'
 printf '%s\n' '    read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input'
 printf '%s\n' ''
@@ -442,11 +457,17 @@ printf '%s\n' '    else'
 printf '%s\n' '      echo "❌ Invalid input. Must be exactly 32 hex characters (0-9, a-f)."'
 printf '%s\n' '    fi'
 printf '%s\n' '  done'
+printf '%s\n' '  OPERATOR_DCAP_ARGS=(--dcap-api "$DCAP_KEY")'
+printf '%s\n' 'else'
+printf '%s\n' '  OPERATOR_DCAP_ARGS=()'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
 # Check if DCAP_KEY is empty or unset
-if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then
+  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."
+  OPERATOR_DCAP_ARGS=()
+elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
   while true; do
     read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input
 
@@ -460,6 +481,9 @@ if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
       echo "❌ Invalid input. Must be exactly 32 hex characters (0-9, a-f)."
     fi
   done
+  OPERATOR_DCAP_ARGS=(--dcap-api "$DCAP_KEY")
+else
+  OPERATOR_DCAP_ARGS=()
 fi
 
 printf "${VIOLET}"
@@ -540,10 +564,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com'
+printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com'
 printf "${RESET}"
 
-    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -555,12 +579,12 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'else'
-printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"'
+printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
 else
-    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"
 fi
 
 printf "${VIOLET}"

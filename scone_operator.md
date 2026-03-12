@@ -1,4 +1,4 @@
-## Installation of the SCONE Platform
+# Installation of the SCONE Platform
 
 To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.
 
@@ -47,7 +47,7 @@ fi
 echo "✅ Proceeding with context: $K8S_CONTEXT"
 ```
 
-## Download the script to install the SCONE platform:
+## Download the script to install the SCONE platform
 
 To simplify the cleanup, we download the installation script into a temporary directory:
 
@@ -59,7 +59,7 @@ chmod a+x operator_controller
 echo "Downloaded script 'operator_controller' into directory $PWD"
 ```
 
-## Verify the signature of the script:
+## Verify the signature of the script
 
 Download the signature of the operator controller:
 
@@ -171,7 +171,7 @@ verify_file operator_controller
 
 Please check that output is empty. Stop if error message `Signature check FAILED` is printed.
 
-## Verifying if the cluster is properly installed:
+## Verifying if the cluster is properly installed
 
 We first define a cleanup function to cleanup after the `operator_controller`:
 
@@ -197,26 +197,33 @@ We ensure that the correct `kubectl provision` plugin is installed:
 
 ## Set your Intel API Key
 
-To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
+For non-Azure clusters, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
 
 ```
 export DCAP_KEY="..."
 ```
 
+For Azure clusters, do not create a DCAP key in the Intel portal. Keep `DCAP_KEY` unset (or at the default placeholder), and install or update the operator without `--dcap-api`. The code blocks below detect Azure nodes and skip the DCAP lookup, prompt, and argument automatically.
+
 In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:
 
 ```bash
-    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
-    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
-    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
-        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null" )
+    export IS_AZURE_CLUSTER=0
+    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then
+        export IS_AZURE_CLUSTER=1
+    else
+        export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+        export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+        if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+            echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+            EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null")
 
-        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
-            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
-        else
-            DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+            if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
+                echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
+            else
+                DCAP_KEY="$EXISTING_DCAP_KEY"
+                echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+            fi
         fi
     fi
 ```
@@ -225,7 +232,10 @@ In case we use the default DCAP API key, we ask the user for some input:
 
 ```bash
 # Check if DCAP_KEY is empty or unset
-if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then
+  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."
+  OPERATOR_DCAP_ARGS=()
+elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
   while true; do
     read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input
 
@@ -239,6 +249,9 @@ if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
       echo "❌ Invalid input. Must be exactly 32 hex characters (0-9, a-f)."
     fi
   done
+  OPERATOR_DCAP_ARGS=(--dcap-api "$DCAP_KEY")
+else
+  OPERATOR_DCAP_ARGS=()
 fi
 ```
 
@@ -284,7 +297,7 @@ if [[ $install_sconeapps_secret == 1 ]] ; then
 We install/fix/update the installed version:
 
 ```bash
-    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 ```
 
 ## Updating the SCONE platform
@@ -293,7 +306,7 @@ In case an older version of the SCONE platform was already installed (i.e., when
 
 ```bash
 else
-    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"
 fi
 ```
 

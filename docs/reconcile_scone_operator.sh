@@ -51,7 +51,7 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 printf "%b" "$LILAC"
-printf '%s\n' '## Installation of the SCONE Platform'
+printf '%s\n' '# Installation of the SCONE Platform'
 printf '%s\n' ''
 printf '%s\n' 'To install or update the SCONE platform in a Kubernetes cluster, please perform the following steps.'
 printf '%s\n' ''
@@ -175,7 +175,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## Download the script to install the SCONE platform:'
+printf '%s\n' '## Download the script to install the SCONE platform'
 printf '%s\n' ''
 printf '%s\n' 'To simplify the cleanup, we download the installation script into a temporary directory:'
 printf '%s\n' ''
@@ -204,7 +204,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## Verify the signature of the script:'
+printf '%s\n' '## Verify the signature of the script'
 printf '%s\n' ''
 printf '%s\n' 'Download the signature of the operator controller:'
 printf '%s\n' ''
@@ -592,7 +592,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Please check that output is empty. Stop if error message `Signature check FAILED` is printed.'
 printf '%s\n' ''
-printf '%s\n' '## Verifying if the cluster is properly installed:'
+printf '%s\n' '## Verifying if the cluster is properly installed'
 printf '%s\n' ''
 printf '%s\n' 'We first define a cleanup function to cleanup after the `operator_controller`:'
 printf '%s\n' ''
@@ -634,32 +634,50 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '## Set your Intel API Key'
 printf '%s\n' ''
-printf '%s\n' 'To install the SCONE platform, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
+printf '%s\n' 'For non-Azure clusters, you need an Intel API key. Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
 printf '%s\n' ''
 printf '%s\n' 'export DCAP_KEY="..."'
+printf '%s\n' ''
+printf '%s\n' 'For Azure clusters, do not create a DCAP key in the Intel portal. Keep `DCAP_KEY` unset (or at the default placeholder), and install or update the operator without `--dcap-api`. The code blocks below detect Azure nodes and skip the DCAP lookup, prompt, and argument automatically.'
 printf '%s\n' ''
 printf '%s\n' 'In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+    export IS_AZURE_CLUSTER=0
 EOF
 )"
 pe "$(cat <<'EOF'
-    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then
 EOF
 )"
 pe "$(cat <<'EOF'
-    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+        export IS_AZURE_CLUSTER=1
 EOF
 )"
 pe "$(cat <<'EOF'
-        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+    else
 EOF
 )"
 pe "$(cat <<'EOF'
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null" )
+        export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+EOF
+)"
+pe "$(cat <<'EOF'
+        export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+EOF
+)"
+pe "$(cat <<'EOF'
+        if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+EOF
+)"
+pe "$(cat <<'EOF'
+            echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+EOF
+)"
+pe "$(cat <<'EOF'
+            EXISTING_DCAP_KEY=$(kubectl get las las -o json 2> /dev/null | jq -r '.spec.dcapKey' || echo "null")
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -667,23 +685,27 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
+            if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
 EOF
 )"
 pe "$(cat <<'EOF'
-            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
+                echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
 EOF
 )"
 pe "$(cat <<'EOF'
-        else
+            else
 EOF
 )"
 pe "$(cat <<'EOF'
-            DCAP_KEY="$EXISTING_DCAP_KEY"
+                DCAP_KEY="$EXISTING_DCAP_KEY"
 EOF
 )"
 pe "$(cat <<'EOF'
-            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+                echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+EOF
+)"
+pe "$(cat <<'EOF'
+            fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -706,7 +728,19 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."
+EOF
+)"
+pe "$(cat <<'EOF'
+  OPERATOR_DCAP_ARGS=()
+EOF
+)"
+pe "$(cat <<'EOF'
+elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -759,6 +793,18 @@ EOF
 )"
 pe "$(cat <<'EOF'
   done
+EOF
+)"
+pe "$(cat <<'EOF'
+  OPERATOR_DCAP_ARGS=(--dcap-api "$DCAP_KEY")
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  OPERATOR_DCAP_ARGS=()
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -850,7 +896,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose --dcap-api "$DCAP_KEY" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 EOF
 )"
 
@@ -867,7 +913,7 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
-    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose --dcap-api "$DCAP_KEY"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"
 EOF
 )"
 pe "$(cat <<'EOF'

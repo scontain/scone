@@ -53,16 +53,15 @@ stty cols "$COLUMNS" rows "$LINES"
 printf "%b" "$LILAC"
 printf '%s\n' '# Deploying a CAS instance'
 printf '%s\n' ''
-printf '%s\n' 'We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster. '
+printf '%s\n' 'We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster.'
 printf '%s\n' ''
 printf '%s\n' '![Screencast](docs/install_cas.gif)'
 printf '%s\n' ''
-printf '%s\n' '- First, we check that we have access to the cluster and the SCONE platform is already installed. '
-printf '%s\n' '- Second, we ask the user for the name and the namespace of the CAS. '
+printf '%s\n' '- First, we check that we have access to the cluster and the SCONE platform is already installed.'
+printf '%s\n' '- Second, we ask the user for the name and the namespace of the CAS.'
 printf '%s\n' '- Third, we call `kubectl provision` to install the CAS.'
 printf '%s\n' ''
 printf '%s\n' '## Steps'
-printf '%s\n' ''
 printf '%s\n' ''
 printf '%s\n' '1. Ensure that the SCONE operator is installed and up-to-date (see [scone_operator](scone_operator.md))'
 printf '%s\n' ''
@@ -178,7 +177,6 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' ''
 printf '%s\n' '3. Ensure that SGX Plugin and Local Attestation Service (LAS) are `HEALTHY`'
 printf '%s\n' ''
 printf '%s\n' 'First, we check the state of the SGX Plugin. For the LAS to be healthy, the SGX Plugin must be healthy:'
@@ -221,7 +219,6 @@ EOF
 printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Next, we check that the LAS is healthy:'
-printf '%s\n' ''
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -270,32 +267,50 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '4. We determine your Intel API Key'
 printf '%s\n' ''
-printf '%s\n' 'Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable: '
+printf '%s\n' 'For non-Azure clusters, please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
 printf '%s\n' ''
 printf '%s\n' 'export DCAP_KEY="..."'
+printf '%s\n' ''
+printf '%s\n' 'For Azure clusters, do not create a DCAP key in the Intel portal. Keep `DCAP_KEY` unset (or at the default placeholder), and run provisioning without `--dcap-api`. The code block below detects Azure nodes and automatically skips the DCAP prompt and argument.'
 printf '%s\n' ''
 printf '%s\n' 'In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+    export IS_AZURE_CLUSTER=0
 EOF
 )"
 pe "$(cat <<'EOF'
-    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then
 EOF
 )"
 pe "$(cat <<'EOF'
-    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+        export IS_AZURE_CLUSTER=1
 EOF
 )"
 pe "$(cat <<'EOF'
-        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+    else
 EOF
 )"
 pe "$(cat <<'EOF'
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
+      export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+EOF
+)"
+pe "$(cat <<'EOF'
+      export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+EOF
+)"
+pe "$(cat <<'EOF'
+      if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+EOF
+)"
+pe "$(cat <<'EOF'
+          echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+EOF
+)"
+pe "$(cat <<'EOF'
+          EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -303,27 +318,31 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
+          if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
 EOF
 )"
 pe "$(cat <<'EOF'
-            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
+              echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
 EOF
 )"
 pe "$(cat <<'EOF'
-        else
+          else
 EOF
 )"
 pe "$(cat <<'EOF'
-            DCAP_KEY="$EXISTING_DCAP_KEY"
+              DCAP_KEY="$EXISTING_DCAP_KEY"
 EOF
 )"
 pe "$(cat <<'EOF'
-            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+              echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
 EOF
 )"
 pe "$(cat <<'EOF'
-        fi
+          fi
+EOF
+)"
+pe "$(cat <<'EOF'
+      fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -342,7 +361,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."
+EOF
+)"
+pe "$(cat <<'EOF'
+  export DCAP_ARG=""
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -904,7 +939,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '10. Installing the CAS '
+printf '%s\n' '10. Installing the CAS'
 printf '%s\n' ''
 printf '%s\n' 'The following statement installs the CAS and waits until the CAS becomes healthy:'
 printf '%s\n' ''
