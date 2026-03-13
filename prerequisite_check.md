@@ -6,6 +6,8 @@ We install some utilities with `cargo`, so we first ensure that `rust` and `carg
 
 ![Screencast](docs/prerequisite_check.gif)
 
+![Screencast](docs/prerequisite_check.gif)
+
 ```bash
 # Ensure rust is installed
 ./scripts/install-rust.sh
@@ -29,7 +31,12 @@ cargo install retry-spinner
 By default, we install the latest stable SCONE version. You can override this by setting `SCONE_VERSION` to the version you want to install:
 
 ```bash
-export SCONE_VERSION=$(cat stable.txt)
+if [ -z "${SCONE_VERSION+x}" ]; then
+  export SCONE_VERSION=$(cat stable.txt)
+  echo "SCONE_VERSION not set - using stable.txt: $SCONE_VERSION"
+else
+  echo "SCONE_VERSION is set to $SCONE_VERSION"
+fi
 ```
 
 `tplenv` asks for all environment variables described in `environment-variables.md` that are not yet set.

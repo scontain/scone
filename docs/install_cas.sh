@@ -433,11 +433,31 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+if [ -z "${SCONE_VERSION+x}" ]; then
 EOF
 )"
 pe "$(cat <<'EOF'
-echo "The lastest stable version of SCONE is $VERSION"
+  echo "Environment variable SCONE_VERSION is not set - determining the latest stable version of SCONE"
+EOF
+)"
+pe "$(cat <<'EOF'
+  SCONE_VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "The latest stable version of SCONE is $SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
 EOF
 )"
 
@@ -821,7 +841,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
+read -rp "Do you want to proceed install version $SCONE_VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -911,7 +931,75 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+CAS_CONFIG_DIR="${HOME}/.cas/owner-config"
+EOF
+)"
+pe "$(cat <<'EOF'
+strip_dcap_from_config() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  (while true; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [ -f "${CAS_CONFIG_DIR}/config.toml" ] && grep -q '^\[dcap\]' "${CAS_CONFIG_DIR}/config.toml" 2>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      sed -i '/^\[dcap\]/,/^$/d' "${CAS_CONFIG_DIR}/config.toml"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    sleep 0.2
+EOF
+)"
+pe "$(cat <<'EOF'
+  done) &
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo $!
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+WATCHER_PID=$(strip_dcap_from_config)
+EOF
+)"
+pe "$(cat <<'EOF'
+trap "kill $WATCHER_PID 2>/dev/null" EXIT
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+export SGX_TOLERATIONS="${SGX_TOLERATIONS:---accept-configuration-needed --accept-group-out-of-date --accept-sw-hardening-needed --isvprodid 41316 --isvsvn 5 --mrsigner 195e5a6df987d6a515dd083750c1ea352283f8364d3ec9142b0d593988c6ed2d}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! kubectl provision cas --verbose --wait --set-version $SCONE_VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  kill $WATCHER_PID 2>/dev/null
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -924,6 +1012,14 @@ EOF
 )"
 pe "$(cat <<'EOF'
 fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+kill $WATCHER_PID 2>/dev/null
 EOF
 )"
 
