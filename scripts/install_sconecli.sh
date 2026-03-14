@@ -8,17 +8,24 @@ ORANGE='\033[38;5;208m'
 RESET='\033[0m'
 
 printf "${VIOLET}"
-printf '%s\n' '# SCONE CLI'
+printf '%s\n' '# SCONE Tooling Installation'
 printf '%s\n' ''
-printf '%s\n' 'You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.'
+printf '%s\n' 'You can run the SCONE command set on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing all required commands **directly on your development machine** for better performance.'
 printf '%s\n' ''
 printf '%s\n' '![Screencast](docs/install_sconecli.gif)'
 printf '%s\n' ''
-printf '%s\n' 'This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.'
+printf '%s\n' 'This document explains how to install all required SCONE workflow commands on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.'
 printf '%s\n' ''
 printf '%s\n' 'NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.'
 printf '%s\n' ''
-printf '%s\n' '## Caveat When Running Inside a Container'
+printf '%s\n' '## Commands Installed By This Guide'
+printf '%s\n' ''
+printf '%s\n' '- `scone`'
+printf '%s\n' '- `kubectl-scone`'
+printf '%s\n' '- `kubectl-scone-azure`'
+printf '%s\n' '- `scone-td-build`'
+printf '%s\n' ''
+printf '%s\n' '## Caveat For `scone` When Running Inside a Container'
 printf '%s\n' ''
 printf '%s\n' 'There are two versions of the `scone` CLI:'
 printf '%s\n' ''
@@ -27,12 +34,11 @@ printf '%s\n' '- The **default version**, which is designed to run **inside an e
 printf '%s\n' '  '
 printf '%s\n' 'By default, the `scone` CLI of a container runs confidential in production mode. To run in simulation mode on systems that do not support production TEEs, set the environment variable `SCONE_PRODUCTION=0`, e.g., you can run`SCONE_PRODUCTION=0 scone --help` .'
 printf '%s\n' ''
-printf '%s\n' 'Below, we describe how to install the `scone` CLI using `auto` mode, i.e., the CLI will most likely run in simulation mode.'
+printf '%s\n' 'Below, we describe how to install these commands and run `scone` using `auto` mode, i.e., it will most likely run in simulation mode.'
 printf '%s\n' ''
-printf '%s\n' '## Installing the `scone` CLI '
+printf '%s\n' '## Installing All Required Commands'
 printf '%s\n' ''
 printf '%s\n' 'We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.'
-printf '%s\n' ''
 printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
 printf '%s\n' 'but that are not set yet. '
@@ -49,11 +55,9 @@ eval $(tplenv --file environment-variables.md --create-values-file --eval --cont
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'The SCONE CLI is available as Debian packages as part of a container image. '
-printf '%s\n' 'We first verify that the container image is properly signed by cosign.'
+printf '%s\n' 'The core SCONE packages are available as Debian packages as part of a container image. We first verify that the container image is properly signed by cosign.'
 printf '%s\n' ''
-printf '%s\n' 'To do so, we define the cosign public verification key using a function `create_cosign_verification_key`.'
-printf '%s\n' 'We verify the signature of a given container image with function `verify_image`:'
+printf '%s\n' 'To do so, we define the cosign public verification key using a function `create_cosign_verification_key`. We verify the signature of a given container image with function `verify_image`:'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -129,7 +133,7 @@ function verify_image() {
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Next, we define the image that contains the `scone` CLI Debian package and'
+printf '%s\n' 'Next, we define the image that contains the core SCONE Debian packages and'
 printf '%s\n' 'verify the image:'
 printf '%s\n' ''
 printf "${RESET}"
@@ -171,56 +175,72 @@ docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Next, we copy the package to the `/tmp` directory and'
-printf '%s\n' 'install the `scone` packages. '
+printf '%s\n' 'Next, we copy both Debian packages and required binaries from the same'
+printf '%s\n' '`scone-packages` container.'
 printf '%s\n' ''
 printf '%s\n' 'You will need to type your `sudo` password:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# copy the packages'
+printf '%s\n' '# copy Debian packages and required binaries'
 printf '%s\n' 'mkdir -p /tmp/packages'
+printf '%s\n' 'mkdir -p /tmp/scone-bin'
 printf '%s\n' 'docker cp scone-packages:/packages /tmp || {'
 printf '%s\n' '    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;'
 printf '%s\n' '    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;'
 printf '%s\n' '    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;'
-printf '%s\n' '    docker cp scone-packages:/k8s-scone.deb /tmp/packages;'
-printf '%s\n' '    docker cp scone-packages:/kubectl-scone.deb /tmp/packages;'
 printf '%s\n' '}'
+printf '%s\n' ''
+printf '%s\n' 'docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/'
+printf '%s\n' 'docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/'
+printf '%s\n' 'docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/'
+printf '%s\n' ''
 printf '%s\n' 'docker rm scone-packages'
 printf '%s\n' ''
 printf '%s\n' '# install the packages'
 printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-common_amd64.deb '
 printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-libc_amd64.deb '
 printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-cli_amd64.deb '
-printf '%s\n' 'sudo dpkg -i /tmp/packages/k8s-scone.deb'
-printf '%s\n' 'sudo dpkg -i /tmp/packages/kubectl-scone.deb '
+printf '%s\n' ''
+printf '%s\n' '# install binaries on host'
+printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build'
+printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone'
+printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure'
 printf '%s\n' ''
 printf '%s\n' '# clean up'
 printf '%s\n' 'rm -rf /tmp/packages'
+printf '%s\n' 'rm -rf /tmp/scone-bin'
 printf "${RESET}"
 
-# copy the packages
+# copy Debian packages and required binaries
 mkdir -p /tmp/packages
+mkdir -p /tmp/scone-bin
 docker cp scone-packages:/packages /tmp || {
     docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
     docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
     docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
-    docker cp scone-packages:/k8s-scone.deb /tmp/packages;
-    docker cp scone-packages:/kubectl-scone.deb /tmp/packages;
 }
+
+docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/
+
 docker rm scone-packages
 
 # install the packages
 sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
 sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
 sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
-sudo dpkg -i /tmp/packages/k8s-scone.deb
-sudo dpkg -i /tmp/packages/kubectl-scone.deb 
+
+# install binaries on host
+sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure
 
 # clean up
 rm -rf /tmp/packages
+rm -rf /tmp/scone-bin
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -250,28 +270,34 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Check that the `scone` cli is properly installed by executing:'
+printf '%s\n' 'Check that all required commands are properly installed by executing:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'echo "Expecting SCONE version: $SCONE_VERSION"'
 printf '%s\n' 'scone --version'
+printf '%s\n' 'kubectl scone --help >/dev/null'
+printf '%s\n' 'kubectl scone-azure --help >/dev/null'
+printf '%s\n' 'scone-td-build --help >/dev/null'
 printf "${RESET}"
 
 echo "Expecting SCONE version: $SCONE_VERSION"
 scone --version
+kubectl scone --help >/dev/null
+kubectl scone-azure --help >/dev/null
+scone-td-build --help >/dev/null
 
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'This should execute the same SCONE version as the previously printed latest stable version.'
-printf '%s\n' '(The minimal version is 6.0.0)'
+printf '%s\n' '(The minimal version is 7.0.0). The `--help` checks should also complete successfully.'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '  echo "✅ All scone-related executable installed"'
+printf '%s\n' '  echo "✅ All required SCONE commands installed"'
 printf "${RESET}"
 
-  echo "✅ All scone-related executable installed"
+  echo "✅ All required SCONE commands installed"
 

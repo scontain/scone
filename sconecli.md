@@ -1,14 +1,21 @@
-# SCONE CLI
+# SCONE Tooling Installation
 
-You can run the [`scone` CLI](https://sconedocs.github.io/CAS_cli/) on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing the `scone` CLI **directly on your development machine** for better performance.
+You can run the SCONE command set on your **host machine**, within a **virtual machine (VM)**, or inside a **container**. While running it in a container offers good portability, it may suffer from slower startup times. Therefore, we recommend installing all required commands **directly on your development machine** for better performance.
 
 ![Screencast](docs/install_sconecli.gif)
 
-This document explains how to install the `scone` CLI on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.
+This document explains how to install all required SCONE workflow commands on **Linux distributions that support Debian packages**. Packages are also available for **Alpine Linux**.
 
 NOTE: We assume that you already run `./scripts/prerequisite_check.sh`.
 
-## Caveat When Running Inside a Container
+## Commands Installed By This Guide
+
+- `scone`
+- `kubectl-scone`
+- `kubectl-scone-azure`
+- `scone-td-build`
+
+## Caveat For `scone` When Running Inside a Container
 
 There are two versions of the `scone` CLI:
 
@@ -17,12 +24,11 @@ There are two versions of the `scone` CLI:
   
 By default, the `scone` CLI of a container runs confidential in production mode. To run in simulation mode on systems that do not support production TEEs, set the environment variable `SCONE_PRODUCTION=0`, e.g., you can run`SCONE_PRODUCTION=0 scone --help` .
 
-Below, we describe how to install the `scone` CLI using `auto` mode, i.e., the CLI will most likely run in simulation mode.
+Below, we describe how to install these commands and run `scone` using `auto` mode, i.e., it will most likely run in simulation mode.
 
-## Installing the `scone` CLI 
+## Installing All Required Commands
 
 We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.
-
 
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
 but that are not set yet. 
@@ -33,11 +39,9 @@ Let's ask the user and set the environment variables depending on the input of t
 eval $(tplenv --file environment-variables.md --create-values-file --eval --context ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 ```
 
-The SCONE CLI is available as Debian packages as part of a container image. 
-We first verify that the container image is properly signed by cosign.
+The core SCONE packages are available as Debian packages as part of a container image. We first verify that the container image is properly signed by cosign.
 
-To do so, we define the cosign public verification key using a function `create_cosign_verification_key`.
-We verify the signature of a given container image with function `verify_image`:
+To do so, we define the cosign public verification key using a function `create_cosign_verification_key`. We verify the signature of a given container image with function `verify_image`:
 
 ```bash
 #
@@ -75,7 +79,7 @@ function verify_image() {
 }
 ```
 
-Next, we define the image that contains the `scone` CLI Debian package and
+Next, we define the image that contains the core SCONE Debian packages and
 verify the image:
 
 ```bash
@@ -97,32 +101,40 @@ docker rm scone-packages 2> /dev/null || true
 docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev/null
 ```
 
-Next, we copy the package to the `/tmp` directory and
-install the `scone` packages. 
+Next, we copy both Debian packages and required binaries from the same
+`scone-packages` container.
 
 You will need to type your `sudo` password:
 
 ```bash
-# copy the packages
+# copy Debian packages and required binaries
 mkdir -p /tmp/packages
+mkdir -p /tmp/scone-bin
 docker cp scone-packages:/packages /tmp || {
     docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
     docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
     docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
-    docker cp scone-packages:/k8s-scone.deb /tmp/packages;
-    docker cp scone-packages:/kubectl-scone.deb /tmp/packages;
 }
+
+docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/
+
 docker rm scone-packages
 
 # install the packages
 sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
 sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
 sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
-sudo dpkg -i /tmp/packages/k8s-scone.deb
-sudo dpkg -i /tmp/packages/kubectl-scone.deb 
+
+# install binaries on host
+sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure
 
 # clean up
 rm -rf /tmp/packages
+rm -rf /tmp/scone-bin
 ```
 
 We ensure that `kubectl-scone` plugin only exists once - otherwise, `kubectl` issues a warning:
@@ -138,16 +150,19 @@ if [[ -e /usr/bin/kubectl-scone && -e /bin/kubectl-scone ]] ; then
 fi
 ```
 
-Check that the `scone` cli is properly installed by executing:
+Check that all required commands are properly installed by executing:
 
 ```bash
 echo "Expecting SCONE version: $SCONE_VERSION"
 scone --version
+kubectl scone --help >/dev/null
+kubectl scone-azure --help >/dev/null
+scone-td-build --help >/dev/null
 ```
 
 This should execute the same SCONE version as the previously printed latest stable version.
-(The minimal version is 6.0.0)
+(The minimal version is 7.0.0). The `--help` checks should also complete successfully.
 
 ```bash
-  echo "✅ All scone-related executable installed"
+  echo "✅ All required SCONE commands installed"
 ```
