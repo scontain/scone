@@ -47,6 +47,7 @@ To run our commands and transform manifests and container images, we need a set 
 - `cosign`: signs and verifies container image signatures
 - `docker`: builds and runs Docker images
 - `kubectl`: command-line interface for Kubernetes
+- `helm`: package manager for Kubernetes
 - `yq`: processes YAML documents
 - `sed`: manipulates text files
 - `gh`: GitHub command-line interface
@@ -124,6 +125,15 @@ if ! check_command kubectl; then
   echo "✔️ kubectl installed successfully."
 else
   echo "✔️ kubectl is already installed."
+fi
+
+# Auto-install Helm if not present
+if ! check_command helm; then
+  echo "📥 Installing Helm..."
+  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  echo "✔️ Helm installed successfully."
+else
+  echo "✔️ Helm is already installed."
 fi
 
 install_yq_v4() {
