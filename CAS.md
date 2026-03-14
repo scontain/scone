@@ -1,15 +1,14 @@
 # Deploying a CAS instance
 
-We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster. 
+We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster.
 
 ![Screencast](docs/install_cas.gif)
 
-- First, we check that we have access to the cluster and the SCONE platform is already installed. 
-- Second, we ask the user for the name and the namespace of the CAS. 
+- First, we check that we have access to the cluster and the SCONE platform is already installed.
+- Second, we ask the user for the name and the namespace of the CAS.
 - Third, we call `kubectl provision` to install the CAS.
 
 ## Steps
-
 
 1. Ensure that the SCONE operator is installed and up-to-date (see [scone_operator](scone_operator.md))
 
@@ -46,7 +45,6 @@ fi
 echo "✅ 'kubectl-scone' plugin is available."
 ```
 
-
 3. Ensure that SGX Plugin and Local Attestation Service (LAS) are `HEALTHY`
 
 First, we check the state of the SGX Plugin. For the LAS to be healthy, the SGX Plugin must be healthy:
@@ -64,7 +62,6 @@ fi
 
 Next, we check that the LAS is healthy:
 
-
 ```bash
 # Try to extract the STATE field (assuming kubectl output includes a column "STATE")
 STATE=$(kubectl get las las -o jsonpath='{.status.state}' 2>/dev/null || true)
@@ -80,27 +77,34 @@ echo "✅ LAS state is HEALTHY."
 
 4. We determine your Intel API Key
 
-Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable: 
+For non-Azure clusters, please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:
 
 ```
 export DCAP_KEY="..."
 ```
 
+For Azure clusters, do not create a DCAP key in the Intel portal. Keep `DCAP_KEY` unset (or at the default placeholder), and run provisioning without `--dcap-api`. The code block below detects Azure nodes and automatically skips the DCAP prompt and argument.
+
 In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:
 
 ```bash
-    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
-    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
-    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
-        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
+    export IS_AZURE_CLUSTER=0
+    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then
+        export IS_AZURE_CLUSTER=1
+    else
+      export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+      export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+      if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+          echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+          EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
 
-        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
-            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
-        else
-            DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
-        fi
+          if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
+              echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
+          else
+              DCAP_KEY="$EXISTING_DCAP_KEY"
+              echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+          fi
+      fi
     fi
 ```
 
@@ -108,7 +112,11 @@ In case we use the default DCAP API key, we ask the user for some input:
 
 ```bash
 # Check if DCAP_KEY is empty or unset
-if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then
+  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."
+  export DCAP_ARG=""
+
+elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
   while true; do
     read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input
 
@@ -274,7 +282,7 @@ fi
 echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK."
 ```
 
-10. Installing the CAS 
+10. Installing the CAS
 
 The following statement installs the CAS and waits until the CAS becomes healthy:
 

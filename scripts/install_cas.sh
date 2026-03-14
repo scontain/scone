@@ -10,16 +10,15 @@ RESET='\033[0m'
 printf "${VIOLET}"
 printf '%s\n' '# Deploying a CAS instance'
 printf '%s\n' ''
-printf '%s\n' 'We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster. '
+printf '%s\n' 'We deploy a SCONE CAS (i.e., a Configuration and Attestation Service) in the default cluster.'
 printf '%s\n' ''
 printf '%s\n' '![Screencast](docs/install_cas.gif)'
 printf '%s\n' ''
-printf '%s\n' '- First, we check that we have access to the cluster and the SCONE platform is already installed. '
-printf '%s\n' '- Second, we ask the user for the name and the namespace of the CAS. '
+printf '%s\n' '- First, we check that we have access to the cluster and the SCONE platform is already installed.'
+printf '%s\n' '- Second, we ask the user for the name and the namespace of the CAS.'
 printf '%s\n' '- Third, we call `kubectl provision` to install the CAS.'
 printf '%s\n' ''
 printf '%s\n' '## Steps'
-printf '%s\n' ''
 printf '%s\n' ''
 printf '%s\n' '1. Ensure that the SCONE operator is installed and up-to-date (see [scone_operator](scone_operator.md))'
 printf '%s\n' ''
@@ -91,7 +90,6 @@ echo "✅ 'kubectl-scone' plugin is available."
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' ''
 printf '%s\n' '3. Ensure that SGX Plugin and Local Attestation Service (LAS) are `HEALTHY`'
 printf '%s\n' ''
 printf '%s\n' 'First, we check the state of the SGX Plugin. For the LAS to be healthy, the SGX Plugin must be healthy:'
@@ -121,7 +119,6 @@ fi
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'Next, we check that the LAS is healthy:'
-printf '%s\n' ''
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -153,42 +150,54 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '4. We determine your Intel API Key'
 printf '%s\n' ''
-printf '%s\n' 'Please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable: '
+printf '%s\n' 'For non-Azure clusters, please visit <https://api.portal.trustedservices.intel.com/manage-subscriptions> to generate or copy your DCAP API Key. Store this API key in a local environment variable:'
 printf '%s\n' ''
 printf '%s\n' 'export DCAP_KEY="..."'
+printf '%s\n' ''
+printf '%s\n' 'For Azure clusters, do not create a DCAP key in the Intel portal. Keep `DCAP_KEY` unset (or at the default placeholder), and run provisioning without `--dcap-api`. The code block below detects Azure nodes and automatically skips the DCAP prompt and argument.'
 printf '%s\n' ''
 printf '%s\n' 'In case your cluster has already been installed, you can extract the DCAP_API_KEY as follows:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
-printf '%s\n' '    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}'
-printf '%s\n' '    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then'
-printf '%s\n' '        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"'
-printf '%s\n' '        EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '\''.spec.dcapKey'\'' )'
+printf '%s\n' '    export IS_AZURE_CLUSTER=0'
+printf '%s\n' '    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then'
+printf '%s\n' '        export IS_AZURE_CLUSTER=1'
+printf '%s\n' '    else'
+printf '%s\n' '      export DEFAULT_DCAP_KEY="00000000000000000000000000000000"'
+printf '%s\n' '      export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}'
+printf '%s\n' '      if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then'
+printf '%s\n' '          echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"'
+printf '%s\n' '          EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '\''.spec.dcapKey'\'' )'
 printf '%s\n' ''
-printf '%s\n' '        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then'
-printf '%s\n' '            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."'
-printf '%s\n' '        else'
-printf '%s\n' '            DCAP_KEY="$EXISTING_DCAP_KEY"'
-printf '%s\n' '            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."'
-printf '%s\n' '        fi'
+printf '%s\n' '          if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then'
+printf '%s\n' '              echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."'
+printf '%s\n' '          else'
+printf '%s\n' '              DCAP_KEY="$EXISTING_DCAP_KEY"'
+printf '%s\n' '              echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."'
+printf '%s\n' '          fi'
+printf '%s\n' '      fi'
 printf '%s\n' '    fi'
 printf "${RESET}"
 
-    export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
-    export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
-    if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
-        echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
-        EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
+    export IS_AZURE_CLUSTER=0
+    if kubectl get nodes -o jsonpath="{range .items[*]}{.spec.providerID}{\"\n\"}{end}" 2> /dev/null | grep -qi "^azure://"; then
+        export IS_AZURE_CLUSTER=1
+    else
+      export DEFAULT_DCAP_KEY="00000000000000000000000000000000"
+      export DCAP_KEY=${DCAP_KEY:-$DEFAULT_DCAP_KEY}
+      if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]] ; then
+          echo "WARNING: No DCAP API Key in environment variable DCAP_KEY specified"
+          EXISTING_DCAP_KEY=$(kubectl get las las -o json | jq -r '.spec.dcapKey' )
 
-        if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
-            echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
-        else
-            DCAP_KEY="$EXISTING_DCAP_KEY"
-            echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
-        fi
+          if [[ "$EXISTING_DCAP_KEY" == "null" ]] ; then
+              echo "WARNING: Extraction of DCAP_KEY from LAS failed - using default DCAP_KEY=$DEFAULT_DCAP_KEY - not recommended."
+          else
+              DCAP_KEY="$EXISTING_DCAP_KEY"
+              echo "WARNING: Using DCAP_KEY extracted from LAS - not recommended."
+          fi
+      fi
     fi
 
 printf "${VIOLET}"
@@ -199,7 +208,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Check if DCAP_KEY is empty or unset'
-printf '%s\n' 'if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then'
+printf '%s\n' 'if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then'
+printf '%s\n' '  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."'
+printf '%s\n' '  export DCAP_ARG=""'
+printf '%s\n' ''
+printf '%s\n' 'elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then'
 printf '%s\n' '  while true; do'
 printf '%s\n' '    read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input'
 printf '%s\n' ''
@@ -223,7 +236,11 @@ printf '%s\n' 'fi'
 printf "${RESET}"
 
 # Check if DCAP_KEY is empty or unset
-if [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
+if [[ "$IS_AZURE_CLUSTER" == "1" ]]; then
+  echo "Azure cluster detected: skipping DCAP_KEY prompt and --dcap-api argument."
+  export DCAP_ARG=""
+
+elif [[ "$DCAP_KEY" == "$DEFAULT_DCAP_KEY" ]]; then
   while true; do
     read -rp "Please enter a 32-character hexadecimal DCAP_KEY: " input
 
@@ -527,7 +544,7 @@ echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '10. Installing the CAS '
+printf '%s\n' '10. Installing the CAS'
 printf '%s\n' ''
 printf '%s\n' 'The following statement installs the CAS and waits until the CAS becomes healthy:'
 printf '%s\n' ''
