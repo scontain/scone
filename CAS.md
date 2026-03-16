@@ -142,8 +142,13 @@ fi
 5. Determine the current stable version of the SCONE platform:
 
 ```bash
-export VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
-echo "The lastest stable version of SCONE is $VERSION"
+if [ -z "${SCONE_VERSION+x}" ]; then
+  echo "Environment variable SCONE_VERSION is not set - determining the latest stable version of SCONE"
+  SCONE_VERSION=$(curl -L -s https://raw.githubusercontent.com/scontain/scone/refs/heads/main/stable.txt)
+  echo "The latest stable version of SCONE is $SCONE_VERSION"
+else
+  echo "Environment variable SCONE_VERSION is set to $SCONE_VERSION"
+fi
 ```
 
 6. Ensure that Persistent Volumes exist
@@ -255,7 +260,7 @@ fi
 echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
-read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
+read -rp "Do you want to proceed install version $SCONE_VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
 confirm=${confirm,,}  # Convert to lowercase
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
@@ -287,10 +292,29 @@ echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK
 The following statement installs the CAS and waits until the CAS becomes healthy:
 
 ```bash
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+CAS_CONFIG_DIR="${HOME}/.cas/owner-config"
+strip_dcap_from_config() {
+  (while true; do
+    if [ -f "${CAS_CONFIG_DIR}/config.toml" ] && grep -q '^\[dcap\]' "${CAS_CONFIG_DIR}/config.toml" 2>/dev/null; then
+      sed -i '/^\[dcap\]/,/^$/d' "${CAS_CONFIG_DIR}/config.toml"
+    fi
+    sleep 0.2
+  done) >/dev/null 2>&1 &
+  echo $!
+}
+
+WATCHER_PID=$(strip_dcap_from_config)
+trap "kill $WATCHER_PID 2>/dev/null" EXIT
+
+export SGX_TOLERATIONS="${SGX_TOLERATIONS:---accept-configuration-needed --accept-group-out-of-date --accept-sw-hardening-needed --isvprodid 41316 --isvsvn 5 --mrsigner 195e5a6df987d6a515dd083750c1ea352283f8364d3ec9142b0d593988c6ed2d}"
+
+if ! kubectl provision cas --verbose --wait --set-version $SCONE_VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+  kill $WATCHER_PID 2>/dev/null
   echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
   exit 1
 fi
+
+kill $WATCHER_PID 2>/dev/null
 ```
 
 Finally, we show the status of the CAS
