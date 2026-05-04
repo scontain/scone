@@ -330,23 +330,19 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+    docker cp scone-packages:/scone-td-build.deb /tmp/scone-bin/;
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/kubectl-scone.deb /tmp/scone-bin/;
+EOF
+)"
+pe "$(cat <<'EOF'
+    docker cp scone-packages:/kubectl-scone-azure.deb /tmp/scone-bin/;
+EOF
+)"
+pe "$(cat <<'EOF'
 }
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ || echo "ERROR: 'scone-td-build' not available"
-EOF
-)"
-pe "$(cat <<'EOF'
-docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ || echo "ERROR: 'kubectl scone' not available"
-EOF
-)"
-pe "$(cat <<'EOF'
-docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/  || echo "ERROR: 'kubectl-scone-azure' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
