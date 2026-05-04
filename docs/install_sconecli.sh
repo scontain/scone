@@ -354,6 +354,22 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)
+EOF
+)"
+pe "$(cat <<'EOF'
+[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }
+EOF
+)"
+pe "$(cat <<'EOF'
+docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
 docker rm scone-packages
 EOF
 )"
@@ -375,6 +391,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i "/tmp/$SCONE_GLIBC_DEB"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -411,6 +431,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 rm -rf /tmp/scone-bin
+EOF
+)"
+pe "$(cat <<'EOF'
+rm -f "/tmp/$SCONE_GLIBC_DEB"
 EOF
 )"
 
