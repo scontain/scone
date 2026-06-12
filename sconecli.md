@@ -116,9 +116,9 @@ docker cp scone-packages:/packages /tmp || {
     docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
 }
 
-docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/
-docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/
-docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ || echo "ERROR: 'scone-td-build' not available"
+docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ || echo "ERROR: 'kubectl scone' not available"
+docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/  || echo "ERROR: 'kubectl-scone-azure' not available"
 
 docker rm scone-packages
 
@@ -128,9 +128,9 @@ sudo dpkg -i /tmp/packages/scone-libc_amd64.deb
 sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
 
 # install binaries on host
-sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure
+sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: 'scone-td-build' not available"
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone || echo "ERROR: 'kubectl scone' not available"
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure  || echo "ERROR: 'kubectl-scone-azure' not available"
 
 # clean up
 rm -rf /tmp/packages
@@ -155,9 +155,9 @@ Check that all required commands are properly installed by executing:
 ```bash
 echo "Expecting SCONE version: $SCONE_VERSION"
 scone --version
-kubectl scone --help >/dev/null
-kubectl scone-azure --help >/dev/null
-scone-td-build --help >/dev/null
+kubectl scone --help >/dev/null  || echo "ERROR: 'kubectl scone' not available"
+kubectl scone-azure --help >/dev/null || echo "ERROR: 'kubectl scone-azure' not available"
+scone-td-build --help >/dev/null  || echo "ERROR: 'scone-td-build' not available"
 ```
 
 This should execute the same SCONE version as the previously printed latest stable version.

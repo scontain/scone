@@ -67,6 +67,10 @@ pe "$(cat <<'EOF'
 export SCONE_VERSION=$(cat stable.txt)
 EOF
 )"
+pe "$(cat <<'EOF'
+export WD=$PWD
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -881,7 +885,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )
+  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
 EOF
 )"
 pe "$(cat <<'EOF'

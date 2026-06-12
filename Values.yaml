@@ -1,8 +1,8 @@
 environment:
   REGISTRY: registry.scontain.com
-  SCONE_VERSION: 7.0.0-alpha.1
+  SCONE_VERSION: 6.0.7
   CLI_IMAGE: registry.scontain.com/workshop/scone
   CLI_NAMESPACE: scone-tools
-  CAS: cas1
+  CAS: cas
   CAS_NAMESPACE: default
   VERSION: 6.0.2

@@ -22,9 +22,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'export SCONE_VERSION=$(cat stable.txt)'
+printf '%s\n' 'export WD=$PWD'
 printf "${RESET}"
 
 export SCONE_VERSION=$(cat stable.txt)
+export WD=$PWD
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -548,13 +550,13 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'if [[ $install_sconeapps_secret == 1 ]] ; then'
 printf '%s\n' '    # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )'
+printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )'
 printf '%s\n' ''
 printf "${RESET}"
 
 if [[ $install_sconeapps_secret == 1 ]] ; then
     # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )
+  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
 
 
 printf "${VIOLET}"

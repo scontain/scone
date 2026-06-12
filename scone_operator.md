@@ -10,6 +10,7 @@ You can execute the steps automatically by running the script `scripts/reconcile
 
 ```bash
 export SCONE_VERSION=$(cat stable.txt)
+export WD=$PWD
 ```
 
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
@@ -290,7 +291,7 @@ ask the user to input the values for these variables:
 ```bash
 if [[ $install_sconeapps_secret == 1 ]] ; then
     # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval --force )
+  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
 
 ```
 

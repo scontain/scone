@@ -338,15 +338,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ || echo "ERROR: 'scone-td-build' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
-docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ || echo "ERROR: 'kubectl scone' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
-docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/
+docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/  || echo "ERROR: 'kubectl-scone-azure' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -386,15 +386,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build
+sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: 'scone-td-build' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone || echo "ERROR: 'kubectl scone' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure
+sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure  || echo "ERROR: 'kubectl-scone-azure' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -468,15 +468,15 @@ scone --version
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone --help >/dev/null
+kubectl scone --help >/dev/null  || echo "ERROR: 'kubectl scone' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone-azure --help >/dev/null
+kubectl scone-azure --help >/dev/null || echo "ERROR: 'kubectl scone-azure' not available"
 EOF
 )"
 pe "$(cat <<'EOF'
-scone-td-build --help >/dev/null
+scone-td-build --help >/dev/null  || echo "ERROR: 'scone-td-build' not available"
 EOF
 )"
 
