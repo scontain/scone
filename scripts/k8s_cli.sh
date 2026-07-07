@@ -142,10 +142,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export CLI_NAMESPACE="scone-tools"'
+printf '%s\n' 'CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"'
 printf "${RESET}"
 
-export CLI_NAMESPACE="scone-tools"
+export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"
 
 printf "${VIOLET}"
 printf '%s\n' ''
