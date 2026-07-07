@@ -194,6 +194,22 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Map SCONE_REGISTRY_* env vars to the names expected by tplenv
+EOF
+)"
+pe "$(cat <<'EOF'
+export REGISTRY_USER="${REGISTRY_USER:-${SCONE_REGISTRY_USERNAME:-}}"
+EOF
+)"
+pe "$(cat <<'EOF'
+export REGISTRY_TOKEN="${REGISTRY_TOKEN:-${SCONE_REGISTRY_ACCESS_TOKEN:-}}"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
 eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 EOF
 )"

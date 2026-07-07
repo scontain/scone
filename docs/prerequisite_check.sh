@@ -118,7 +118,27 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-export SCONE_VERSION=$(cat stable.txt)
+if [ -z "${SCONE_VERSION+x}" ]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  export SCONE_VERSION=$(cat stable.txt)
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "SCONE_VERSION not set - using stable.txt: $SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "SCONE_VERSION is set to $SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
 EOF
 )"
 
