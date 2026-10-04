@@ -190,11 +190,14 @@ printf '%s\n' 'docker cp scone-packages:/packages /tmp || {'
 printf '%s\n' '    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;'
 printf '%s\n' '    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;'
 printf '%s\n' '    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;'
+printf '%s\n' '    docker cp scone-packages:/scone-td-build.deb /tmp/scone-bin/;'
+printf '%s\n' '    docker cp scone-packages:/kubectl-scone.deb /tmp/scone-bin/;'
+printf '%s\n' '    docker cp scone-packages:/kubectl-scone-azure.deb /tmp/scone-bin/;'
 printf '%s\n' '}'
 printf '%s\n' ''
-printf '%s\n' 'docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ || echo "ERROR: '\''scone-td-build'\'' not available"'
-printf '%s\n' 'docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ || echo "ERROR: '\''kubectl scone'\'' not available"'
-printf '%s\n' 'docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/  || echo "ERROR: '\''kubectl-scone-azure'\'' not available"'
+printf '%s\n' 'export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)'
+printf '%s\n' '[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }'
+printf '%s\n' 'docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/'
 printf '%s\n' ''
 printf '%s\n' 'docker rm scone-packages'
 printf '%s\n' ''
@@ -202,6 +205,7 @@ printf '%s\n' '# install the packages'
 printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-common_amd64.deb '
 printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-libc_amd64.deb '
 printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-cli_amd64.deb '
+printf '%s\n' 'sudo dpkg -i "/tmp/$SCONE_GLIBC_DEB"'
 printf '%s\n' ''
 printf '%s\n' '# install binaries on host'
 printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: '\''scone-td-build'\'' not available"'
@@ -211,6 +215,7 @@ printf '%s\n' ''
 printf '%s\n' '# clean up'
 printf '%s\n' 'rm -rf /tmp/packages'
 printf '%s\n' 'rm -rf /tmp/scone-bin'
+printf '%s\n' 'rm -f "/tmp/$SCONE_GLIBC_DEB"'
 printf "${RESET}"
 
 # copy Debian packages and required binaries
@@ -220,11 +225,14 @@ docker cp scone-packages:/packages /tmp || {
     docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
     docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
     docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
+    docker cp scone-packages:/scone-td-build.deb /tmp/scone-bin/;
+    docker cp scone-packages:/kubectl-scone.deb /tmp/scone-bin/;
+    docker cp scone-packages:/kubectl-scone-azure.deb /tmp/scone-bin/;
 }
 
-docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ || echo "ERROR: 'scone-td-build' not available"
-docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ || echo "ERROR: 'kubectl scone' not available"
-docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/  || echo "ERROR: 'kubectl-scone-azure' not available"
+export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)
+[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }
+docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/
 
 docker rm scone-packages
 
@@ -232,6 +240,7 @@ docker rm scone-packages
 sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
 sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
 sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
+sudo dpkg -i "/tmp/$SCONE_GLIBC_DEB"
 
 # install binaries on host
 sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: 'scone-td-build' not available"
@@ -241,6 +250,7 @@ sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-s
 # clean up
 rm -rf /tmp/packages
 rm -rf /tmp/scone-bin
+rm -f "/tmp/$SCONE_GLIBC_DEB"
 
 printf "${VIOLET}"
 printf '%s\n' ''
