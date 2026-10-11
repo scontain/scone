@@ -818,20 +818,132 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Next, we run the `operator_controller` to check if the proper version is installed:'
+printf '%s\n' 'We refuse to silently downgrade an installed operator. Set `ALLOW_DOWNGRADE=1` to downgrade on purpose:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl get deployment scone-controller-manager -n scone-system -o json | \
-  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \
-  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."
+INSTALLED_OPERATOR_VERSION=$(kubectl get deployment scone-controller-manager -n scone-system -o json 2>/dev/null | \
+  jq -r '.spec.template.spec.containers[0].image // "" | split(":") | last' || true)
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -n "$INSTALLED_OPERATOR_VERSION" && "$INSTALLED_OPERATOR_VERSION" != "$SCONE_VERSION" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  NEWER_VERSION=$(printf '%s\n%s\n' "$INSTALLED_OPERATOR_VERSION" "$SCONE_VERSION" | sort -V | tail -n1)
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ "$NEWER_VERSION" == "$INSTALLED_OPERATOR_VERSION" && "${ALLOW_DOWNGRADE:-0}" != "1" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "ERROR: installed SCONE operator $INSTALLED_OPERATOR_VERSION is newer than $SCONE_VERSION."
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "       Set ALLOW_DOWNGRADE=1 to downgrade. Resources written by 7.x may need 'autoUpdate: false' first."
+EOF
+)"
+pe "$(cat <<'EOF'
+    operator_cleanup
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.'
+printf '%s\n' 'Next, we check if the proper version of the operator, LAS and SGX plugin is installed and healthy:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+OPERATOR_OK=false
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl get deployment scone-controller-manager -n scone-system -o json 2>/dev/null | \
+  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | endswith(\":$SCONE_VERSION\"))" >/dev/null && OPERATOR_OK=true
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+COMPONENTS_OK=true
+EOF
+)"
+pe "$(cat <<'EOF'
+for KIND in las sgxplugin ; do
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl get "$KIND" -o json 2>/dev/null | \
+    jq -e "(.items | length > 0) and all(.items[]; (.spec.image | endswith(\":$SCONE_VERSION\")) and .status.state == \"HEALTHY\")" >/dev/null || {
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo "$KIND is not installed, not healthy, or not on version $SCONE_VERSION."
+EOF
+)"
+pe "$(cat <<'EOF'
+      COMPONENTS_OK=false
+EOF
+)"
+pe "$(cat <<'EOF'
+    }
+EOF
+)"
+pe "$(cat <<'EOF'
+done
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ "$OPERATOR_OK" == "true" && "$COMPONENTS_OK" == "true" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "SCONE Version $SCONE_VERSION already installed"
+EOF
+)"
+pe "$(cat <<'EOF'
+  operator_cleanup
+EOF
+)"
+pe "$(cat <<'EOF'
+  exit 0
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+echo "SCONE operator, LAS or SGX plugin is not installed, ready or on version $SCONE_VERSION."
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'If the operator, LAS and SGX plugin all run the latest stable version and are healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.'
 printf '%s\n' ''
 printf '%s\n' 'In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. We ignore if the removal fails because vault crd might not exist:'
 printf '%s\n' ''

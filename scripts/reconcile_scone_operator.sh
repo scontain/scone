@@ -490,23 +490,87 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Next, we run the `operator_controller` to check if the proper version is installed:'
+printf '%s\n' 'We refuse to silently downgrade an installed operator. Set `ALLOW_DOWNGRADE=1` to downgrade on purpose:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl get deployment scone-controller-manager -n scone-system -o json | \'
-printf '%s\n' '  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \'
-printf '%s\n' '  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."'
+printf '%s\n' 'INSTALLED_OPERATOR_VERSION=$(kubectl get deployment scone-controller-manager -n scone-system -o json 2>/dev/null | \'
+printf '%s\n' '  jq -r '\''.spec.template.spec.containers[0].image // "" | split(":") | last'\'' || true)'
+printf '%s\n' 'if [[ -n "$INSTALLED_OPERATOR_VERSION" && "$INSTALLED_OPERATOR_VERSION" != "$SCONE_VERSION" ]]; then'
+printf '%s\n' '  NEWER_VERSION=$(printf '\''%s\n%s\n'\'' "$INSTALLED_OPERATOR_VERSION" "$SCONE_VERSION" | sort -V | tail -n1)'
+printf '%s\n' '  if [[ "$NEWER_VERSION" == "$INSTALLED_OPERATOR_VERSION" && "${ALLOW_DOWNGRADE:-0}" != "1" ]]; then'
+printf '%s\n' '    echo "ERROR: installed SCONE operator $INSTALLED_OPERATOR_VERSION is newer than $SCONE_VERSION."'
+printf '%s\n' '    echo "       Set ALLOW_DOWNGRADE=1 to downgrade. Resources written by 7.x may need '\''autoUpdate: false'\'' first."'
+printf '%s\n' '    operator_cleanup'
+printf '%s\n' '    exit 1'
+printf '%s\n' '  fi'
+printf '%s\n' 'fi'
 printf "${RESET}"
 
-kubectl get deployment scone-controller-manager -n scone-system -o json | \
-  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \
-  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."
+INSTALLED_OPERATOR_VERSION=$(kubectl get deployment scone-controller-manager -n scone-system -o json 2>/dev/null | \
+  jq -r '.spec.template.spec.containers[0].image // "" | split(":") | last' || true)
+if [[ -n "$INSTALLED_OPERATOR_VERSION" && "$INSTALLED_OPERATOR_VERSION" != "$SCONE_VERSION" ]]; then
+  NEWER_VERSION=$(printf '%s\n%s\n' "$INSTALLED_OPERATOR_VERSION" "$SCONE_VERSION" | sort -V | tail -n1)
+  if [[ "$NEWER_VERSION" == "$INSTALLED_OPERATOR_VERSION" && "${ALLOW_DOWNGRADE:-0}" != "1" ]]; then
+    echo "ERROR: installed SCONE operator $INSTALLED_OPERATOR_VERSION is newer than $SCONE_VERSION."
+    echo "       Set ALLOW_DOWNGRADE=1 to downgrade. Resources written by 7.x may need 'autoUpdate: false' first."
+    operator_cleanup
+    exit 1
+  fi
+fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'If the latest stable version is installed and healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.'
+printf '%s\n' 'Next, we check if the proper version of the operator, LAS and SGX plugin is installed and healthy:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'OPERATOR_OK=false'
+printf '%s\n' 'kubectl get deployment scone-controller-manager -n scone-system -o json 2>/dev/null | \'
+printf '%s\n' '  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | endswith(\":$SCONE_VERSION\"))" >/dev/null && OPERATOR_OK=true'
+printf '%s\n' ''
+printf '%s\n' 'COMPONENTS_OK=true'
+printf '%s\n' 'for KIND in las sgxplugin ; do'
+printf '%s\n' '  kubectl get "$KIND" -o json 2>/dev/null | \'
+printf '%s\n' '    jq -e "(.items | length > 0) and all(.items[]; (.spec.image | endswith(\":$SCONE_VERSION\")) and .status.state == \"HEALTHY\")" >/dev/null || {'
+printf '%s\n' '      echo "$KIND is not installed, not healthy, or not on version $SCONE_VERSION."'
+printf '%s\n' '      COMPONENTS_OK=false'
+printf '%s\n' '    }'
+printf '%s\n' 'done'
+printf '%s\n' ''
+printf '%s\n' 'if [[ "$OPERATOR_OK" == "true" && "$COMPONENTS_OK" == "true" ]]; then'
+printf '%s\n' '  echo "SCONE Version $SCONE_VERSION already installed"'
+printf '%s\n' '  operator_cleanup'
+printf '%s\n' '  exit 0'
+printf '%s\n' 'fi'
+printf '%s\n' 'echo "SCONE operator, LAS or SGX plugin is not installed, ready or on version $SCONE_VERSION."'
+printf "${RESET}"
+
+OPERATOR_OK=false
+kubectl get deployment scone-controller-manager -n scone-system -o json 2>/dev/null | \
+  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | endswith(\":$SCONE_VERSION\"))" >/dev/null && OPERATOR_OK=true
+
+COMPONENTS_OK=true
+for KIND in las sgxplugin ; do
+  kubectl get "$KIND" -o json 2>/dev/null | \
+    jq -e "(.items | length > 0) and all(.items[]; (.spec.image | endswith(\":$SCONE_VERSION\")) and .status.state == \"HEALTHY\")" >/dev/null || {
+      echo "$KIND is not installed, not healthy, or not on version $SCONE_VERSION."
+      COMPONENTS_OK=false
+    }
+done
+
+if [[ "$OPERATOR_OK" == "true" && "$COMPONENTS_OK" == "true" ]]; then
+  echo "SCONE Version $SCONE_VERSION already installed"
+  operator_cleanup
+  exit 0
+fi
+echo "SCONE operator, LAS or SGX plugin is not installed, ready or on version $SCONE_VERSION."
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'If the operator, LAS and SGX plugin all run the latest stable version and are healthy, we can stop here. Otherwise, if we need to update or reconcile the platform, please continue with step 5. If the SCONE platform is not yet installed, please continue with step 6.'
 printf '%s\n' ''
 printf '%s\n' 'In case we upgrade from version 5 to version 6, we need to delete CRD `vault`. We ignore if the removal fails because vault crd might not exist:'
 printf '%s\n' ''
