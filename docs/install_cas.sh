@@ -1008,7 +1008,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  COND=HEALTHY TIMEOUT=600 INTERVAL=5 NAMESPACE="$CAS_NAMESPACE" scripts/wait-crd-state.sh cas
+  COND=HEALTHY TIMEOUT=600 INTERVAL=5 NAMESPACE="$CAS_NAMESPACE" NAME="$CAS" scripts/wait-crd-state.sh cas
 EOF
 )"
 pe "$(cat <<'EOF'

@@ -307,7 +307,7 @@ if [[ "$SMALL_CLUSTER" == "true" && "${ALLOW_CAS_WITHOUT_SAFETY_SERVICE:-0}" == 
     exit 1
   fi
   kubectl patch cas "$CAS" -n "$CAS_NAMESPACE" --type merge -p '{"spec":{"safetyService":{"enabled":false}}}'
-  COND=HEALTHY TIMEOUT=600 INTERVAL=5 NAMESPACE="$CAS_NAMESPACE" scripts/wait-crd-state.sh cas
+  COND=HEALTHY TIMEOUT=600 INTERVAL=5 NAMESPACE="$CAS_NAMESPACE" NAME="$CAS" scripts/wait-crd-state.sh cas
 else
   if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
     echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
