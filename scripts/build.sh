@@ -157,7 +157,7 @@ if [[ "${RUN_TEST}" == true ]]; then
     if [[ -d scone-td-build-demos/.git ]]; then
       git -C scone-td-build-demos pull --ff-only
     else
-      git clone https://github.com/scontainug/scone-td-build-demos
+      git clone https://github.com/scontain-gmbh/scone-td-build-demos
     fi
     cd scone-td-build-demos
     unset CONFIRM_ALL_ENVIRONMENT_VARIABLES
