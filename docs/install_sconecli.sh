@@ -366,6 +366,64 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# scone-td-build and the kubectl plugins are not in every release's package image (e.g. 6.0.8).
+EOF
+)"
+pe "$(cat <<'EOF'
+[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {
+EOF
+)"
+pe "$(cat <<'EOF'
+    # Fall back to a separate scone-td-build image if one is configured.
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker rm scone-td-build-packages 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \
+          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \
+          || echo "ERROR: 'scone-td-build' not available in $SCONE_TD_BUILD_IMAGE"
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker rm scone-td-build-packages > /dev/null 2>&1 || true
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "ERROR: 'scone-td-build' not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image that contains /usr/local/bin/scone-td-build)"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+[[ -e /tmp/scone-bin/kubectl-scone ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl scone' not available"
+EOF
+)"
+pe "$(cat <<'EOF'
+[[ -e /tmp/scone-bin/kubectl-scone-azure ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl-scone-azure' not available"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
 docker rm scone-packages
 EOF
 )"
@@ -484,31 +542,58 @@ echo "Expecting SCONE version: $SCONE_VERSION"
 EOF
 )"
 pe "$(cat <<'EOF'
-scone --version
+MISSING_COMMANDS=""
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone --help >/dev/null  || echo "ERROR: 'kubectl scone' not available"
+scone --version || MISSING_COMMANDS="$MISSING_COMMANDS scone"
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone-azure --help >/dev/null || echo "ERROR: 'kubectl scone-azure' not available"
+kubectl scone --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone"
 EOF
 )"
 pe "$(cat <<'EOF'
-scone-td-build --help >/dev/null  || echo "ERROR: 'scone-td-build' not available"
+kubectl scone-azure --help >/dev/null || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone-azure"
+EOF
+)"
+pe "$(cat <<'EOF'
+scone-td-build --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS scone-td-build"
+EOF
+)"
+pe "$(cat <<'EOF'
+scone-td-build --version 2>/dev/null || true
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'This should execute the same SCONE version as the previously printed latest stable version.'
-printf '%s\n' '(The minimal version is 7.0.0). The `--help` checks should also complete successfully.'
+printf '%s\n' 'The `--help` checks should also complete successfully. The `scone-td-build-demos` need'
+printf '%s\n' '`scone-td-build` 0.4.0 or newer.'
+printf '%s\n' ''
+printf '%s\n' 'We stop with an error if any command is missing:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-  echo "✅ All required SCONE commands installed"
+if [[ -n "$MISSING_COMMANDS" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "❌ Missing SCONE commands:$MISSING_COMMANDS"
+EOF
+)"
+pe "$(cat <<'EOF'
+  exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+echo "✅ All required SCONE commands installed"
 EOF
 )"
 

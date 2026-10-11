@@ -199,6 +199,22 @@ printf '%s\n' 'export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | 
 printf '%s\n' '[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }'
 printf '%s\n' 'docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/'
 printf '%s\n' ''
+printf '%s\n' '# scone-td-build and the kubectl plugins are not in every release'\''s package image (e.g. 6.0.8).'
+printf '%s\n' '[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {'
+printf '%s\n' '    # Fall back to a separate scone-td-build image if one is configured.'
+printf '%s\n' '    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then'
+printf '%s\n' '        docker rm scone-td-build-packages 2> /dev/null || true'
+printf '%s\n' '        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \'
+printf '%s\n' '          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \'
+printf '%s\n' '          || echo "ERROR: '\''scone-td-build'\'' not available in $SCONE_TD_BUILD_IMAGE"'
+printf '%s\n' '        docker rm scone-td-build-packages > /dev/null 2>&1 || true'
+printf '%s\n' '    else'
+printf '%s\n' '        echo "ERROR: '\''scone-td-build'\'' not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image that contains /usr/local/bin/scone-td-build)"'
+printf '%s\n' '    fi'
+printf '%s\n' '}'
+printf '%s\n' '[[ -e /tmp/scone-bin/kubectl-scone ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ 2>/dev/null || echo "ERROR: '\''kubectl scone'\'' not available"'
+printf '%s\n' '[[ -e /tmp/scone-bin/kubectl-scone-azure ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/ 2>/dev/null || echo "ERROR: '\''kubectl-scone-azure'\'' not available"'
+printf '%s\n' ''
 printf '%s\n' 'docker rm scone-packages'
 printf '%s\n' ''
 printf '%s\n' '# install the packages'
@@ -233,6 +249,22 @@ docker cp scone-packages:/packages /tmp || {
 export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)
 [[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }
 docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/
+
+# scone-td-build and the kubectl plugins are not in every release's package image (e.g. 6.0.8).
+[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {
+    # Fall back to a separate scone-td-build image if one is configured.
+    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then
+        docker rm scone-td-build-packages 2> /dev/null || true
+        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \
+          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \
+          || echo "ERROR: 'scone-td-build' not available in $SCONE_TD_BUILD_IMAGE"
+        docker rm scone-td-build-packages > /dev/null 2>&1 || true
+    else
+        echo "ERROR: 'scone-td-build' not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image that contains /usr/local/bin/scone-td-build)"
+    fi
+}
+[[ -e /tmp/scone-bin/kubectl-scone ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl scone' not available"
+[[ -e /tmp/scone-bin/kubectl-scone-azure ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl-scone-azure' not available"
 
 docker rm scone-packages
 
@@ -286,28 +318,43 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'echo "Expecting SCONE version: $SCONE_VERSION"'
-printf '%s\n' 'scone --version'
-printf '%s\n' 'kubectl scone --help >/dev/null  || echo "ERROR: '\''kubectl scone'\'' not available"'
-printf '%s\n' 'kubectl scone-azure --help >/dev/null || echo "ERROR: '\''kubectl scone-azure'\'' not available"'
-printf '%s\n' 'scone-td-build --help >/dev/null  || echo "ERROR: '\''scone-td-build'\'' not available"'
+printf '%s\n' 'MISSING_COMMANDS=""'
+printf '%s\n' 'scone --version || MISSING_COMMANDS="$MISSING_COMMANDS scone"'
+printf '%s\n' 'kubectl scone --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone"'
+printf '%s\n' 'kubectl scone-azure --help >/dev/null || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone-azure"'
+printf '%s\n' 'scone-td-build --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS scone-td-build"'
+printf '%s\n' 'scone-td-build --version 2>/dev/null || true'
 printf "${RESET}"
 
 echo "Expecting SCONE version: $SCONE_VERSION"
-scone --version
-kubectl scone --help >/dev/null  || echo "ERROR: 'kubectl scone' not available"
-kubectl scone-azure --help >/dev/null || echo "ERROR: 'kubectl scone-azure' not available"
-scone-td-build --help >/dev/null  || echo "ERROR: 'scone-td-build' not available"
+MISSING_COMMANDS=""
+scone --version || MISSING_COMMANDS="$MISSING_COMMANDS scone"
+kubectl scone --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone"
+kubectl scone-azure --help >/dev/null || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone-azure"
+scone-td-build --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS scone-td-build"
+scone-td-build --version 2>/dev/null || true
 
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'This should execute the same SCONE version as the previously printed latest stable version.'
-printf '%s\n' '(The minimal version is 7.0.0). The `--help` checks should also complete successfully.'
+printf '%s\n' 'The `--help` checks should also complete successfully. The `scone-td-build-demos` need'
+printf '%s\n' '`scone-td-build` 0.4.0 or newer.'
+printf '%s\n' ''
+printf '%s\n' 'We stop with an error if any command is missing:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '  echo "✅ All required SCONE commands installed"'
+printf '%s\n' 'if [[ -n "$MISSING_COMMANDS" ]]; then'
+printf '%s\n' '  echo "❌ Missing SCONE commands:$MISSING_COMMANDS"'
+printf '%s\n' '  exit 1'
+printf '%s\n' 'fi'
+printf '%s\n' 'echo "✅ All required SCONE commands installed"'
 printf "${RESET}"
 
-  echo "✅ All required SCONE commands installed"
+if [[ -n "$MISSING_COMMANDS" ]]; then
+  echo "❌ Missing SCONE commands:$MISSING_COMMANDS"
+  exit 1
+fi
+echo "✅ All required SCONE commands installed"
 
