@@ -7,7 +7,7 @@ This includes the following environment variables - which are set with the help 
 2. The Kubernetes namespace that we use to run the SCONE development pod: $CLI_NAMESPACE
    The default is "scone-tools".
 3. The SCONE version is stored in environment variable ${SCONE_VERSION}
-   Right now, the default is 7.0.0-alpha.1: 
+   The default is the version in `stable.txt`.
 4. $REGISTRY contains the name of the registry. By default, we set this to `registry.scontain.com`.
 5. You ssh public key to be able to log into the container 
    and to use visual code to edit your files within the container: ${SSH_PUB_KEY}
