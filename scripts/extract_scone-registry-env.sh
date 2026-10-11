@@ -136,8 +136,9 @@ _timeout() {
   if command -v timeout >/dev/null 2>&1; then timeout "$@"
   elif command -v gtimeout >/dev/null 2>&1; then gtimeout "$@"
   else
-    # No timeout available — safer to skip helpers than hang
-    return 127
+    # No timeout available (stock macOS): run the helper without one
+    shift
+    "$@"
   fi
 }
 
@@ -147,9 +148,9 @@ helper_get_pair() {
   command -v "$helper" >/dev/null 2>&1 || { printf ''; return 0; }
 
   if out="$(_timeout "$HELPER_TIMEOUT_SECS" \
-            "$helper" get <<<"$(printf '{"ServerURL":"https://%s"}' "$reg")" 2>/dev/null)"; then :
+            "$helper" get <<<"https://$reg" 2>/dev/null)"; then :
   elif out="$(_timeout "$HELPER_TIMEOUT_SECS" \
-            "$helper" get <<<"$(printf '{"ServerURL":"%s"}' "$reg")" 2>/dev/null)"; then :
+            "$helper" get <<<"$reg" 2>/dev/null)"; then :
   else
     printf ''; return 0
   fi
@@ -174,7 +175,9 @@ need jq
 [ -f "$DOCKER_CONFIG_JSON" ] || die "Docker config not found: $DOCKER_CONFIG_JSON"
 info "Using Docker config: $DOCKER_CONFIG_JSON"
 
-# Pass 1: direct extraction (no helpers)
+# For each registry (in order of preference), try the direct entry first and
+# then the credential helper, so a stale entry for a fallback registry never
+# wins over current helper credentials for the preferred registry.
 for reg in "${REGISTRIES[@]}"; do
   pair="$(extract_direct_for_registry "$reg" || true)"
   if [ -n "${pair:-}" ]; then
@@ -188,30 +191,21 @@ for reg in "${REGISTRIES[@]}"; do
   else
     dbg "No usable direct entry for $reg"
   fi
-done
 
-# Pass 2: helpers (optional)
-if [ "$USE_HELPERS" = "1" ]; then
-  if ! command -v timeout >/dev/null 2>&1 && ! command -v gtimeout >/dev/null 2>&1; then
-    warn "timeout/gtimeout not found; skipping helper lookups (set USE_HELPERS=0 to silence)."
-  else
-    for reg in "${REGISTRIES[@]}"; do
-      if helper="$(helper_prog_for "$reg" 2>/dev/null)"; then
-        dbg "Trying credential helper $helper for $reg"
-        pair="$(helper_get_pair "$helper" "$reg" || true)"
-        if [ -n "${pair:-}" ]; then
-          user="${pair%%:*}"; token="${pair#*:}"
-          if valid_pair "$user" "$token"; then
-            info "Found credentials for $reg via helper ($helper)."
-            write_env "$user" "$token"; exit 0
-          else
-            warn "Helper $helper for $reg returned empty user/token; continuing…"
-          fi
-        fi
+  if [ "$USE_HELPERS" = "1" ] && helper="$(helper_prog_for "$reg" 2>/dev/null)"; then
+    dbg "Trying credential helper $helper for $reg"
+    pair="$(helper_get_pair "$helper" "$reg" || true)"
+    if [ -n "${pair:-}" ]; then
+      user="${pair%%:*}"; token="${pair#*:}"
+      if valid_pair "$user" "$token"; then
+        info "Found credentials for $reg via helper ($helper)."
+        write_env "$user" "$token"; exit 0
+      else
+        warn "Helper $helper for $reg returned empty user/token; continuing…"
       fi
-    done
+    fi
   fi
-fi
+done
 
 # Guaranteed error
 printf >&2 '%s\n' "[ERR] Could not extract non-empty Docker credentials for:"
