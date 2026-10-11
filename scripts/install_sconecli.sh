@@ -203,6 +203,8 @@ printf '%s\n' '# scone-td-build and the kubectl plugins are not in every release
 printf '%s\n' '[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {'
 printf '%s\n' '    # Fall back to a separate scone-td-build image if one is configured.'
 printf '%s\n' '    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then'
+printf '%s\n' '        # Same signature check as for the package image; verify_image exits on failure.'
+printf '%s\n' '        verify_image "$SCONE_TD_BUILD_IMAGE"'
 printf '%s\n' '        docker rm scone-td-build-packages 2> /dev/null || true'
 printf '%s\n' '        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \'
 printf '%s\n' '          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \'
@@ -254,6 +256,8 @@ docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/
 [[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {
     # Fall back to a separate scone-td-build image if one is configured.
     if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then
+        # Same signature check as for the package image; verify_image exits on failure.
+        verify_image "$SCONE_TD_BUILD_IMAGE"
         docker rm scone-td-build-packages 2> /dev/null || true
         docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \
           && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \

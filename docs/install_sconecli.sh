@@ -382,6 +382,14 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+        # Same signature check as for the package image; verify_image exits on failure.
+EOF
+)"
+pe "$(cat <<'EOF'
+        verify_image "$SCONE_TD_BUILD_IMAGE"
+EOF
+)"
+pe "$(cat <<'EOF'
         docker rm scone-td-build-packages 2> /dev/null || true
 EOF
 )"
