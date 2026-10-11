@@ -102,7 +102,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rs.sh \
     && rustup default stable \
     && rm /tmp/rs.sh \
     && cargo install sconectl \
-    && curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/scontain/SH/refs/heads/master/latest/kubectl-provision > $HOME/.cargo/bin/kubectl-provision \
+    && curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/scontain/SH/refs/heads/master/${SCONE_VERSION}/kubectl-provision > $HOME/.cargo/bin/kubectl-provision \
     && chmod +x $HOME/.cargo/bin/kubectl-provision \
     && curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \
     && chmod 700 get_helm.sh \
@@ -130,16 +130,9 @@ RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install 
 
 ENV RUSTUP_PERMIT_COPY_RENAME=1
 
-RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
-    --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
-    docker version && \
-    cd /root/scone \
-    && export PATH=$HOME/.cargo/bin:$PATH \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/prerequisite_check.sh \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/install_sconecli.sh
-
-ENV DOCKER_CONFIG=/root/.docker
-
+# Binaries in overwrite/bin replace the released ones. Copy them before
+# install_sconecli.sh runs, so its command check finds scone-td-build even for
+# releases whose package image does not ship it (6.0.8).
 # check if newer local k8s-scone is available and use it
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/bin/k8s-scone ] && cp /overwrite/bin/k8s-scone /usr/bin/k8s-scone || true
@@ -156,7 +149,17 @@ RUN --mount=type=bind,source=overwrite,target=/overwrite \
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
     [ -f /overwrite/bin/kubectl-scone-azure ] && cp /overwrite/bin/kubectl-scone-azure $HOME/.cargo/bin/kubectl-scone-azure || true
 
-    RUN apt-get update \
+RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
+    --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
+    docker version && \
+    cd /root/scone \
+    && export PATH=$HOME/.cargo/bin:$PATH \
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/prerequisite_check.sh \
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/install_sconecli.sh
+
+ENV DOCKER_CONFIG=/root/.docker
+
+RUN apt-get update \
  && apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg \
  && mkdir -p /etc/apt/keyrings \
  && curl -sLS https://packages.microsoft.com/keys/microsoft.asc \
