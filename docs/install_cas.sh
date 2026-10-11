@@ -913,31 +913,65 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if (( $node_count < required )); then
+SMALL_CLUSTER=false
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "❌ Error: Only $node_count node(s) found with label 'las.scontain.com/ok=true'. At least $required are required."
+if (( node_count < required )); then
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "   NOTE: Continuing anyhow - you might need to edit the desired number of safety services for the CAS to become HEALTHY"
+  SMALL_CLUSTER=true
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "⚠️  Only $node_count node(s) found with label 'las.scontain.com/ok=true'. The CAS safety service needs at least $required."
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ "${ALLOW_CAS_WITHOUT_SAFETY_SERVICE:-0}" == "1" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "   ALLOW_CAS_WITHOUT_SAFETY_SERVICE=1: the CAS will be installed with the safety service disabled."
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "   The CAS will not become HEALTHY. For a test or workshop cluster, rerun with ALLOW_CAS_WITHOUT_SAFETY_SERVICE=1"
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "   to disable the safety service. Do not do this in production."
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK."
 EOF
 )"
 pe "$(cat <<'EOF'
 fi
 EOF
 )"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK."
-EOF
-)"
 
 printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'On clusters with fewer than 3 SGX nodes (for example a single-node workshop cluster), the CAS safety service'
+printf '%s\n' 'cannot be scheduled and the CAS stays UNHEALTHY. Setting `ALLOW_CAS_WITHOUT_SAFETY_SERVICE=1` disables the'
+printf '%s\n' 'safety service for this CAS. This reduces the CAS'\''s protection against rollback of its state, so use it'
+printf '%s\n' 'only for test and workshop clusters. Such a node also needs enough memory: on a 7 GB SGX node, the CAS'
+printf '%s\n' 'control plane alone requests about 6 GiB.'
 printf '%s\n' ''
 printf '%s\n' '10. Installing the CAS'
 printf '%s\n' ''
@@ -946,15 +980,55 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+if [[ "$SMALL_CLUSTER" == "true" && "${ALLOW_CAS_WITHOUT_SAFETY_SERVICE:-0}" == "1" ]]; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
+  # The CAS cannot become HEALTHY before the safety service is disabled, so do not wait here.
 EOF
 )"
 pe "$(cat <<'EOF'
-  exit 1
+  if ! kubectl provision cas --verbose --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl patch cas "$CAS" -n "$CAS_NAMESPACE" --type merge -p '{"spec":{"safetyService":{"enabled":false}}}'
+EOF
+)"
+pe "$(cat <<'EOF'
+  COND=HEALTHY TIMEOUT=600 INTERVAL=5 NAMESPACE="$CAS_NAMESPACE" scripts/wait-crd-state.sh cas
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'

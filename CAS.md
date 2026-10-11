@@ -274,22 +274,45 @@ We expect at least 3 nodes in the Kubernetes cluster that have a healthy LAS, i.
 node_count=$(kubectl get nodes -l las.scontain.com/ok=true --no-headers 2>/dev/null | wc -l)
 required=3
 
-if (( $node_count < required )); then
-  echo "❌ Error: Only $node_count node(s) found with label 'las.scontain.com/ok=true'. At least $required are required."
-  echo "   NOTE: Continuing anyhow - you might need to edit the desired number of safety services for the CAS to become HEALTHY"
+SMALL_CLUSTER=false
+if (( node_count < required )); then
+  SMALL_CLUSTER=true
+  echo "⚠️  Only $node_count node(s) found with label 'las.scontain.com/ok=true'. The CAS safety service needs at least $required."
+  if [[ "${ALLOW_CAS_WITHOUT_SAFETY_SERVICE:-0}" == "1" ]]; then
+    echo "   ALLOW_CAS_WITHOUT_SAFETY_SERVICE=1: the CAS will be installed with the safety service disabled."
+  else
+    echo "   The CAS will not become HEALTHY. For a test or workshop cluster, rerun with ALLOW_CAS_WITHOUT_SAFETY_SERVICE=1"
+    echo "   to disable the safety service. Do not do this in production."
+  fi
+else
+  echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK."
 fi
-
-echo "✅ $node_count node(s) with label 'las.scontain.com/ok=true' found — OK."
 ```
+
+On clusters with fewer than 3 SGX nodes (for example a single-node workshop cluster), the CAS safety service
+cannot be scheduled and the CAS stays UNHEALTHY. Setting `ALLOW_CAS_WITHOUT_SAFETY_SERVICE=1` disables the
+safety service for this CAS. This reduces the CAS's protection against rollback of its state, so use it
+only for test and workshop clusters. Such a node also needs enough memory: on a 7 GB SGX node, the CAS
+control plane alone requests about 6 GiB.
 
 10. Installing the CAS
 
 The following statement installs the CAS and waits until the CAS becomes healthy:
 
 ```bash
-if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
-  echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
-  exit 1
+if [[ "$SMALL_CLUSTER" == "true" && "${ALLOW_CAS_WITHOUT_SAFETY_SERVICE:-0}" == "1" ]]; then
+  # The CAS cannot become HEALTHY before the safety service is disabled, so do not wait here.
+  if ! kubectl provision cas --verbose --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+    echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
+    exit 1
+  fi
+  kubectl patch cas "$CAS" -n "$CAS_NAMESPACE" --type merge -p '{"spec":{"safetyService":{"enabled":false}}}'
+  COND=HEALTHY TIMEOUT=600 INTERVAL=5 NAMESPACE="$CAS_NAMESPACE" scripts/wait-crd-state.sh cas
+else
+  if ! kubectl provision cas --verbose --wait --set-version $VERSION --namespace "$CAS_NAMESPACE" $DCAP_ARG "$CAS" ; then
+    echo "❌ Failed to create CAS $CAS in namespace $CAS_NAMESPACE."
+    exit 1
+  fi
 fi
 ```
 
