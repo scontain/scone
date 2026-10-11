@@ -1,4 +1,4 @@
-ARG SCONE_VERSION="7.0.0-alpha.1"
+ARG SCONE_VERSION="6.0.8"
 FROM registry.scontain.com/cicd/sconecli:${SCONE_VERSION} AS sconectl
 
 FROM registry.scontain.com/cicd/container-diff AS builder
@@ -48,6 +48,7 @@ RUN apt-get update && \
     vim \
     less \
     dnsutils \
+    skopeo \
     bash-completion && \
     apt-get install -y --no-install-recommends openssh-server && \
     apt-get update && \

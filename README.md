@@ -54,7 +54,7 @@ Next, install the SCONE platform and an initial CAS instance in your Kubernetes 
 
 ## Tutorials
 
-- [scone-td-build](https://github.com/scontainug/scone-td-build-demos): shows how to transform cloud-native applications into confidential cloud-native applications running on Intel TDX or AMD SEV-SNP.
+- [scone-td-build](https://github.com/scontain-gmbh/scone-td-build-demos): shows how to transform cloud-native applications into confidential cloud-native applications running on Intel SGX, Intel TDX or AMD SEV-SNP.
 
 - [confidential Java app](https://github.com/scontain/java-args-env-file): shows how to run a cloud-native Java service as a confidential cloud-native Java service on Intel SGX, Intel TDX, or AMD SEV-SNP.
 
@@ -117,7 +117,7 @@ Generate updated screencasts by running `make`.
 
 Build with:
 
-````
+```bash
 ./scripts/build.sh --version <SCONE_VERSION>
 ./scripts/build.sh --version <SCONE_VERSION> --test
 ```
@@ -144,7 +144,13 @@ docker --context dind  buildx build \
     --file Dockerfile .
 ```
 
-Next, you can tag and push your image. For example:
+If the SCONE release does not ship `scone-td-build` (6.0.8 does not), run `./overwrite.sh` (it builds a pinned
+`scone-td-build` from source) or copy a `scone-td-build` binary (0.4.0 or newer, linux/amd64) to
+`overwrite/bin/scone-td-build` before building. The Dockerfile copies
+every binary in `overwrite/bin` into the image. Check the result with
+`docker run --rm scone:latest scone-td-build --version`.
+
+Next, you can tag and push your image. Always push the version tag as well, so workshops can pin it. For example:
 
 ```bash
 docker tag scone:latest registry.scontain.com/workshop/scone

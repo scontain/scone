@@ -17,7 +17,9 @@ cargo install retry-spinner --root overwrite
 
 export CARGO_NET_GIT_FETCH_WITH_CLI=true
 
-cargo install --git https://github.com/scontain/k8s-scone.git --branch main --root overwrite scone-td-build
+# Pin scone-td-build: later main renames cas-endpoint to cas-address, which the
+# current scone-td-build-demos do not use yet. Override with SCONE_TD_BUILD_REV.
+cargo install --git https://github.com/scontain/scone-td-build.git --rev "${SCONE_TD_BUILD_REV:-b607bdc}" --root overwrite scone-td-build
 
 cargo install --git https://github.com/scontain/kubectl-plugin --branch main --root overwrite kubectl-scone
 
