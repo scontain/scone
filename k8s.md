@@ -80,7 +80,7 @@ export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
 By default we install the CLI image in namespace `scone-tools`. You can overwrite the namespace with the help of environment variable `CLI_NAMESPACE`:
 
 ```bash
-export CLI_NAMESPACE="scone-tools"
+export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"
 ```
 
 Let's ask the user and set the environment variables depending on the input of the user:
