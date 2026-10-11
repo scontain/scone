@@ -7,6 +7,7 @@ FROM ubuntu:24.04
 ARG DOCKER_HOST
 ARG KUBECTL_VERSION="v1.33.2"
 ARG YQ_VERSION="v4.46.1"
+ARG HELM_VERSION="v3.19.0"
 ARG SCONE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive 
 
@@ -106,7 +107,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rs.sh \
     && chmod +x $HOME/.cargo/bin/kubectl-provision \
     && curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \
     && chmod 700 get_helm.sh \
-    && ./get_helm.sh \
+    && DESIRED_VERSION="${HELM_VERSION}" ./get_helm.sh \
     && rm get_helm.sh
 
 COPY docker-entrypoint.sh /usr/local/bin/

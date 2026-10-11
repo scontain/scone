@@ -26,7 +26,7 @@ main() {
     need_cmd stat
 
     local user group_exists sock="/var/run/docker.sock"
-    user="${SUDO_USER:-$USER}"
+    user="${SUDO_USER:-${USER:-$(id -un)}}"
 
     if ! command -v docker >/dev/null 2>&1; then
         err "docker command not found. Please install Docker first."
