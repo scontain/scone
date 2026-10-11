@@ -7,6 +7,7 @@
 #   TIMEOUT   — overall timeout in seconds (default: 300)
 #   INTERVAL  — poll interval in seconds (default: 2)
 #   NAMESPACE — limit to one namespace for namespaced CRDs (default: all)
+#   NAME      — wait only for the instance with this name (default: all instances)
 
 set -Eeuo pipefail
 
@@ -14,6 +15,7 @@ COND=${COND:-HEALTHY}
 TIMEOUT=${TIMEOUT:-300}
 INTERVAL=${INTERVAL:-2}
 NAMESPACE=${NAMESPACE:-}
+NAME=${NAME:-}
 
 need() { command -v "$1" >/dev/null || { echo "Missing dependency: $1" >&2; exit 127; }; }
 need kubectl; need jq
@@ -61,9 +63,13 @@ fi
 
 echo "[INFO] Discovering instances of ${PLURAL}.${GROUP}…"
 mapfile -t RES < <(kubectl get "${PLURAL}.${GROUP}" "${nsflag[@]}" -o json \
-  | jq -r '.items[] | [ ( .metadata.namespace // "" ), .metadata.name ] | @tsv')
+  | jq -r --arg name "$NAME" '.items[] | select($name == "" or .metadata.name == $name) | [ ( .metadata.namespace // "" ), .metadata.name ] | @tsv')
 
 if (( ${#RES[@]} == 0 )); then
+  if [[ -n "$NAME" ]]; then
+    echo "[ERROR] No instance named '${NAME}' found." >&2
+    exit 1
+  fi
   echo "[INFO] No instances found. CRD is Established. Done."
   exit 0
 fi
@@ -90,7 +96,7 @@ while (( $(date +%s) < deadline )); do
     state=$(jq -r '.status.state // empty' <<<"$obj")
     state_uc=${state^^}
     if [[ -n "$state" && "$state_uc" == "$target_uc" ]]; then
-      ((ok++))
+      ((++ok))
     else
       not_ready+=("$ref: ${state:-<unset>}")
     fi
