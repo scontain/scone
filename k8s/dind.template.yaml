@@ -16,7 +16,10 @@ spec:
         env:
         - name: DOCKER_TLS_CERTDIR
           value: ""                     # <— disable TLS
-        args: ["--host=tcp://0.0.0.0:2375","--host=unix:///var/run/docker.sock","--storage-driver=overlay2"]
+        # --mtu: containers that dockerd starts (including image builds) must not use a
+        # larger MTU than the pod network, or large downloads stall (e.g. Calico pods
+        # have MTU 1400 while docker0 defaults to 1500).
+        args: ["--host=tcp://0.0.0.0:2375","--host=unix:///var/run/docker.sock","--storage-driver=overlay2","--mtu=1400"]
         ports: [{containerPort: 2375, name: docker}]
         volumeMounts:
         - {name: dind-lib, mountPath: /var/lib/docker}
