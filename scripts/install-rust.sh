@@ -6,7 +6,7 @@ set -euo pipefail
 
 # ---- Config ----
 TOOLCHAIN="${TOOLCHAIN:-stable}"
-COMPONENTS=(${COMPONENTS:-rustfmt clippy})
+read -r -a COMPONENTS <<< "${COMPONENTS:-rustfmt clippy}"
 PROFILE="${PROFILE:-default}"   # rustup profiles: minimal|default|complete
 RUSTUP_INIT_URL="${RUSTUP_INIT_URL:-https://sh.rustup.rs}"
 
@@ -17,7 +17,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 ensure_path() {
   # Ensure current shell sees cargo/rustup after install
   if [ -f "${HOME}/.cargo/env" ]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     source "${HOME}/.cargo/env"
   fi
 }
@@ -52,17 +52,20 @@ main() {
     exit 1
   fi
 
-  log "Rust versions:"
-  rustup --version
-  rustc --version
-  cargo --version
-
-  # Ensure the desired toolchain is installed + set as default
-  if ! rustup toolchain list | awk '{print $1}' | grep -qx "${TOOLCHAIN}"; then
+  # Let rustup resolve aliases such as stable to their host-qualified names.
+  # Comparing `toolchain list` entries with "stable" always misses an installed
+  # stable-<host> toolchain and unnecessarily downloads an update.
+  if ! rustup run "$TOOLCHAIN" rustc --version >/dev/null 2>&1; then
     log "Installing toolchain: ${TOOLCHAIN}"
     rustup toolchain install "${TOOLCHAIN}"
   fi
   rustup default "${TOOLCHAIN}" >/dev/null
+
+  # Query the versions after selecting a toolchain, including on first setup.
+  log "Rust versions:"
+  rustup --version
+  rustc --version
+  cargo --version
 
   # Ensure components are installed (idempotent)
   for c in "${COMPONENTS[@]}"; do
