@@ -29,11 +29,13 @@ Next, we check that we have access to a Kubernetes cluster. This Kubernetes clus
 kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1; }
 ```
 
-## Enabling TCP on Docker Daemon
+## Docker TCP connections
 
-The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, we need to enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)
+The Kubernetes toolbox connects to a separate Docker-in-Docker (`dind`) Deployment through `tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375`. The [DIND manifest](k8s/dind.template.yaml) already enables that TCP listener, and this script deploys it below. You do not need to enable Docker TCP on your laptop or Kubernetes nodes for the toolbox to use this service.
 
-> Note: Enabling TCP on Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable TCP when you are done using the Docker daemon.
+The [enable docker script](scripts/enable_docker_tcp.sh) changes the local Linux systemd Docker service on the machine where you execute it. It writes `/etc/systemd/system/docker.service.d/override.conf` and restarts Docker to listen on `0.0.0.0:2375`. Running it on a laptop affects that laptop; running it over SSH on a node affects that node. It does not change remote Kubernetes resources or the node's containerd configuration.
+
+> Note: This Docker TCP listener has no TLS or authentication. Restrict access to trusted clients. The [disable docker script](scripts/disable_docker_tcp.sh) removes the local systemd override. `build.sh` separately requires its configured Docker endpoint at `tcp://172.17.0.1:2375` to be reachable from where the build runs.
 
 ## Deployment
 
@@ -69,10 +71,13 @@ eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --
 
 ## Container Image
 
-In our pod, we use a pre-built image `registry.scontain.com/workshop/scone`
+In our pod, we use a versioned image such as `registry.scontain.com/workshop/scone:6.0.8`.
 
 ```bash
-export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
+toolbox_image_override="${CLI_IMAGE:-}"
+toolbox_namespace_override="${CLI_NAMESPACE:-}"
+toolbox_version_override="${SCONE_VERSION:-}"
+export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone:${SCONE_VERSION:-$(cat stable.txt)}}"
 ```
 
 ## Creating Namespace and Secrets
@@ -87,6 +92,28 @@ Let's ask the user and set the environment variables depending on the input of t
 
 ```bash
 eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+
+# Explicit caller settings take precedence over saved Values.yaml defaults.
+export SCONE_VERSION="${toolbox_version_override:-${SCONE_VERSION:-$(cat stable.txt)}}"
+export CLI_NAMESPACE="${toolbox_namespace_override:-${CLI_NAMESPACE:-scone-tools}}"
+export CLI_IMAGE="${toolbox_image_override:-${CLI_IMAGE:-registry.scontain.com/workshop/scone}}"
+if [[ "$CLI_IMAGE" == "registry.scontain.com/workshop/scone" ]]; then
+  export CLI_IMAGE="${CLI_IMAGE}:${SCONE_VERSION}"
+fi
+
+# Render from the resolved environment. Saved values would otherwise override it.
+# Stage output beside its destination so a failed render preserves the old file.
+render_toolbox_manifest() {
+  local template="$1" output="$2" temporary
+  temporary="$(mktemp "${output}.XXXXXX")"
+  if tplenv --values-file /dev/null --file "$template" --output "$temporary"; then
+    if mv -f "$temporary" "$output"; then
+      return 0
+    fi
+  fi
+  rm -f "$temporary"
+  return 1
+}
 ```
 
 Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Actually, we create two pull secrets:
@@ -148,14 +175,14 @@ fi
 We provide a template to define the RBAC for the CLI image. We instantiate this template first and then apply the RBAC:
 
 ```bash
-tplenv --file ./k8s/rbac.template.yaml --output ./k8s/rbac.yaml
+render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml
 kubectl apply -f ./k8s/rbac.yaml
 ```
    
 ## Deploy DIND
 
 ```bash
-tplenv --file ./k8s/dind.template.yaml --output ./k8s/dind.yaml
+render_toolbox_manifest ./k8s/dind.template.yaml ./k8s/dind.yaml
 kubectl apply -f ./k8s/dind.yaml
 ```
 
@@ -164,70 +191,50 @@ kubectl apply -f ./k8s/dind.yaml
 We change the image name in `deployment.yaml` file for the one you pushed in step 1
 
 ```bash
-tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
+render_toolbox_manifest ./k8s/deployment.template.yaml ./k8s/deployment.yaml
+echo "Deploying toolbox image: $CLI_IMAGE"
 # delete old deployment...
 { kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
-# ensure we load the latest container image
+# ensure we load the selected container image
 kubectl apply -f ./k8s/deployment.yaml
+kubectl -n "$CLI_NAMESPACE" rollout status deployment/scone-toolbox --timeout=300s
+kubectl -n "$CLI_NAMESPACE" exec deploy/scone-toolbox -c scone-toolbox -- scone-td-build --version
 ```
 
 ## SSH Access via Port-Forward
 
-After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:
+The script checks the effective configuration of the local `scone-toolbox-k8s`
+alias, including wildcard rules and included SSH configuration files. A working
+alias connects to `root` on loopback port `2222`. It asks before adding a missing
+alias or correcting an existing alias. Declining leaves your SSH configuration
+unchanged, and you can still use the direct SSH command printed below.
 
-```
-kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \
-  --for=condition=Ready --timeout=300s
-kill $(cat /tmp/pf-2222.pid) || true
-rm /tmp/pf-2222.pid || true
-kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid
-```
+Approved updates preserve other SSH configuration and use an atomic replacement.
+Set `TOOLBOX_SSH_CONFIG` to use a configuration file other than `~/.ssh/config`.
+If local port `2222` has no listener, the script asks whether to start
+`kubectl port-forward` in the background. It verifies the SSH banner before
+reporting the connection as ready, and prints the process ID and log path.
+The forwarding process survives this script exiting; replacing the toolbox pod
+ends that forwarding session, so rerun setup or the printed port-forward command.
+`K8S_CLI_DEPLOY_ONLY=true` skips SSH configuration and forwarding prompts for automation.
 
-In another terminal, connect via SSH (password login is disabled, key-based login only):
-
-```
-ssh -p 2222 root@127.0.0.1
-```
-
-If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:
-
-```
-SSH_CONFIG="${HOME}/.ssh/config"
-HOST_ALIAS="scone-toolbox-k8s"
-BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"
-END_MARKER="# <<< ${HOST_ALIAS} <<<"
-
-mkdir -p "${HOME}/.ssh"
-chmod 700 "${HOME}/.ssh"
-touch "${SSH_CONFIG}"
-chmod 600 "${SSH_CONFIG}"
-
-tmp_config="$(mktemp)"
-awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '
-  $0 == begin {skip=1; next}
-  $0 == end   {skip=0; next}
-  !skip       {print}
-' "${SSH_CONFIG}" > "${tmp_config}"
-
-printf '%s\n' \
-  "${BEGIN_MARKER}" \
-  "Host ${HOST_ALIAS}" \
-  "  HostName 127.0.0.1" \
-  "  Port 2222" \
-  "  User root" \
-  "  ServerAliveInterval 30" \
-  "  StrictHostKeyChecking accept-new" \
-  "${END_MARKER}" \
-  >> "${tmp_config}"
-
-mv "${tmp_config}" "${SSH_CONFIG}"
+```bash
+toolbox_ssh_args=(--ensure-forward --namespace "$CLI_NAMESPACE" --config "${TOOLBOX_SSH_CONFIG:-$HOME/.ssh/config}")
+if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" == true ]]; then
+  toolbox_ssh_args+=(--non-interactive)
+fi
+if ! python3 ./scripts/configure-toolbox-ssh.py "${toolbox_ssh_args[@]}"; then
+  echo "SSH setup could not complete. To connect directly:"
+  printf '  kubectl -n %q port-forward deploy/scone-toolbox 2222:22\n' "$CLI_NAMESPACE"
+  echo "  ssh -p 2222 root@127.0.0.1"
+fi
 ```
 
-Then connect using the alias:
-
-```
-ssh scone-toolbox-k8s
-```
+If you declined automatic forwarding, keep the printed port-forward command
+running in one terminal. Once forwarding is ready, run `ssh scone-toolbox-k8s`
+if the alias is configured, or
+`ssh -p 2222 root@127.0.0.1` to connect directly. Authentication uses the private
+key corresponding to `SSH_PUB_KEY` configured for the toolbox.
 
 ##  Watch the logs of the pod
 
@@ -256,11 +263,13 @@ wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox || true
 ##  Run the SCONE CLI using help
 
 ```bash
-kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
+kubectl exec -n "$CLI_NAMESPACE" deploy/scone-toolbox -c scone-toolbox -- scone --help
 ```
 
 ##  Drop into the shell to execute your commands
 
 ```bash
-kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash
+if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" != true ]]; then
+  kubectl exec -n "$CLI_NAMESPACE" -it deploy/scone-toolbox -c scone-toolbox -- bash
+fi
 ```

@@ -135,6 +135,7 @@ if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
     check 'valid overrides allow the build' run_build 0 env
     check 'build uses the requested SCONE release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
     check 'build loads the image into dind' grep -Fq -- '--context dind buildx build --load' "$MOCK_CALLS"
+    check 'build passes prepared overrides as a named context' grep -Fq -- "--build-context overrides=$fixture/overwrite" "$MOCK_CALLS"
     check 'completed image is checked without entrypoint/network' grep -Fq -- 'run --rm --network none --entrypoint /bin/bash -e SCONE_VERSION=6.0.8' "$MOCK_CALLS"
     check 'tag uses the same dind context' grep -Fq -- '--context dind tag scone:latest registry.scontain.com/workshop/scone:6.0.8' "$MOCK_CALLS"
     check 'build preserves Values credentials' grep -Fq 'preserve this file' "$fixture/Values.credentials.yaml"
@@ -146,6 +147,33 @@ if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
     else
         echo 'ok   - failed image check prevents tagging/pushing'
     fi
+    # Fail the test if build.sh inspects or executes an old pod before deployment finishes.
+    cat > "$fixture/scripts/k8s_cli.sh" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$K8S_CLI_DEPLOY_ONLY" == true && "$SCONE_VERSION" == 6.0.8 ]]
+grep -Fq "docker --context dind push $CLI_IMAGE" "$MOCK_CALLS"
+sleep 0.1
+printf 'toolbox deployed %s\n' "$CLI_IMAGE" >> "$MOCK_CALLS"
+MOCK
+    cat > "$work/bin/kubectl" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+grep -Fq "toolbox deployed $CLI_IMAGE" "$MOCK_CALLS"
+if [[ "$*" == *'get deployment scone-toolbox'* ]]; then
+    printf '%s' "$CLI_IMAGE"
+elif [[ "$*" == *'exec '* ]]; then
+    [[ "$*" == *'./scripts/run-all-scripts.sh'* ]]
+    printf 'tested candidate image\n' >> "$MOCK_CALLS"
+fi
+MOCK
+    chmod +x "$fixture/scripts/k8s_cli.sh" "$work/bin/kubectl"
+    : > "$MOCK_CALLS"
+    run_demo_test() {
+        "$fixture/scripts/build.sh" --version 6.0.8 --push --test > "$work/output" 2>&1
+    }
+    check 'tests await deployment and execute the actual demo runner' run_demo_test
+    check 'candidate is tested after synchronous deployment' grep -Fq 'tested candidate image' "$MOCK_CALLS"
 else
     echo 'skip - wrapper Docker tests require kubeconfig and Docker config files to exist'
 fi

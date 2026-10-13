@@ -134,10 +134,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Validate overrides inside the target image as well as in scripts/build.sh.
 # Required copies must fail on a missing file or full disk.
-RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    SCONE_VERSION="${SCONE_VERSION}" /root/scone/scripts/check-scone-tooling.sh --overrides-dir /overwrite/bin \
+RUN --mount=type=bind,from=overrides,source=.,target=/overrides \
+    SCONE_VERSION="${SCONE_VERSION}" /root/scone/scripts/check-scone-tooling.sh --overrides-dir /overrides/bin \
     && for tool in scone-td-build kubectl-provision kubectl-scone kubectl-scone-azure; do \
-         install -m 0755 "/overwrite/bin/$tool" "/root/.cargo/bin/$tool" || exit 1; \
+         install -m 0755 "/overrides/bin/$tool" "/root/.cargo/bin/$tool" || exit 1; \
        done
 
 RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \

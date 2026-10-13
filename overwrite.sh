@@ -2,10 +2,48 @@
 # Build and validate the binaries copied into the workshop image.
 set -euo pipefail
 
+usage() {
+    cat <<'USAGE'
+Usage: SCONE_VERSION=<release> ./overwrite.sh [--validate-latest]
+
+Without options, build and install the pinned workshop tool overrides.
+--validate-latest  Build the latest scone-td-build main revision in a temporary
+                   override set, push a validation image, and run all demos.
+                   Requires Docker, registry push access, and a disposable cluster.
+USAGE
+}
+
+validate_latest=false
+case "${1:-}" in
+    "") ;;
+    --validate-latest)
+        [[ $# == 1 ]] || { usage >&2; exit 2; }
+        validate_latest=true
+        ;;
+    --help|-h)
+        usage
+        exit 0
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 target_version="${SCONE_VERSION:-$(cat "$repo_root/stable.txt")}"
 # This revision is 0.4.0 and supports the demos' cas-endpoint manifests.
 td_build_rev="${SCONE_TD_BUILD_REV:-b607bdc7009fc8990c2f083fdf02180f436c5369}"
+if [[ "$validate_latest" == true ]]; then
+    command -v git >/dev/null || { echo "ERROR: missing git" >&2; exit 1; }
+    latest_ref="$(git ls-remote https://github.com/scontain/scone-td-build.git refs/heads/main | awk '$2 == "refs/heads/main" { print $1; exit }')"
+    if [[ ! "$latest_ref" =~ ^[[:xdigit:]]{40}$ ]]; then
+        echo "ERROR: could not resolve the latest scone-td-build main revision" >&2
+        exit 1
+    fi
+    td_build_rev="$latest_ref"
+    echo "Validating latest scone-td-build main revision: $td_build_rev"
+fi
 # This revision is kubectl-scone 6.0.5 with the v6 boolean autoUpdate schema.
 plugin_rev="${SCONE_KUBECTL_PLUGIN_REV:-}"
 if [[ -z "$plugin_rev" ]]; then
@@ -47,6 +85,19 @@ if [[ -x "$staging/bin/kubectl-scone_azure" ]]; then
 fi
 
 SCONE_VERSION="$target_version" "$repo_root/scripts/check-scone-tooling.sh" --overrides-dir "$staging/bin"
+
+if [[ "$validate_latest" == true ]]; then
+    revision_suffix="${td_build_rev:0:12}"
+    validation_repository="registry.scontain.com/workshop/scone-validation-${revision_suffix}"
+    echo "Running the workshop demo suite using ${validation_repository}:${target_version}."
+    echo "The validation image will remain in the registry; the current overwrite/bin files will not be changed."
+    SCONE_OVERRIDE_DIR="$staging" "$repo_root/scripts/build.sh" \
+        --version "$target_version" --push-to "$validation_repository" --test
+    echo "Latest scone-td-build revision $td_build_rev passed the workshop demo suite."
+    printf 'To install this validated revision: SCONE_VERSION=%q SCONE_TD_BUILD_REV=%q %q\n' \
+        "$target_version" "$td_build_rev" "$repo_root/overwrite.sh"
+    exit 0
+fi
 
 # Copy every file fully and fsync it before replacing any existing binary.
 # Temporary files live on the destination filesystem, so rename is atomic.

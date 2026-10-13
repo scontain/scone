@@ -4,14 +4,15 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/build.sh --version <SCONE_VERSION> [--push-to <IMAGE_NAME>] [--test] [--verbose] [--help]
+Usage: ./scripts/build.sh --version <SCONE_VERSION> [--push | --push-to <IMAGE_NAME>] [--test] [--verbose] [--help]
 
 Build the SCONE workshop image as described in README.md.
 Run SCONE_VERSION=<SCONE_VERSION> ./overwrite.sh first to prepare its binaries.
 
 Options:
   --version <SCONE_VERSION>  Required SCONE version tag to build and tag.
-  --push-to <IMAGE_NAME>     Tag and push to <IMAGE_NAME>:<SCONE_VERSION> (must not include a tag).
+  --push                     Push to registry.scontain.com/workshop/scone:<SCONE_VERSION>.
+  --push-to <IMAGE_NAME>     Push to <IMAGE_NAME>:<SCONE_VERSION> (must not include a tag).
   --test                     Deploy toolbox via scripts/k8s_cli.sh and run demo scripts.
   --verbose                  Print each command executed by this script.
   --help                     Show this help message.
@@ -27,6 +28,7 @@ require_command() {
 
 SCONE_VERSION=""
 PUSH_IMAGE=""
+PUSH_OPTION=""
 RUN_TEST=false
 VERBOSE=false
 
@@ -45,12 +47,26 @@ while [[ $# -gt 0 ]]; do
       RUN_TEST=true
       shift
       ;;
+    --push)
+      if [[ -n "${PUSH_OPTION}" ]]; then
+        echo "Error: use either --push or --push-to, not both" >&2
+        exit 1
+      fi
+      PUSH_OPTION="push"
+      PUSH_IMAGE="registry.scontain.com/workshop/scone"
+      shift
+      ;;
     --push-to)
       if [[ $# -lt 2 ]]; then
         echo "Error: --push-to requires a value" >&2
         usage
         exit 1
       fi
+      if [[ -n "${PUSH_OPTION}" ]]; then
+        echo "Error: use either --push or --push-to, not both" >&2
+        exit 1
+      fi
+      PUSH_OPTION="push-to"
       PUSH_IMAGE="$2"
       shift 2
       ;;
@@ -94,10 +110,17 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
+override_root="${SCONE_OVERRIDE_DIR:-$repo_root/overwrite}"
+if [[ ! -d "$override_root" ]]; then
+  echo "Error: missing override directory: $override_root" >&2
+  exit 1
+fi
+override_root="$(cd "$override_root" && pwd)"
+override_bin="$override_root/bin"
 cd "$repo_root"
 
 # Validate the files Docker will copy, not unrelated executables on the host PATH.
-SCONE_VERSION="$SCONE_VERSION" ./scripts/check-scone-tooling.sh --overrides-dir "$repo_root/overwrite/bin"
+SCONE_VERSION="$SCONE_VERSION" ./scripts/check-scone-tooling.sh --overrides-dir "$override_bin"
 require_command docker
 
 if [[ ! -f "$HOME/.kube/config" ]]; then
@@ -116,6 +139,7 @@ docker context create dind \
   --docker "host=tcp://${HOSTIP}:2375" || true
 
 docker --context dind buildx build --load \
+  --build-context overrides="$override_root" \
   --secret id=kubeconfig,src="$HOME/.kube/config" \
   --secret id=dockerconfig,src="$HOME/.docker/config.json" \
   --build-arg DOCKER_HOST="tcp://${HOSTIP}:2375" \
@@ -131,6 +155,17 @@ docker --context dind run --rm --network none --entrypoint /bin/bash \
 docker --context dind tag scone:latest "registry.scontain.com/workshop/scone:${SCONE_VERSION}"
 echo "Built image: registry.scontain.com/workshop/scone:${SCONE_VERSION}"
 
+if [[ -n "${PUSH_IMAGE}" ]]; then
+  docker --context dind tag scone:latest "${PUSH_IMAGE}:${SCONE_VERSION}"
+  docker --context dind push "${PUSH_IMAGE}:${SCONE_VERSION}"
+else
+  echo "WARNING: Image was not pushed. It is available only to the dind Docker daemon."
+  echo "         To make it available to Kubernetes, rerun with --push."
+  if [[ "${RUN_TEST}" == true ]]; then
+    echo "         --test requires the image to be pushed and pullable by the cluster."
+  fi
+fi
+
 if [[ "${RUN_TEST}" == true ]]; then
   require_command kubectl
   require_command git
@@ -141,24 +176,22 @@ if [[ "${RUN_TEST}" == true ]]; then
     export CLI_IMAGE="registry.scontain.com/workshop/scone:${SCONE_VERSION}"
   fi
 
-  K8S_CLI_PID=""
-  cleanup_k8s_cli() {
-    if [[ -n "${K8S_CLI_PID}" ]] && kill -0 "${K8S_CLI_PID}" >/dev/null 2>&1; then
-      kill "${K8S_CLI_PID}" >/dev/null 2>&1 || true
-      wait "${K8S_CLI_PID}" 2>/dev/null || true
-    fi
-  }
-  trap cleanup_k8s_cli EXIT
+  # Complete deployment before testing, so an existing Ready pod cannot be tested.
+  export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"
+  K8S_CLI_DEPLOY_ONLY=true SCONE_VERSION="$SCONE_VERSION" ./scripts/k8s_cli.sh
+  deployed_image="$(kubectl -n "$CLI_NAMESPACE" get deployment scone-toolbox \
+    -o jsonpath='{.spec.template.spec.containers[?(@.name=="scone-toolbox")].image}')"
+  if [[ "$deployed_image" != "$CLI_IMAGE" ]]; then
+    echo "Error: toolbox uses $deployed_image; expected $CLI_IMAGE" >&2
+    exit 1
+  fi
 
-  ./scripts/k8s_cli.sh &
-  K8S_CLI_PID=$!
-
-  CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"
-
-  kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox --for=condition=Ready --timeout=300s
-
-  kubectl exec -n "${CLI_NAMESPACE}" deploy/scone-toolbox -c scone-toolbox -- bash -lc '
+  # shellcheck disable=SC2016 # The remote shell expands its own PATH.
+  kubectl exec -n "${CLI_NAMESPACE}" deploy/scone-toolbox -c scone-toolbox -- \
+    env SCONE_VERSION="$SCONE_VERSION" bash -lc '
     set -euo pipefail
+    export PATH=/root/.cargo/bin:$PATH
+    /root/scone/scripts/check-scone-tooling.sh
     cd /root
     if [[ -d scone-td-build-demos/.git ]]; then
       git -C scone-td-build-demos pull --ff-only
@@ -167,14 +200,6 @@ if [[ "${RUN_TEST}" == true ]]; then
     fi
     cd scone-td-build-demos
     unset CONFIRM_ALL_ENVIRONMENT_VARIABLES
-    ./.run-all-scripts.sh
+    ./scripts/run-all-scripts.sh
   '
-
-  cleanup_k8s_cli
-  trap - EXIT
-fi
-
-if [[ -n "${PUSH_IMAGE}" ]]; then
-  docker --context dind tag scone:latest "${PUSH_IMAGE}:${SCONE_VERSION}"
-  docker --context dind push "${PUSH_IMAGE}:${SCONE_VERSION}"
 fi
