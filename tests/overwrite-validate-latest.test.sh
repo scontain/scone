@@ -78,7 +78,7 @@ SCONE_VERSION=6.0.8 "$fixture/overwrite.sh" --validate-latest > "$work/output" 2
 sha256sum "$fixture/overwrite/bin/scone-td-build" > "$work/after"
 cmp -s "$work/before" "$work/after"
 grep -Fq -- '--rev 0123456789abcdef0123456789abcdef01234567 --locked' "$MOCK_CALLS"
-grep -Fq -- '--push-to registry.scontain.com/workshop/scone-validation-0123456789ab --test' "$MOCK_CALLS"
+grep -Fq -- '--push-to registry.scontain.com/workshop/scone-validation --image-tag 6.0.8-0123456789ab --test' "$MOCK_CALLS"
 grep -Fq 'candidate: scone-td-build 0.4.1' "$work/output"
 grep -Fq 'current overwrite/bin files will not be changed' "$work/output"
 printf 'ok - latest validation stages candidate, runs full-test command, and preserves installed override\n'

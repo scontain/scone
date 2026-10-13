@@ -80,6 +80,13 @@ run_build() {
     [[ "$rc" == "$expected" ]]
 }
 
+# This must fail before override validation, Docker, or any deployment attempt.
+rc=0
+"$fixture/scripts/build.sh" --version 6.0.8 --test > "$work/output" 2>&1 || rc=$?
+check 'test without push fails early' test "$rc" = 1
+check 'test without push explains the required option' grep -Fq -- '--test requires --push or --push-to' "$work/output"
+check 'test without push never invokes external tools' test ! -s "$MOCK_CALLS"
+
 check 'missing overrides fail before Docker, despite compatible host tools' run_build 1 env
 check 'Docker was not invoked' test ! -s "$MOCK_CALLS"
 
@@ -174,6 +181,16 @@ MOCK
     }
     check 'tests await deployment and execute the actual demo runner' run_demo_test
     check 'candidate is tested after synchronous deployment' grep -Fq 'tested candidate image' "$MOCK_CALLS"
+    : > "$MOCK_CALLS"
+    run_validation_test() {
+        "$fixture/scripts/build.sh" --version 6.0.8 \
+            --push-to registry.scontain.com/workshop/scone-validation \
+            --image-tag 6.0.8-0123456789ab --test > "$work/output" 2>&1
+    }
+    check 'custom validation tag is pushed and tested' run_validation_test
+    check 'validation uses one registry repository' grep -Fq 'push registry.scontain.com/workshop/scone-validation:6.0.8-0123456789ab' "$MOCK_CALLS"
+    check 'custom image tag preserves SCONE build release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
+    check 'deployment uses the candidate tag' grep -Fq 'toolbox deployed registry.scontain.com/workshop/scone-validation:6.0.8-0123456789ab' "$MOCK_CALLS"
 else
     echo 'skip - wrapper Docker tests require kubeconfig and Docker config files to exist'
 fi

@@ -47,9 +47,15 @@ Please determine your username and create an access token with read permission f
 
 The toolbox container starts `sshd` automatically with password authentication disabled. To allow SSH login, we pass your public key in environment variable `SSH_PUB_KEY`.
 
-The following snippet tries to initialize `SSH_PUB_KEY` from your local `~/.ssh` directory and writes it into `Values.credentials.yaml`:
+SSH public keys belong in the ignored `Values.credentials.yaml`, alongside local
+registry credentials. Shared `Values.yaml` must not contain a user's SSH key.
+An explicit `SSH_PUB_KEY` takes precedence for this deployment; otherwise we use
+its saved local value, falling back to the first public key in `~/.ssh`.
+The following snippet resolves the SSH key and registry credentials together
+and saves them using an atomic update:
 
 ```bash
+toolbox_ssh_key_override="${SSH_PUB_KEY:-}"
 if [[ -z "${SSH_PUB_KEY:-}" ]]; then
   for key_file in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do
     if [[ -f "$key_file" ]]; then
@@ -61,12 +67,22 @@ if [[ -z "${SSH_PUB_KEY:-}" ]]; then
   done
 fi
 
-```
-
-Next, we set all environment variables related to the registry credentials.
-
-```bash
-eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --context --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+# tplenv prioritizes saved values. Stage its update to protect local credentials
+# if rendering fails, then restore an explicit caller key for this deployment.
+read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"
+toolbox_credentials_temporary="$(mktemp Values.credentials.yaml.XXXXXX)"
+if [[ -f Values.credentials.yaml ]]; then
+  cp -p Values.credentials.yaml "$toolbox_credentials_temporary"
+fi
+if toolbox_ssh_exports="$(tplenv --values "$toolbox_credentials_temporary" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}")"; then
+  chmod 600 "$toolbox_credentials_temporary"
+  mv -f "$toolbox_credentials_temporary" Values.credentials.yaml
+  eval "$toolbox_ssh_exports"
+else
+  rm -f "$toolbox_credentials_temporary"
+  exit 1
+fi
+export SSH_PUB_KEY="${toolbox_ssh_key_override:-$SSH_PUB_KEY}"
 ```
 
 ## Container Image
@@ -77,7 +93,7 @@ In our pod, we use a versioned image such as `registry.scontain.com/workshop/sco
 toolbox_image_override="${CLI_IMAGE:-}"
 toolbox_namespace_override="${CLI_NAMESPACE:-}"
 toolbox_version_override="${SCONE_VERSION:-}"
-export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone:${SCONE_VERSION:-$(cat stable.txt)}}"
+export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
 ```
 
 ## Creating Namespace and Secrets
@@ -91,7 +107,17 @@ export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"
 Let's ask the user and set the environment variables depending on the input of the user:
 
 ```bash
-eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+toolbox_values_temporary="$(mktemp Values.yaml.XXXXXX)"
+if [[ -f Values.yaml ]]; then
+  cp -p Values.yaml "$toolbox_values_temporary"
+fi
+if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval "${toolbox_confirmation_options[@]}" --output /dev/null)"; then
+  mv -f "$toolbox_values_temporary" Values.yaml
+  eval "$toolbox_environment_exports"
+else
+  rm -f "$toolbox_values_temporary"
+  exit 1
+fi
 
 # Explicit caller settings take precedence over saved Values.yaml defaults.
 export SCONE_VERSION="${toolbox_version_override:-${SCONE_VERSION:-$(cat stable.txt)}}"
@@ -116,63 +142,35 @@ render_toolbox_manifest() {
 }
 ```
 
-Next we create a Kubernetes namespace and pull secrets. We assume here that we can use the same PAT for different pull secrets. Actually, we create two pull secrets:
+The credentials selected by `tplenv` are used for all three registry secrets:
+`scone-registry` and `sconeapps` provide image pull credentials, while
+`scone-registry-env` provides the toolbox's Docker login credentials and registry
+address. Every run creates or updates these secrets before recreating the toolbox,
+so a previous deployment cannot retain an old login. Updating a secret must succeed
+before deployment continues.
 
-- `scone-registry`: we use this in the context of some examples. This permits use to store these examples on a different repo.
-
- - `sconeapps`: we use this secret to pull the container images from `registry.scontain.com`.
-
-Please adjust in case you use a unique PAT for each pull secret.
-
-Also, in case you built and pushed the image to a different registry, you need to adjust the value for `docker-server` in the  `docker-registry` secret accordingly.
+Credentials go directly to Kubernetes through standard input; no plaintext
+`scone-registry.env` file is written by toolbox setup. To use a different registry,
+select it through `tplenv` together with its username and token, and set `CLI_IMAGE`
+to the corresponding toolbox image.
 
 ```bash
-kubectl create ns $CLI_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-
-SECRET_NAME="scone-registry"
-
-if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
-  echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
-else
-  echo "Secret '$SECRET_NAME' not found in namespace '$CLI_NAMESPACE' - Creating it."
-  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \
-    --docker-server=registry.scontain.com \
-    --docker-username="$REGISTRY_USER" \
-    --docker-password="$REGISTRY_TOKEN"
-fi
-
-SECRET_NAME="sconeapps"
-
-if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
-  echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
-else
-  echo "Secret '$SECRET_NAME' not found in namespace '$CLI_NAMESPACE' - Creating it."
-  kubectl -n $CLI_NAMESPACE create secret docker-registry "$SECRET_NAME" \
-    --docker-server=registry.scontain.com \
-    --docker-username="$REGISTRY_USER" \
-    --docker-password="$REGISTRY_TOKEN"
-fi
-
-SECRET_NAME="scone-registry-env"
-
-if kubectl get secret "$SECRET_NAME" -n "$CLI_NAMESPACE" >/dev/null 2>&1; then
-  echo "Secret '$SECRET_NAME' exists in namespace '$CLI_NAMESPACE' - do not replace."
-else
-
-cat > ./scone-registry.env <<SEOF
-export REGISTRY_TOKEN="$REGISTRY_TOKEN"
-export REGISTRY_USER="$REGISTRY_USER"
-SEOF
-
-kubectl -n $CLI_NAMESPACE create secret generic $SECRET_NAME \
---from-file=$SECRET_NAME=./scone-registry.env
-fi
+kubectl create ns "$CLI_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+python3 ./scripts/reconcile-toolbox-registry.py --namespace "$CLI_NAMESPACE"
 ```
 
-   
 ## Add RBAC to the namespace
 
-We provide a template to define the RBAC for the CLI image. We instantiate this template first and then apply the RBAC:
+The RBAC template gives the toolbox service account workload permissions in its
+own namespace and adds a `scone-demo-runner-$CLI_NAMESPACE` Role and RoleBinding
+in `default`. The latter permits demo secrets, ConfigMaps, services, pods, Jobs,
+Deployments, SCONE policies, and NetworkPolicies. Demo `NAMESPACE` can therefore
+remain `default`, independently of `CAS_NAMESPACE`.
+
+Infrastructure access remains read-only: these additional permissions do not
+allow modifying CAS instances, RBAC, cluster resources, or `kube-system` workloads.
+Run this setup using a Kubernetes account allowed to create these roles and
+bindings. We render the template and apply it before deploying the toolbox:
 
 ```bash
 render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml
@@ -205,36 +203,49 @@ kubectl -n "$CLI_NAMESPACE" exec deploy/scone-toolbox -c scone-toolbox -- scone-
 
 The script checks the effective configuration of the local `scone-toolbox-k8s`
 alias, including wildcard rules and included SSH configuration files. A working
-alias connects to `root` on loopback port `2222`. It asks before adding a missing
+alias connects to `root` on loopback port `2222` by default and uses
+`HostKeyAlias scone-toolbox-k8s` to keep its host key separate from other local
+tunnels. Set `TOOLBOX_SSH_PORT=2200` to use another port. It asks before adding a missing
 alias or correcting an existing alias. Declining leaves your SSH configuration
 unchanged, and you can still use the direct SSH command printed below.
 
 Approved updates preserve other SSH configuration and use an atomic replacement.
 Set `TOOLBOX_SSH_CONFIG` to use a configuration file other than `~/.ssh/config`.
-If local port `2222` has no listener, the script asks whether to start
-`kubectl port-forward` in the background. It verifies the SSH banner before
-reporting the connection as ready, and prints the process ID and log path.
-The forwarding process survives this script exiting; replacing the toolbox pod
-ends that forwarding session, so rerun setup or the printed port-forward command.
+The helper stores the forwarding PID and process identity under
+`~/.cache/scone-toolbox` (`--state-dir` can change this location). On the next
+interactive setup, it checks and stops its previously recorded forward before
+offering to start a new one. It leaves unrelated processes alone, including
+processes that reuse an old PID. It verifies the SSH banner before reporting
+readiness and prints the process ID and log path. The forward survives this
+script exiting; rerun setup after replacing the toolbox pod.
 `K8S_CLI_DEPLOY_ONLY=true` skips SSH configuration and forwarding prompts for automation.
 
 ```bash
 toolbox_ssh_args=(--ensure-forward --namespace "$CLI_NAMESPACE" --config "${TOOLBOX_SSH_CONFIG:-$HOME/.ssh/config}")
+if [[ -n "${TOOLBOX_SSH_PORT:-}" ]]; then
+  toolbox_ssh_args+=(--local-port "$TOOLBOX_SSH_PORT")
+fi
 if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" == true ]]; then
   toolbox_ssh_args+=(--non-interactive)
 fi
 if ! python3 ./scripts/configure-toolbox-ssh.py "${toolbox_ssh_args[@]}"; then
-  echo "SSH setup could not complete. To connect directly:"
-  printf '  kubectl -n %q port-forward deploy/scone-toolbox 2222:22\n' "$CLI_NAMESPACE"
-  echo "  ssh -p 2222 root@127.0.0.1"
+  echo "SSH setup could not complete. Follow the connection instructions printed above."
 fi
 ```
 
 If you declined automatic forwarding, keep the printed port-forward command
 running in one terminal. Once forwarding is ready, run `ssh scone-toolbox-k8s`
 if the alias is configured, or
-`ssh -p 2222 root@127.0.0.1` to connect directly. Authentication uses the private
-key corresponding to `SSH_PUB_KEY` configured for the toolbox.
+`ssh -o HostKeyAlias=scone-toolbox-k8s -p 2222 root@127.0.0.1` to connect directly
+(use the configured port if different). Authentication uses the private key
+corresponding to `SSH_PUB_KEY` configured for the toolbox.
+
+Host keys are generated when the image is built. After a trusted image upgrade,
+remove the old toolbox key with `ssh-keygen -R scone-toolbox-k8s`, then reconnect.
+The helper never removes known host keys automatically. To refresh forwarding
+without redeploying, run
+`python3 ./scripts/configure-toolbox-ssh.py --ensure-forward --namespace scone-tools`
+(with `--local-port 2200` if configured).
 
 ##  Watch the logs of the pod
 
@@ -257,7 +268,7 @@ wait_for_pod_logs() {
   kubectl logs -n "$ns" "$pod" | head -n 10
 }
 
-wait_for_pod_logs $CLI_NAMESPACE app=scone-toolbox || true
+wait_for_pod_logs "$CLI_NAMESPACE" app=scone-toolbox || true
 ```
   
 ##  Run the SCONE CLI using help
