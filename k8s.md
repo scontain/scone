@@ -167,7 +167,8 @@ in `default`. The latter permits demo secrets, ConfigMaps, services, pods, Jobs,
 Deployments, SCONE policies, and NetworkPolicies. Demo `NAMESPACE` can therefore
 remain `default`, independently of `CAS_NAMESPACE`.
 
-Setup also provisions `java-demo`, `ci-scone-td-build`, and `nfs-demo`, with demo
+Setup also provisions `java-demo`, `ci-scone-td-build`, `nfs-demo`, `governance-demo`
+and `pet-clinic`, with demo
 Roles and RoleBindings scoped to each namespace. These roles include PVC access
 for the shared-volume demo. Set `TOOLBOX_DEMO_NAMESPACES` to a space-separated
 list to use other namespaces, or set it to an empty string to skip this step.
@@ -185,7 +186,8 @@ kubectl apply -f ./k8s/rbac.yaml
 
 # The suite also ships demos that use dedicated namespaces. Provision them with
 # the setup account; the toolbox service account keeps namespace creation denied.
-read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo}"
+# Keep this list in sync with the NAMESPACE values of the scone-td-build-demos demos.
+read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo governance-demo pet-clinic}"
 for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do
   kubectl create ns "$toolbox_demo_namespace" --dry-run=client -o yaml | kubectl apply -f -
   export TOOLBOX_DEMO_NAMESPACE="$toolbox_demo_namespace"
