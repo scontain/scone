@@ -130,33 +130,23 @@ COPY . /root/scone
 RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
 
 ENV RUSTUP_PERMIT_COPY_RENAME=1
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Binaries in overwrite/bin replace the released ones. Copy them before
-# install_sconecli.sh runs, so its command check finds scone-td-build even for
-# releases whose package image does not ship it (6.0.8).
-# check if newer local k8s-scone is available and use it
+# Validate overrides inside the target image as well as in scripts/build.sh.
+# Required copies must fail on a missing file or full disk.
 RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/bin/k8s-scone ] && cp /overwrite/bin/k8s-scone /usr/bin/k8s-scone || true
-
-RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/bin/scone-td-build ] && cp /overwrite/bin/scone-td-build $HOME/.cargo/bin/scone-td-build || true
-
-RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/bin/kubectl-provision ] && cp /overwrite/bin/kubectl-provision $HOME/.cargo/bin/kubectl-provision || true
-
-RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/bin/kubectl-scone ] && cp /overwrite/bin/kubectl-scone $HOME/.cargo/bin/kubectl-scone || true
-
-RUN --mount=type=bind,source=overwrite,target=/overwrite \
-    [ -f /overwrite/bin/kubectl-scone-azure ] && cp /overwrite/bin/kubectl-scone-azure $HOME/.cargo/bin/kubectl-scone-azure || true
+    SCONE_VERSION="${SCONE_VERSION}" /root/scone/scripts/check-scone-tooling.sh --overrides-dir /overwrite/bin \
+    && for tool in scone-td-build kubectl-provision kubectl-scone kubectl-scone-azure; do \
+         install -m 0755 "/overwrite/bin/$tool" "/root/.cargo/bin/$tool" || exit 1; \
+       done
 
 RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
     --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
     docker version && \
     cd /root/scone \
     && export PATH=$HOME/.cargo/bin:$PATH \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/prerequisite_check.sh \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" VERSION=${SCONE_VERSION} ./scripts/install_sconecli.sh
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" SCONE_VERSION="${SCONE_VERSION}" VERSION="${SCONE_VERSION}" ./scripts/prerequisite_check.sh \
+    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" SCONE_VERSION="${SCONE_VERSION}" VERSION="${SCONE_VERSION}" ./scripts/install_sconecli.sh
 
 ENV DOCKER_CONFIG=/root/.docker
 

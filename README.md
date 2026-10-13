@@ -115,46 +115,52 @@ Generate updated screencasts by running `make`.
 
 ### Building the workshop image
 
-Build with:
+Prepare the override binaries, then build the image with the same SCONE release:
 
 ```bash
-./scripts/build.sh --version <SCONE_VERSION>
-./scripts/build.sh --version <SCONE_VERSION> --test
+SCONE_VERSION=6.0.8 ./overwrite.sh
+./scripts/build.sh --version 6.0.8
 ```
 
-These commands build the `scone-td-build` image as follows:
+`overwrite.sh` builds `scone-td-build` **0.4.0** from pinned revision
+`b607bdc7009fc8990c2f083fdf02180f436c5369` and `kubectl-scone` **6.0.5** from
+`00044d0bbe70f005398833eb9a5efac394fd93d4`. The plugin uses the boolean
+`autoUpdate` schema expected by the 6.0 operator. Its patch version differs from
+the **6.0.8** SCONE image/package release. It no longer follows `main`.
+The public helpers and Azure plugin are also built. Cargo names the Azure executable
+`kubectl-scone_azure`; `overwrite.sh` renames it to `kubectl-scone-azure`, which is
+the name kubectl plugin discovery requires. `kubectl-provision` is copied from
+`$HOME/.cargo/bin/kubectl-provision` (override that path with
+`KUBECTL_PROVISION_BINARY`). Private repository access is required.
+
+Builds use a temporary directory. All binaries must pass validation before they
+replace existing overrides; files are copied completely and flushed before atomic
+replacement. To select different source revisions, set `SCONE_TD_BUILD_REV` and
+`SCONE_KUBECTL_PLUGIN_REV`. Their output must still pass the target version and
+interface checks. `SCONE_VERSION` defaults to `stable.txt` for `overwrite.sh`.
+
+`build.sh` requires prepared overrides; it does not compile them. Before calling
+Docker it validates the actual files in `overwrite/bin`, independently of host
+`PATH`. The Dockerfile repeats the checks inside the image, fails on missing or
+uncopyable binaries, and uses the requested `SCONE_VERSION` for package installation.
+After building, `build.sh` runs the installed tooling check in the completed image
+before tagging or pushing it. Validation does not contact Kubernetes.
+
+To check overrides without building:
 
 ```bash
-# HOSTIP as seen from within the docker container
-export HOSTIP="172.17.0.1" 
-docker context create dind \
-  --docker "host=tcp://${HOSTIP}:2375" || true
-
-rm registy.credentials.yaml || true
-rm Values.credentials.yaml || true
-
-export SCONE_VERSION=$(cat stable.txt)
-
-docker --context dind  buildx build \
-    --secret id=kubeconfig,src=$HOME/.kube/config  \
-    --secret id=dockerconfig,src=$HOME/.docker/config.json \
-    --build-arg DOCKER_HOST="tcp://${HOSTIP}:2375" \
-    -t scone:latest \
-    --build-arg SCONE_VERSION \
-    --file Dockerfile .
+SCONE_VERSION=6.0.8 ./scripts/check-scone-tooling.sh --overrides-dir overwrite/bin
 ```
 
-If the SCONE release does not ship `scone-td-build` (6.0.8 does not), run `./overwrite.sh` (it builds a pinned
-`scone-td-build` from source) or copy a `scone-td-build` binary (0.4.0 or newer, linux/amd64) to
-`overwrite/bin/scone-td-build` before building. The Dockerfile copies
-every binary in `overwrite/bin` into the image. Check the result with
-`docker run --rm scone:latest scone-td-build --version`.
+The build uses the `dind` Docker context at `tcp://172.17.0.1:2375` for building,
+checking, tagging and pushing. It requires `$HOME/.kube/config` and
+`$HOME/.docker/config.json` as BuildKit secrets. Local credential YAML files are
+excluded from the build context by `.dockerignore` and remain on the host.
 
-Next, you can tag and push your image. Always push the version tag as well, so workshops can pin it. For example:
+To build and push the versioned image:
 
 ```bash
-docker tag scone:latest registry.scontain.com/workshop/scone
-docker tag scone:latest registry.scontain.com/workshop/scone:$SCONE_VERSION
-docker push registry.scontain.com/workshop/scone
-docker push registry.scontain.com/workshop/scone:$SCONE_VERSION
+./scripts/build.sh --version 6.0.8 --push-to registry.scontain.com/workshop/scone
 ```
+
+The existing `--test` option additionally runs the Kubernetes toolbox demos.
