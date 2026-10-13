@@ -88,11 +88,12 @@ SCONE_VERSION="$target_version" "$repo_root/scripts/check-scone-tooling.sh" --ov
 
 if [[ "$validate_latest" == true ]]; then
     revision_suffix="${td_build_rev:0:12}"
-    validation_repository="registry.scontain.com/workshop/scone-validation-${revision_suffix}"
-    echo "Running the workshop demo suite using ${validation_repository}:${target_version}."
+    validation_repository="registry.scontain.com/workshop/scone-validation"
+    validation_tag="${target_version}-${revision_suffix}"
+    echo "Running the workshop demo suite using ${validation_repository}:${validation_tag}."
     echo "The validation image will remain in the registry; the current overwrite/bin files will not be changed."
     SCONE_OVERRIDE_DIR="$staging" "$repo_root/scripts/build.sh" \
-        --version "$target_version" --push-to "$validation_repository" --test
+        --version "$target_version" --push-to "$validation_repository" --image-tag "$validation_tag" --test
     echo "Latest scone-td-build revision $td_build_rev passed the workshop demo suite."
     printf 'To install this validated revision: SCONE_VERSION=%q SCONE_TD_BUILD_REV=%q %q\n' \
         "$target_version" "$td_build_rev" "$repo_root/overwrite.sh"

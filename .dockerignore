@@ -1,3 +1,5 @@
 # Keep local credentials on the host instead of deleting them during builds.
 registy.credentials.yaml
 Values.credentials.yaml
+Values.credentials.yaml.*
+scone-registry.env

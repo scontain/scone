@@ -3,11 +3,9 @@ This file defines the environment variables that we use in this repo.
 This includes the following environment variables - which are set with the help of `tplenv`:
 
 1. For the development pod, we use the following container image: $CLI_IMAGE
-   The default is `registry.scontain.com/workshop/scone:${SCONE_VERSION}`.
+   Save the untagged default `registry.scontain.com/workshop/scone`; deployment appends the selected SCONE version.
 2. The Kubernetes namespace that we use to run the SCONE development pod: $CLI_NAMESPACE
    The default is "scone-tools".
 3. The SCONE version is stored in environment variable ${SCONE_VERSION}
    The default is the version in `stable.txt`.
-4. $REGISTRY contains the name of the registry. By default, we set this to `registry.scontain.com`.
-5. You ssh public key to be able to log into the container 
-   and to use visual code to edit your files within the container: ${SSH_PUB_KEY}
+Registry settings are resolved separately from `toolbox.credentials.md` using the ignored `Values.credentials.yaml`.

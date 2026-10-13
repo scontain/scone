@@ -12,7 +12,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "scripts/configure-toolbox-ssh.py"
 ALIAS = "scone-toolbox-k8s"
-CORRECT = f"Host {ALIAS}\n  HostName 127.0.0.1\n  Port 2222\n  User root\n"
+CORRECT = f"Host {ALIAS}\n  HostName 127.0.0.1\n  Port 2222\n  User root\n  HostKeyAlias {ALIAS}\n"
 WRONG = f"Host {ALIAS}\n  HostName old.example\n  Port 22\n  User ubuntu\n"
 
 
@@ -51,6 +51,7 @@ class ToolboxSshTest(unittest.TestCase):
         self.assertEqual(settings["hostname"], "127.0.0.1")
         self.assertEqual(settings["port"], "2222")
         self.assertEqual(settings["user"], "root")
+        self.assertEqual(settings["hostkeyalias"], ALIAS)
 
     def test_missing_alias_requires_consent(self):
         result = self.run_helper("n\n")
@@ -58,7 +59,7 @@ class ToolboxSshTest(unittest.TestCase):
         self.assertIn("Add SSH alias", result.stdout)
         self.assertFalse(self.config.exists())
         self.assertIn("kubectl -n ssh-test port-forward deploy/scone-toolbox 2222:22", result.stdout)
-        self.assertIn("ssh -p 2222 root@127.0.0.1", result.stdout)
+        self.assertIn("ssh -o HostKeyAlias=scone-toolbox-k8s -p 2222 root@127.0.0.1", result.stdout)
 
     def test_approved_add_is_private_and_idempotent(self):
         result = self.run_helper("yes\n")
@@ -75,13 +76,50 @@ class ToolboxSshTest(unittest.TestCase):
         self.assertEqual(self.config.read_bytes(), original)
         self.assertEqual(self.config.stat().st_mtime_ns, mtime)
 
+    def test_old_alias_without_host_key_alias_requires_correction(self):
+        self.save(CORRECT.replace(f"  HostKeyAlias {ALIAS}\n", ""))
+        result = self.run_helper("yes\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Correct SSH alias", result.stdout)
+        self.assert_correct()
+        self.assertIn(f"ssh-keygen -R {ALIAS}", result.stdout)
+
+    def test_custom_port_is_used_in_config_and_instructions(self):
+        result = self.run_helper("yes\n", "--local-port", "2200")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.effective()["port"], "2200")
+        self.assertEqual(self.effective()["hostkeyalias"], ALIAS)
+        self.assertIn("port-forward deploy/scone-toolbox 2200:22", result.stdout)
+        self.assertIn("-p 2200 root@127.0.0.1", result.stdout)
+        original = self.config.read_bytes()
+        result = self.run_helper("", "--local-port", "2200")
+        self.assertNotIn("[y/N]", result.stdout)
+        self.assertEqual(self.config.read_bytes(), original)
+
+    def test_port_environment_default_and_cli_override(self):
+        environment = {**os.environ, "TOOLBOX_SSH_PORT": "2300"}
+        result = self.run_helper("yes\n", environment=environment)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.effective()["port"], "2300")
+        result = self.run_helper("yes\n", "--local-port", "2400", environment=environment)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.effective()["port"], "2400")
+
+    def test_invalid_port_cannot_modify_configuration(self):
+        self.save(CORRECT)
+        original = self.config.read_bytes()
+        for value in ("0", "65536", "not-a-port"):
+            result = self.run_helper("yes\n", "--local-port", value)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(self.config.read_bytes(), original)
+
     def test_wrong_alias_declined_is_preserved(self):
         self.save(WRONG)
         original = self.config.read_bytes()
         result = self.run_helper("n\n")
         self.assertIn("Correct SSH alias", result.stdout)
         self.assertEqual(self.config.read_bytes(), original)
-        self.assertIn("ssh -p 2222 root@127.0.0.1", result.stdout)
+        self.assertIn("ssh -o HostKeyAlias=scone-toolbox-k8s -p 2222 root@127.0.0.1", result.stdout)
 
     def test_correction_preserves_global_and_other_host_settings(self):
         original = (
@@ -128,7 +166,7 @@ class ToolboxSshTest(unittest.TestCase):
                 result = self.run_helper("", *options)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.config.read_bytes(), original)
-                self.assertIn("ssh -p 2222 root@127.0.0.1", result.stdout)
+                self.assertIn("ssh -o HostKeyAlias=scone-toolbox-k8s -p 2222 root@127.0.0.1", result.stdout)
 
     def test_correct_localhost_alias_is_accepted(self):
         self.save(CORRECT.replace("127.0.0.1", "localhost"))
@@ -155,7 +193,7 @@ class ToolboxSshTest(unittest.TestCase):
         result = self.run_helper("y\n")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.config.read_bytes(), original)
-        self.assertIn("ssh -p 2222 root@127.0.0.1", result.stdout)
+        self.assertIn("ssh -o HostKeyAlias=scone-toolbox-k8s -p 2222 root@127.0.0.1", result.stdout)
 
     def test_symlink_is_preserved(self):
         target = self.work / "target.conf"
@@ -186,7 +224,7 @@ class ToolboxSshTest(unittest.TestCase):
         self.assertIn("simulated full disk", result.stderr)
         self.assertEqual(self.config.read_bytes(), original)
         self.assertEqual(list(self.config.parent.glob(".scone-toolbox-ssh.*")), [])
-        self.assertIn("ssh -p 2222 root@127.0.0.1", result.stdout)
+        self.assertIn("ssh -o HostKeyAlias=scone-toolbox-k8s -p 2222 root@127.0.0.1", result.stdout)
 
 
 if __name__ == "__main__":

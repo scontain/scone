@@ -4,16 +4,17 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/build.sh --version <SCONE_VERSION> [--push | --push-to <IMAGE_NAME>] [--test] [--verbose] [--help]
+Usage: ./scripts/build.sh --version <SCONE_VERSION> [--push | --push-to <IMAGE_NAME>] [--image-tag <TAG>] [--test] [--verbose] [--help]
 
 Build the SCONE workshop image as described in README.md.
 Run SCONE_VERSION=<SCONE_VERSION> ./overwrite.sh first to prepare its binaries.
 
 Options:
-  --version <SCONE_VERSION>  Required SCONE version tag to build and tag.
+  --version <SCONE_VERSION>  Required SCONE release to build (also the default image tag).
   --push                     Push to registry.scontain.com/workshop/scone:<SCONE_VERSION>.
   --push-to <IMAGE_NAME>     Push to <IMAGE_NAME>:<SCONE_VERSION> (must not include a tag).
-  --test                     Deploy toolbox via scripts/k8s_cli.sh and run demo scripts.
+  --image-tag <TAG>          Override the image tag without changing the SCONE release.
+  --test                     Deploy toolbox and run demos; requires --push or --push-to.
   --verbose                  Print each command executed by this script.
   --help                     Show this help message.
 USAGE
@@ -29,6 +30,7 @@ require_command() {
 SCONE_VERSION=""
 PUSH_IMAGE=""
 PUSH_OPTION=""
+IMAGE_TAG=""
 RUN_TEST=false
 VERBOSE=false
 
@@ -41,6 +43,14 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       SCONE_VERSION="$2"
+      shift 2
+      ;;
+    --image-tag)
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        echo "Error: --image-tag requires a value" >&2
+        exit 1
+      fi
+      IMAGE_TAG="$2"
       shift 2
       ;;
     --test)
@@ -57,7 +67,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --push-to)
-      if [[ $# -lt 2 ]]; then
+      if [[ $# -lt 2 || -z "$2" || "$2" == --* ]]; then
         echo "Error: --push-to requires a value" >&2
         usage
         exit 1
@@ -93,6 +103,17 @@ fi
 if [[ -z "${SCONE_VERSION}" ]]; then
   echo "Error: --version <SCONE_VERSION> is required" >&2
   usage
+  exit 1
+fi
+
+if [[ "$RUN_TEST" == true && -z "$PUSH_OPTION" ]]; then
+  echo "Error: --test requires --push or --push-to" >&2
+  exit 1
+fi
+
+IMAGE_TAG="${IMAGE_TAG:-$SCONE_VERSION}"
+if [[ ! "$IMAGE_TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
+  echo "Error: invalid image tag: $IMAGE_TAG" >&2
   exit 1
 fi
 
@@ -152,29 +173,22 @@ docker --context dind run --rm --network none --entrypoint /bin/bash \
   -e SCONE_VERSION="$SCONE_VERSION" scone:latest \
   -c 'exec /root/scone/scripts/check-scone-tooling.sh'
 
-docker --context dind tag scone:latest "registry.scontain.com/workshop/scone:${SCONE_VERSION}"
-echo "Built image: registry.scontain.com/workshop/scone:${SCONE_VERSION}"
+docker --context dind tag scone:latest "registry.scontain.com/workshop/scone:${IMAGE_TAG}"
+echo "Built image: registry.scontain.com/workshop/scone:${IMAGE_TAG}"
 
 if [[ -n "${PUSH_IMAGE}" ]]; then
-  docker --context dind tag scone:latest "${PUSH_IMAGE}:${SCONE_VERSION}"
-  docker --context dind push "${PUSH_IMAGE}:${SCONE_VERSION}"
+  docker --context dind tag scone:latest "${PUSH_IMAGE}:${IMAGE_TAG}"
+  docker --context dind push "${PUSH_IMAGE}:${IMAGE_TAG}"
 else
   echo "WARNING: Image was not pushed. It is available only to the dind Docker daemon."
   echo "         To make it available to Kubernetes, rerun with --push."
-  if [[ "${RUN_TEST}" == true ]]; then
-    echo "         --test requires the image to be pushed and pullable by the cluster."
-  fi
 fi
 
 if [[ "${RUN_TEST}" == true ]]; then
   require_command kubectl
   require_command git
 
-  if [[ -n "${PUSH_IMAGE}" ]]; then
-    export CLI_IMAGE="${PUSH_IMAGE}:${SCONE_VERSION}"
-  else
-    export CLI_IMAGE="registry.scontain.com/workshop/scone:${SCONE_VERSION}"
-  fi
+  export CLI_IMAGE="${PUSH_IMAGE}:${IMAGE_TAG}"
 
   # Complete deployment before testing, so an existing Ready pod cannot be tested.
   export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"

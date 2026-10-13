@@ -148,7 +148,7 @@ SCONE_VERSION=6.0.8 ./overwrite.sh --validate-latest
 This builds the candidate in a temporary directory, checks the tooling, then
 builds and pushes a revision-specific validation image and runs all demos via
 `build.sh --test`. It does not replace `overwrite/bin`; the validation image
-remains in the registry under `workshop/scone-validation-<revision>`.
+remains in the registry under `workshop/scone-validation:<SCONE_VERSION>-<revision>`.
 Run it with registry push access and a disposable Kubernetes cluster: the demos
 create and deploy application resources. A passing run identifies the exact
 revision that can then be installed with `SCONE_TD_BUILD_REV`. Validation prints
@@ -195,11 +195,20 @@ The script prints the selected image, waits for rollout, and reports the install
 `scone-td-build` version. Set `K8S_CLI_DEPLOY_ONLY=true` to deploy without opening
 an interactive shell; `build.sh --test` uses this mode before starting the demos.
 
+The toolbox can manage demo workloads and secrets in both its own namespace and
+`default`. `k8s_cli.sh` installs a namespaced demo Role and RoleBinding in `default`,
+so demos may use `NAMESPACE=default` while `CAS_NAMESPACE=default` refers to the
+existing CAS. This role grants workload and SCONE policy permissions without
+allowing changes to CAS instances, RBAC, or cluster resources.
+
 After deployment, `k8s_cli.sh` checks the local `scone-toolbox-k8s` SSH alias. It
 asks before adding or correcting the alias. If SSH is not listening on local
 port `2222`, it offers to start a background port-forward and verifies that SSH
 responds before reporting readiness. It prints the login commands and forwarding
-process ID and log path. The helper `scripts/configure-toolbox-ssh.py` validates
+process ID and log path. It records the PID and process identity in
+`~/.cache/scone-toolbox` and stops its previous forward on the next interactive
+setup, without stopping unrelated processes. The helper
+`scripts/configure-toolbox-ssh.py` validates
 effective SSH settings and stages approved updates before atomically replacing
 the config.
 Deployment-only mode reports SSH instructions without prompting, editing SSH
@@ -207,10 +216,29 @@ configuration, or starting forwarding. Restart forwarding after replacing the
 toolbox pod; a configured alias alone does not create a tunnel. If your private
 key is encrypted, interactive SSH will prompt for its passphrase; you can also
 unlock it with `ssh-add` when an SSH agent is running.
-Set `TOOLBOX_SSH_CONFIG` to use an alternative SSH configuration file.
+Set `TOOLBOX_SSH_CONFIG` to use an alternative SSH configuration file and
+`TOOLBOX_SSH_PORT=2200` to change the default local port. The helper also accepts
+`--local-port` and `--state-dir`. The managed alias uses
+`HostKeyAlias scone-toolbox-k8s`. After a trusted image upgrade changes the host
+keys, run `ssh-keygen -R scone-toolbox-k8s` before reconnecting.
+
+Your `SSH_PUB_KEY` is saved in the ignored `Values.credentials.yaml`, alongside
+registry credentials. Shared `Values.yaml` contains no user SSH key. An explicit
+`SSH_PUB_KEY` overrides the saved local key for a deployment; otherwise setup
+uses the saved key or initializes it from `~/.ssh`. Old SSH keys in shared
+`Values.yaml` are ignored by toolbox setup.
+
+On every `k8s_cli.sh` run, registry credentials resolved by `tplenv` update both
+image pull secrets and the `scone-registry-env` startup secret before the toolbox
+is recreated. The toolbox logs Docker in using those credentials. Saved values
+retain `tplenv`'s normal precedence. Registry credentials go directly to Kubernetes
+without writing a local `scone-registry.env` file. The entrypoint uses `REGISTRY`
+from the startup secret, with `registry.scontain.com` as its legacy default.
 
 Use `--push-to <IMAGE_NAME>` to publish to a different repository; supply the
-repository without a tag or digest.
+repository without a tag or digest. `--image-tag <TAG>` changes the image tag
+while keeping the SCONE release selected by `--version`. Validation uses this
+to put release-and-revision tags in a single `workshop/scone-validation` repository.
 Choose either `--push` or `--push-to`. Without either option, the build remains
 local to the `dind` Docker daemon and prints a warning.
 
@@ -221,8 +249,8 @@ To build, push, and run the demos against the current Kubernetes context:
 ```
 
 `--test` deploys the selected versioned image, then clones or updates
-`scone-td-build-demos` and runs its demo suite. When combined with `--push` or
-`--push-to`, the image is pushed before deployment. The demos revision is
+`scone-td-build-demos` and runs its demo suite. It requires `--push` or
+`--push-to`, so deployment always follows a successful push of the built image. The demos revision is
 currently not pinned. Use a disposable cluster with the required SCONE runtime,
 CAS, and registry credentials. `--verbose` prints executed commands, and both
 `build.sh` and `overwrite.sh` support `--help`.
@@ -239,6 +267,7 @@ The local regression scripts mock external build and deployment commands:
 ./tests/toolbox-image.test.sh
 python3 ./tests/toolbox-ssh.test.py
 python3 ./tests/toolbox-port-forward.test.py
+python3 ./tests/toolbox-registry.test.py
 ```
 
 They check the build workflow and preservation of installed overrides. Run
