@@ -167,6 +167,13 @@ in `default`. The latter permits demo secrets, ConfigMaps, services, pods, Jobs,
 Deployments, SCONE policies, and NetworkPolicies. Demo `NAMESPACE` can therefore
 remain `default`, independently of `CAS_NAMESPACE`.
 
+Setup also provisions `java-demo`, `ci-scone-td-build`, and `nfs-demo`, with demo
+Roles and RoleBindings scoped to each namespace. These roles include PVC access
+for the shared-volume demo. Set `TOOLBOX_DEMO_NAMESPACES` to a space-separated
+list to use other namespaces, or set it to an empty string to skip this step.
+The setup account creates namespaces; the toolbox does not receive permission to
+create namespaces or change RBAC.
+
 Infrastructure access remains read-only: these additional permissions do not
 allow modifying CAS instances, RBAC, cluster resources, or `kube-system` workloads.
 Run this setup using a Kubernetes account allowed to create these roles and
@@ -175,6 +182,16 @@ bindings. We render the template and apply it before deploying the toolbox:
 ```bash
 render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml
 kubectl apply -f ./k8s/rbac.yaml
+
+# The suite also ships demos that use dedicated namespaces. Provision them with
+# the setup account; the toolbox service account keeps namespace creation denied.
+read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo}"
+for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do
+  kubectl create ns "$toolbox_demo_namespace" --dry-run=client -o yaml | kubectl apply -f -
+  export TOOLBOX_DEMO_NAMESPACE="$toolbox_demo_namespace"
+  render_toolbox_manifest ./k8s/demo-rbac.template.yaml ./k8s/demo-rbac.yaml
+  kubectl apply -f ./k8s/demo-rbac.yaml
+done
 ```
    
 ## Deploy DIND
