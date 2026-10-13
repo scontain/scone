@@ -19,3 +19,4 @@ kubeconfig
 Values.credentials.yaml
 Values.credentials.yaml.*
 registy.credentials.yaml
+k8s/demo-rbac.yaml

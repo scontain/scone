@@ -125,6 +125,29 @@ printf 'ok - candidate image and namespace override saved defaults\n'
 grep -Fq 'port-forward deploy/scone-toolbox 2200:22' "$work/output"
 grep -Fq -- '-p 2200 root@127.0.0.1' "$work/output"
 printf 'ok - toolbox SSH instructions use the configured local port\n'
+for namespace in java-demo ci-scone-td-build nfs-demo; do
+    grep -Fq "create ns $namespace --dry-run=client" "$MOCK_CALLS"
+done
+grep -Fq 'namespace: nfs-demo' "$fixture/k8s/demo-rbac.yaml"
+grep -Fq 'name: scone-demo-runner-validation' "$fixture/k8s/demo-rbac.yaml"
+grep -Fq 'namespace: validation' "$fixture/k8s/demo-rbac.yaml"
+printf 'ok - standard demo namespaces are provisioned with the selected toolbox account\n'
+
+run_toolbox env TOOLBOX_DEMO_NAMESPACES=custom-demo
+grep -Fq 'create ns custom-demo --dry-run=client' "$MOCK_CALLS"
+grep -Fq 'namespace: custom-demo' "$fixture/k8s/demo-rbac.yaml"
+if grep -Fq 'create ns java-demo --dry-run=client' "$MOCK_CALLS"; then
+    echo 'FAIL - custom demo namespace list was ignored' >&2
+    exit 1
+fi
+printf 'ok - demo namespace list can be overridden\n'
+run_toolbox env TOOLBOX_DEMO_NAMESPACES=
+if grep -Fq 'apply -f ./k8s/demo-rbac.yaml' "$MOCK_CALLS"; then
+    echo 'FAIL - empty demo namespace list was ignored' >&2
+    exit 1
+fi
+printf 'ok - explicit empty demo namespace list skips additional provisioning\n'
+
 
 run_toolbox env -u CLI_IMAGE SCONE_VERSION=6.0.9
 grep -Fq 'image: registry.scontain.com/workshop/scone:6.0.9' "$fixture/k8s/deployment.yaml"

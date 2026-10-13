@@ -292,6 +292,13 @@ printf '%s\n' 'in `default`. The latter permits demo secrets, ConfigMaps, servic
 printf '%s\n' 'Deployments, SCONE policies, and NetworkPolicies. Demo `NAMESPACE` can therefore'
 printf '%s\n' 'remain `default`, independently of `CAS_NAMESPACE`.'
 printf '%s\n' ''
+printf '%s\n' 'Setup also provisions `java-demo`, `ci-scone-td-build`, and `nfs-demo`, with demo'
+printf '%s\n' 'Roles and RoleBindings scoped to each namespace. These roles include PVC access'
+printf '%s\n' 'for the shared-volume demo. Set `TOOLBOX_DEMO_NAMESPACES` to a space-separated'
+printf '%s\n' 'list to use other namespaces, or set it to an empty string to skip this step.'
+printf '%s\n' 'The setup account creates namespaces; the toolbox does not receive permission to'
+printf '%s\n' 'create namespaces or change RBAC.'
+printf '%s\n' ''
 printf '%s\n' 'Infrastructure access remains read-only: these additional permissions do not'
 printf '%s\n' 'allow modifying CAS instances, RBAC, cluster resources, or `kube-system` workloads.'
 printf '%s\n' 'Run this setup using a Kubernetes account allowed to create these roles and'
@@ -302,10 +309,30 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml'
 printf '%s\n' 'kubectl apply -f ./k8s/rbac.yaml'
+printf '%s\n' ''
+printf '%s\n' '# The suite also ships demos that use dedicated namespaces. Provision them with'
+printf '%s\n' '# the setup account; the toolbox service account keeps namespace creation denied.'
+printf '%s\n' 'read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo}"'
+printf '%s\n' 'for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do'
+printf '%s\n' '  kubectl create ns "$toolbox_demo_namespace" --dry-run=client -o yaml | kubectl apply -f -'
+printf '%s\n' '  export TOOLBOX_DEMO_NAMESPACE="$toolbox_demo_namespace"'
+printf '%s\n' '  render_toolbox_manifest ./k8s/demo-rbac.template.yaml ./k8s/demo-rbac.yaml'
+printf '%s\n' '  kubectl apply -f ./k8s/demo-rbac.yaml'
+printf '%s\n' 'done'
 printf "${RESET}"
 
 render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml
 kubectl apply -f ./k8s/rbac.yaml
+
+# The suite also ships demos that use dedicated namespaces. Provision them with
+# the setup account; the toolbox service account keeps namespace creation denied.
+read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo}"
+for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do
+  kubectl create ns "$toolbox_demo_namespace" --dry-run=client -o yaml | kubectl apply -f -
+  export TOOLBOX_DEMO_NAMESPACE="$toolbox_demo_namespace"
+  render_toolbox_manifest ./k8s/demo-rbac.template.yaml ./k8s/demo-rbac.yaml
+  kubectl apply -f ./k8s/demo-rbac.yaml
+done
 
 printf "${VIOLET}"
 printf '%s\n' '   '

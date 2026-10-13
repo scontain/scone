@@ -1,0 +1,42 @@
+# Run workshop workloads in a pre-provisioned demo namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: scone-demo-runner-$CLI_NAMESPACE
+  namespace: $TOOLBOX_DEMO_NAMESPACE
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps", "secrets", "services", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/attach", "pods/portforward"]
+    verbs: ["get", "create"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["cas.scone.cloud"]
+    resources: ["encryptedpolicies", "signedpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: scone-demo-runner-$CLI_NAMESPACE
+  namespace: $TOOLBOX_DEMO_NAMESPACE
+subjects:
+  - kind: ServiceAccount
+    name: scone-runner
+    namespace: $CLI_NAMESPACE
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: scone-demo-runner-$CLI_NAMESPACE
