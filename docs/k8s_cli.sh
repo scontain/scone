@@ -474,7 +474,8 @@ printf '%s\n' 'in `default`. The latter permits demo secrets, ConfigMaps, servic
 printf '%s\n' 'Deployments, SCONE policies, and NetworkPolicies. Demo `NAMESPACE` can therefore'
 printf '%s\n' 'remain `default`, independently of `CAS_NAMESPACE`.'
 printf '%s\n' ''
-printf '%s\n' 'Setup also provisions `java-demo`, `ci-scone-td-build`, and `nfs-demo`, with demo'
+printf '%s\n' 'Setup also provisions `java-demo`, `ci-scone-td-build`, `nfs-demo`, `governance-demo`'
+printf '%s\n' 'and `pet-clinic`, with demo'
 printf '%s\n' 'Roles and RoleBindings scoped to each namespace. These roles include PVC access'
 printf '%s\n' 'for the shared-volume demo. Set `TOOLBOX_DEMO_NAMESPACES` to a space-separated'
 printf '%s\n' 'list to use other namespaces, or set it to an empty string to skip this step.'
@@ -509,7 +510,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo}"
+# Keep this list in sync with the NAMESPACE values of the scone-td-build-demos demos.
+EOF
+)"
+pe "$(cat <<'EOF'
+read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo governance-demo pet-clinic}"
 EOF
 )"
 pe "$(cat <<'EOF'

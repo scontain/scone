@@ -125,10 +125,11 @@ printf 'ok - candidate image and namespace override saved defaults\n'
 grep -Fq 'port-forward deploy/scone-toolbox 2200:22' "$work/output"
 grep -Fq -- '-p 2200 root@127.0.0.1' "$work/output"
 printf 'ok - toolbox SSH instructions use the configured local port\n'
-for namespace in java-demo ci-scone-td-build nfs-demo; do
+for namespace in java-demo ci-scone-td-build nfs-demo governance-demo pet-clinic; do
     grep -Fq "create ns $namespace --dry-run=client" "$MOCK_CALLS"
 done
-grep -Fq 'namespace: nfs-demo' "$fixture/k8s/demo-rbac.yaml"
+# The rendered file holds the last namespace of the list.
+grep -Fq 'namespace: pet-clinic' "$fixture/k8s/demo-rbac.yaml"
 grep -Fq 'name: scone-demo-runner-validation' "$fixture/k8s/demo-rbac.yaml"
 grep -Fq 'namespace: validation' "$fixture/k8s/demo-rbac.yaml"
 printf 'ok - standard demo namespaces are provisioned with the selected toolbox account\n'

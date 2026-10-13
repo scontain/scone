@@ -200,8 +200,8 @@ The toolbox can manage demo workloads and secrets in both its own namespace and
 so demos may use `NAMESPACE=default` while `CAS_NAMESPACE=default` refers to the
 existing CAS. This role grants workload and SCONE policy permissions without
 allowing changes to CAS instances, RBAC, or cluster resources.
-Setup also provisions the suite's `java-demo`, `ci-scone-td-build`, and `nfs-demo`
-namespaces and gives the toolbox a demo Role and RoleBinding in each. Override
+Setup also provisions the suite's `java-demo`, `ci-scone-td-build`, `nfs-demo`,
+`governance-demo` and `pet-clinic` namespaces and gives the toolbox a demo Role and RoleBinding in each. Override
 this list using `TOOLBOX_DEMO_NAMESPACES` (space-separated names; empty skips it).
 PVC permissions are included for the shared-volume demo.
 
