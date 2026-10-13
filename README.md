@@ -139,12 +139,37 @@ replacement. To select different source revisions, set `SCONE_TD_BUILD_REV` and
 `SCONE_KUBECTL_PLUGIN_REV`. Their output must still pass the target version and
 interface checks. `SCONE_VERSION` defaults to `stable.txt` for `overwrite.sh`.
 
-`build.sh` requires prepared overrides; it does not compile them. Before calling
-Docker it validates the actual files in `overwrite/bin`, independently of host
-`PATH`. The Dockerfile repeats the checks inside the image, fails on missing or
-uncopyable binaries, and uses the requested `SCONE_VERSION` for package installation.
+To validate the latest `scone-td-build` commit on `main` end to end, run:
+
+```bash
+SCONE_VERSION=6.0.8 ./overwrite.sh --validate-latest
+```
+
+This builds the candidate in a temporary directory, checks the tooling, then
+builds and pushes a revision-specific validation image and runs all demos via
+`build.sh --test`. It does not replace `overwrite/bin`; the validation image
+remains in the registry under `workshop/scone-validation-<revision>`.
+Run it with registry push access and a disposable Kubernetes cluster: the demos
+create and deploy application resources. A passing run identifies the exact
+revision that can then be installed with `SCONE_TD_BUILD_REV`. Validation prints
+that command on success. A later normal build uses the existing `overwrite/bin`,
+so install the validated revision before building and publishing it:
+
+```bash
+SCONE_VERSION=6.0.8 SCONE_TD_BUILD_REV=<validated-commit> ./overwrite.sh
+./scripts/build.sh --version 6.0.8 --push
+SCONE_VERSION=6.0.8 ./scripts/k8s_cli.sh
+```
+
+`build.sh` normally uses prepared overrides from `overwrite/bin`; it does not
+compile them. Before calling Docker it validates the selected override directory,
+independently of host `PATH`. The Dockerfile repeats the checks inside the image,
+using a named BuildKit context for the selected overrides, and fails on missing or
+uncopyable binaries. It uses the requested `SCONE_VERSION` for package installation.
 After building, `build.sh` runs the installed tooling check in the completed image
-before tagging or pushing it. Validation does not contact Kubernetes.
+before tagging or pushing it. These tooling checks do not contact Kubernetes;
+`--test` and `--validate-latest` deploy and run demos on the current Kubernetes
+context.
 
 To check overrides without building:
 
@@ -160,7 +185,61 @@ excluded from the build context by `.dockerignore` and remain on the host.
 To build and push the versioned image:
 
 ```bash
-./scripts/build.sh --version 6.0.8 --push-to registry.scontain.com/workshop/scone
+./scripts/build.sh --version 6.0.8 --push
 ```
 
-The existing `--test` option additionally runs the Kubernetes toolbox demos.
+`--push` publishes to `registry.scontain.com/workshop/scone:<SCONE_VERSION>`,
+the default image installed by `k8s_cli.sh`. Explicit `CLI_IMAGE`, `CLI_NAMESPACE`,
+and `SCONE_VERSION` settings take precedence over saved values when deploying.
+The script prints the selected image, waits for rollout, and reports the installed
+`scone-td-build` version. Set `K8S_CLI_DEPLOY_ONLY=true` to deploy without opening
+an interactive shell; `build.sh --test` uses this mode before starting the demos.
+
+After deployment, `k8s_cli.sh` checks the local `scone-toolbox-k8s` SSH alias. It
+asks before adding or correcting the alias. If SSH is not listening on local
+port `2222`, it offers to start a background port-forward and verifies that SSH
+responds before reporting readiness. It prints the login commands and forwarding
+process ID and log path. The helper `scripts/configure-toolbox-ssh.py` validates
+effective SSH settings and stages approved updates before atomically replacing
+the config.
+Deployment-only mode reports SSH instructions without prompting, editing SSH
+configuration, or starting forwarding. Restart forwarding after replacing the
+toolbox pod; a configured alias alone does not create a tunnel. If your private
+key is encrypted, interactive SSH will prompt for its passphrase; you can also
+unlock it with `ssh-add` when an SSH agent is running.
+Set `TOOLBOX_SSH_CONFIG` to use an alternative SSH configuration file.
+
+Use `--push-to <IMAGE_NAME>` to publish to a different repository; supply the
+repository without a tag or digest.
+Choose either `--push` or `--push-to`. Without either option, the build remains
+local to the `dind` Docker daemon and prints a warning.
+
+To build, push, and run the demos against the current Kubernetes context:
+
+```bash
+./scripts/build.sh --version 6.0.8 --push --test
+```
+
+`--test` deploys the selected versioned image, then clones or updates
+`scone-td-build-demos` and runs its demo suite. When combined with `--push` or
+`--push-to`, the image is pushed before deployment. The demos revision is
+currently not pinned. Use a disposable cluster with the required SCONE runtime,
+CAS, and registry credentials. `--verbose` prints executed commands, and both
+`build.sh` and `overwrite.sh` support `--help`.
+
+For prepared overrides outside this checkout, set `SCONE_OVERRIDE_DIR` to the
+directory containing `bin/`. `--validate-latest` uses this variable to supply its
+temporary candidate binaries to `build.sh`.
+
+The local regression scripts mock external build and deployment commands:
+
+```bash
+./tests/workshop-build.test.sh
+./tests/overwrite-validate-latest.test.sh
+./tests/toolbox-image.test.sh
+python3 ./tests/toolbox-ssh.test.py
+python3 ./tests/toolbox-port-forward.test.py
+```
+
+They check the build workflow and preservation of installed overrides. Run
+`--validate-latest` for the actual image build, push, and demo validation.

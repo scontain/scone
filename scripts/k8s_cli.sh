@@ -61,11 +61,13 @@ kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1;
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## Enabling TCP on Docker Daemon'
+printf '%s\n' '## Docker TCP connections'
 printf '%s\n' ''
-printf '%s\n' 'The image requires TCP on the Docker Daemon. If you are using a Kubernetes cluster with confidential nodes, we need to enable TCP on the Docker Daemon by running the [enable docker script](scripts/enable_docker_tcp.sh)'
+printf '%s\n' 'The Kubernetes toolbox connects to a separate Docker-in-Docker (`dind`) Deployment through `tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375`. The [DIND manifest](k8s/dind.template.yaml) already enables that TCP listener, and this script deploys it below. You do not need to enable Docker TCP on your laptop or Kubernetes nodes for the toolbox to use this service.'
 printf '%s\n' ''
-printf '%s\n' '> Note: Enabling TCP on Docker is a serious security risk. Use this option only if you run a private Kubernetes cluster. We provide a [script](scripts/disable_docker_tcp.sh) to disable TCP when you are done using the Docker daemon.'
+printf '%s\n' 'The [enable docker script](scripts/enable_docker_tcp.sh) changes the local Linux systemd Docker service on the machine where you execute it. It writes `/etc/systemd/system/docker.service.d/override.conf` and restarts Docker to listen on `0.0.0.0:2375`. Running it on a laptop affects that laptop; running it over SSH on a node affects that node. It does not change remote Kubernetes resources or the node'\''s containerd configuration.'
+printf '%s\n' ''
+printf '%s\n' '> Note: This Docker TCP listener has no TLS or authentication. Restrict access to trusted clients. The [disable docker script](scripts/disable_docker_tcp.sh) removes the local systemd override. `build.sh` separately requires its configured Docker endpoint at `tcp://172.17.0.1:2375` to be reachable from where the build runs.'
 printf '%s\n' ''
 printf '%s\n' '## Deployment'
 printf '%s\n' ''
@@ -123,15 +125,21 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '## Container Image'
 printf '%s\n' ''
-printf '%s\n' 'In our pod, we use a pre-built image `registry.scontain.com/workshop/scone`'
+printf '%s\n' 'In our pod, we use a versioned image such as `registry.scontain.com/workshop/scone:6.0.8`.'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"'
+printf '%s\n' 'toolbox_image_override="${CLI_IMAGE:-}"'
+printf '%s\n' 'toolbox_namespace_override="${CLI_NAMESPACE:-}"'
+printf '%s\n' 'toolbox_version_override="${SCONE_VERSION:-}"'
+printf '%s\n' 'export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone:${SCONE_VERSION:-$(cat stable.txt)}}"'
 printf "${RESET}"
 
-export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone}"
+toolbox_image_override="${CLI_IMAGE:-}"
+toolbox_namespace_override="${CLI_NAMESPACE:-}"
+toolbox_version_override="${SCONE_VERSION:-}"
+export CLI_IMAGE="${CLI_IMAGE:-registry.scontain.com/workshop/scone:${SCONE_VERSION:-$(cat stable.txt)}}"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -142,7 +150,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"'
+printf '%s\n' 'export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"'
 printf "${RESET}"
 
 export CLI_NAMESPACE="${CLI_NAMESPACE:-scone-tools}"
@@ -155,9 +163,53 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' ''
+printf '%s\n' '# Explicit caller settings take precedence over saved Values.yaml defaults.'
+printf '%s\n' 'export SCONE_VERSION="${toolbox_version_override:-${SCONE_VERSION:-$(cat stable.txt)}}"'
+printf '%s\n' 'export CLI_NAMESPACE="${toolbox_namespace_override:-${CLI_NAMESPACE:-scone-tools}}"'
+printf '%s\n' 'export CLI_IMAGE="${toolbox_image_override:-${CLI_IMAGE:-registry.scontain.com/workshop/scone}}"'
+printf '%s\n' 'if [[ "$CLI_IMAGE" == "registry.scontain.com/workshop/scone" ]]; then'
+printf '%s\n' '  export CLI_IMAGE="${CLI_IMAGE}:${SCONE_VERSION}"'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' '# Render from the resolved environment. Saved values would otherwise override it.'
+printf '%s\n' '# Stage output beside its destination so a failed render preserves the old file.'
+printf '%s\n' 'render_toolbox_manifest() {'
+printf '%s\n' '  local template="$1" output="$2" temporary'
+printf '%s\n' '  temporary="$(mktemp "${output}.XXXXXX")"'
+printf '%s\n' '  if tplenv --values-file /dev/null --file "$template" --output "$temporary"; then'
+printf '%s\n' '    if mv -f "$temporary" "$output"; then'
+printf '%s\n' '      return 0'
+printf '%s\n' '    fi'
+printf '%s\n' '  fi'
+printf '%s\n' '  rm -f "$temporary"'
+printf '%s\n' '  return 1'
+printf '%s\n' '}'
 printf "${RESET}"
 
 eval $(tplenv --file environment-variables-k8s.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+
+# Explicit caller settings take precedence over saved Values.yaml defaults.
+export SCONE_VERSION="${toolbox_version_override:-${SCONE_VERSION:-$(cat stable.txt)}}"
+export CLI_NAMESPACE="${toolbox_namespace_override:-${CLI_NAMESPACE:-scone-tools}}"
+export CLI_IMAGE="${toolbox_image_override:-${CLI_IMAGE:-registry.scontain.com/workshop/scone}}"
+if [[ "$CLI_IMAGE" == "registry.scontain.com/workshop/scone" ]]; then
+  export CLI_IMAGE="${CLI_IMAGE}:${SCONE_VERSION}"
+fi
+
+# Render from the resolved environment. Saved values would otherwise override it.
+# Stage output beside its destination so a failed render preserves the old file.
+render_toolbox_manifest() {
+  local template="$1" output="$2" temporary
+  temporary="$(mktemp "${output}.XXXXXX")"
+  if tplenv --values-file /dev/null --file "$template" --output "$temporary"; then
+    if mv -f "$temporary" "$output"; then
+      return 0
+    fi
+  fi
+  rm -f "$temporary"
+  return 1
+}
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -267,11 +319,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'tplenv --file ./k8s/rbac.template.yaml --output ./k8s/rbac.yaml'
+printf '%s\n' 'render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml'
 printf '%s\n' 'kubectl apply -f ./k8s/rbac.yaml'
 printf "${RESET}"
 
-tplenv --file ./k8s/rbac.template.yaml --output ./k8s/rbac.yaml
+render_toolbox_manifest ./k8s/rbac.template.yaml ./k8s/rbac.yaml
 kubectl apply -f ./k8s/rbac.yaml
 
 printf "${VIOLET}"
@@ -281,11 +333,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'tplenv --file ./k8s/dind.template.yaml --output ./k8s/dind.yaml'
+printf '%s\n' 'render_toolbox_manifest ./k8s/dind.template.yaml ./k8s/dind.yaml'
 printf '%s\n' 'kubectl apply -f ./k8s/dind.yaml'
 printf "${RESET}"
 
-tplenv --file ./k8s/dind.template.yaml --output ./k8s/dind.yaml
+render_toolbox_manifest ./k8s/dind.template.yaml ./k8s/dind.yaml
 kubectl apply -f ./k8s/dind.yaml
 
 printf "${VIOLET}"
@@ -297,70 +349,75 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml'
+printf '%s\n' 'render_toolbox_manifest ./k8s/deployment.template.yaml ./k8s/deployment.yaml'
+printf '%s\n' 'echo "Deploying toolbox image: $CLI_IMAGE"'
 printf '%s\n' '# delete old deployment...'
 printf '%s\n' '{ kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"'
-printf '%s\n' '# ensure we load the latest container image'
+printf '%s\n' '# ensure we load the selected container image'
 printf '%s\n' 'kubectl apply -f ./k8s/deployment.yaml'
+printf '%s\n' 'kubectl -n "$CLI_NAMESPACE" rollout status deployment/scone-toolbox --timeout=300s'
+printf '%s\n' 'kubectl -n "$CLI_NAMESPACE" exec deploy/scone-toolbox -c scone-toolbox -- scone-td-build --version'
 printf "${RESET}"
 
-tplenv --file ./k8s/deployment.template.yaml --output ./k8s/deployment.yaml
+render_toolbox_manifest ./k8s/deployment.template.yaml ./k8s/deployment.yaml
+echo "Deploying toolbox image: $CLI_IMAGE"
 # delete old deployment...
 { kubectl -n "${CLI_NAMESPACE}" delete deployment/scone-toolbox ; kubectl wait --for=delete pod -n "${CLI_NAMESPACE}" -l app=scone-toolbox  --timeout=120s; }  || echo "Ok - it seems no deployment was running"
-# ensure we load the latest container image
+# ensure we load the selected container image
 kubectl apply -f ./k8s/deployment.yaml
+kubectl -n "$CLI_NAMESPACE" rollout status deployment/scone-toolbox --timeout=300s
+kubectl -n "$CLI_NAMESPACE" exec deploy/scone-toolbox -c scone-toolbox -- scone-td-build --version
 
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '## SSH Access via Port-Forward'
 printf '%s\n' ''
-printf '%s\n' 'After deployment, wait until the toolbox pod is `Ready`, then forward local port `2222` to container port `22`:'
+printf '%s\n' 'The script checks the effective configuration of the local `scone-toolbox-k8s`'
+printf '%s\n' 'alias, including wildcard rules and included SSH configuration files. A working'
+printf '%s\n' 'alias connects to `root` on loopback port `2222`. It asks before adding a missing'
+printf '%s\n' 'alias or correcting an existing alias. Declining leaves your SSH configuration'
+printf '%s\n' 'unchanged, and you can still use the direct SSH command printed below.'
 printf '%s\n' ''
-printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" wait pod -l app=scone-toolbox \'
-printf '%s\n' '  --for=condition=Ready --timeout=300s'
-printf '%s\n' 'kill $(cat /tmp/pf-2222.pid) || true'
-printf '%s\n' 'rm /tmp/pf-2222.pid || true'
-printf '%s\n' 'kubectl -n "${CLI_NAMESPACE}" port-forward deploy/scone-toolbox 2222:22 &  echo $! > /tmp/pf-2222.pid'
+printf '%s\n' 'Approved updates preserve other SSH configuration and use an atomic replacement.'
+printf '%s\n' 'Set `TOOLBOX_SSH_CONFIG` to use a configuration file other than `~/.ssh/config`.'
+printf '%s\n' 'If local port `2222` has no listener, the script asks whether to start'
+printf '%s\n' '`kubectl port-forward` in the background. It verifies the SSH banner before'
+printf '%s\n' 'reporting the connection as ready, and prints the process ID and log path.'
+printf '%s\n' 'The forwarding process survives this script exiting; replacing the toolbox pod'
+printf '%s\n' 'ends that forwarding session, so rerun setup or the printed port-forward command.'
+printf '%s\n' '`K8S_CLI_DEPLOY_ONLY=true` skips SSH configuration and forwarding prompts for automation.'
 printf '%s\n' ''
-printf '%s\n' 'In another terminal, connect via SSH (password login is disabled, key-based login only):'
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'toolbox_ssh_args=(--ensure-forward --namespace "$CLI_NAMESPACE" --config "${TOOLBOX_SSH_CONFIG:-$HOME/.ssh/config}")'
+printf '%s\n' 'if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" == true ]]; then'
+printf '%s\n' '  toolbox_ssh_args+=(--non-interactive)'
+printf '%s\n' 'fi'
+printf '%s\n' 'if ! python3 ./scripts/configure-toolbox-ssh.py "${toolbox_ssh_args[@]}"; then'
+printf '%s\n' '  echo "SSH setup could not complete. To connect directly:"'
+printf '%s\n' '  printf '\''  kubectl -n %q port-forward deploy/scone-toolbox 2222:22\n'\'' "$CLI_NAMESPACE"'
+printf '%s\n' '  echo "  ssh -p 2222 root@127.0.0.1"'
+printf '%s\n' 'fi'
+printf "${RESET}"
+
+toolbox_ssh_args=(--ensure-forward --namespace "$CLI_NAMESPACE" --config "${TOOLBOX_SSH_CONFIG:-$HOME/.ssh/config}")
+if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" == true ]]; then
+  toolbox_ssh_args+=(--non-interactive)
+fi
+if ! python3 ./scripts/configure-toolbox-ssh.py "${toolbox_ssh_args[@]}"; then
+  echo "SSH setup could not complete. To connect directly:"
+  printf '  kubectl -n %q port-forward deploy/scone-toolbox 2222:22\n' "$CLI_NAMESPACE"
+  echo "  ssh -p 2222 root@127.0.0.1"
+fi
+
+printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'ssh -p 2222 root@127.0.0.1'
-printf '%s\n' ''
-printf '%s\n' 'If you want a convenient host alias, add an idempotent block to `~/.ssh/config`:'
-printf '%s\n' ''
-printf '%s\n' 'SSH_CONFIG="${HOME}/.ssh/config"'
-printf '%s\n' 'HOST_ALIAS="scone-toolbox-k8s"'
-printf '%s\n' 'BEGIN_MARKER="# >>> ${HOST_ALIAS} >>>"'
-printf '%s\n' 'END_MARKER="# <<< ${HOST_ALIAS} <<<"'
-printf '%s\n' ''
-printf '%s\n' 'mkdir -p "${HOME}/.ssh"'
-printf '%s\n' 'chmod 700 "${HOME}/.ssh"'
-printf '%s\n' 'touch "${SSH_CONFIG}"'
-printf '%s\n' 'chmod 600 "${SSH_CONFIG}"'
-printf '%s\n' ''
-printf '%s\n' 'tmp_config="$(mktemp)"'
-printf '%s\n' 'awk -v begin="${BEGIN_MARKER}" -v end="${END_MARKER}" '\'''
-printf '%s\n' '  $0 == begin {skip=1; next}'
-printf '%s\n' '  $0 == end   {skip=0; next}'
-printf '%s\n' '  !skip       {print}'
-printf '%s\n' ''\'' "${SSH_CONFIG}" > "${tmp_config}"'
-printf '%s\n' ''
-printf '%s\n' 'printf '\''%s\n'\'' \'
-printf '%s\n' '  "${BEGIN_MARKER}" \'
-printf '%s\n' '  "Host ${HOST_ALIAS}" \'
-printf '%s\n' '  "  HostName 127.0.0.1" \'
-printf '%s\n' '  "  Port 2222" \'
-printf '%s\n' '  "  User root" \'
-printf '%s\n' '  "  ServerAliveInterval 30" \'
-printf '%s\n' '  "  StrictHostKeyChecking accept-new" \'
-printf '%s\n' '  "${END_MARKER}" \'
-printf '%s\n' '  >> "${tmp_config}"'
-printf '%s\n' ''
-printf '%s\n' 'mv "${tmp_config}" "${SSH_CONFIG}"'
-printf '%s\n' ''
-printf '%s\n' 'Then connect using the alias:'
-printf '%s\n' ''
-printf '%s\n' 'ssh scone-toolbox-k8s'
+printf '%s\n' 'If you declined automatic forwarding, keep the printed port-forward command'
+printf '%s\n' 'running in one terminal. Once forwarding is ready, run `ssh scone-toolbox-k8s`'
+printf '%s\n' 'if the alias is configured, or'
+printf '%s\n' '`ssh -p 2222 root@127.0.0.1` to connect directly. Authentication uses the private'
+printf '%s\n' 'key corresponding to `SSH_PUB_KEY` configured for the toolbox.'
 printf '%s\n' ''
 printf '%s\n' '##  Watch the logs of the pod'
 printf '%s\n' ''
@@ -415,10 +472,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help'
+printf '%s\n' 'kubectl exec -n "$CLI_NAMESPACE" deploy/scone-toolbox -c scone-toolbox -- scone --help'
 printf "${RESET}"
 
-kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- scone --help
+kubectl exec -n "$CLI_NAMESPACE" deploy/scone-toolbox -c scone-toolbox -- scone --help
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -427,8 +484,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash'
+printf '%s\n' 'if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" != true ]]; then'
+printf '%s\n' '  kubectl exec -n "$CLI_NAMESPACE" -it deploy/scone-toolbox -c scone-toolbox -- bash'
+printf '%s\n' 'fi'
 printf "${RESET}"
 
-kubectl exec -n $CLI_NAMESPACE -it deploy/scone-toolbox  -c scone-toolbox -- bash
+if [[ "${K8S_CLI_DEPLOY_ONLY:-false}" != true ]]; then
+  kubectl exec -n "$CLI_NAMESPACE" -it deploy/scone-toolbox -c scone-toolbox -- bash
+fi
 
