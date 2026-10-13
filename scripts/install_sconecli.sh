@@ -175,118 +175,221 @@ docker create --name scone-packages "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 > /dev
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Next, we copy both Debian packages and required binaries from the same'
-printf '%s\n' '`scone-packages` container.'
+printf '%s\n' 'Next, inspect the package image archive and copy only the packages it contains.'
+printf '%s\n' 'SCONE 6.x places Debian packages at the image root; SCONE 7.x may add more packages'
+printf '%s\n' 'there. Some releases use a packages directory. This handles both layouts without'
+printf '%s\n' 'assuming that a fixed set of files exists.'
 printf '%s\n' ''
-printf '%s\n' 'You will need to type your `sudo` password:'
+printf '%s\n' 'The extracted files go in a unique temporary directory, so existing files in /tmp'
+printf '%s\n' 'are left alone. The temporary container and directory are removed when the script'
+printf '%s\n' 'exits.'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# copy Debian packages and required binaries'
-printf '%s\n' 'mkdir -p /tmp/packages'
-printf '%s\n' 'mkdir -p /tmp/scone-bin'
-printf '%s\n' 'docker cp scone-packages:/packages /tmp || {'
-printf '%s\n' '    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;'
-printf '%s\n' '    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;'
-printf '%s\n' '    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;'
-printf '%s\n' '    docker cp scone-packages:/scone-td-build.deb /tmp/scone-bin/;'
-printf '%s\n' '    docker cp scone-packages:/kubectl-scone.deb /tmp/scone-bin/;'
-printf '%s\n' '    docker cp scone-packages:/kubectl-scone-azure.deb /tmp/scone-bin/;'
-printf '%s\n' '}'
-printf '%s\n' ''
-printf '%s\n' 'export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)'
-printf '%s\n' '[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }'
-printf '%s\n' 'docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/'
-printf '%s\n' ''
-printf '%s\n' '# scone-td-build and the kubectl plugins are not in every release'\''s package image (e.g. 6.0.8).'
-printf '%s\n' '[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {'
-printf '%s\n' '    # Fall back to a separate scone-td-build image if one is configured.'
-printf '%s\n' '    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then'
-printf '%s\n' '        # Same signature check as for the package image; verify_image exits on failure.'
-printf '%s\n' '        verify_image "$SCONE_TD_BUILD_IMAGE"'
-printf '%s\n' '        docker rm scone-td-build-packages 2> /dev/null || true'
-printf '%s\n' '        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \'
-printf '%s\n' '          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \'
-printf '%s\n' '          || echo "ERROR: '\''scone-td-build'\'' not available in $SCONE_TD_BUILD_IMAGE"'
-printf '%s\n' '        docker rm scone-td-build-packages > /dev/null 2>&1 || true'
-printf '%s\n' '    else'
-printf '%s\n' '        echo "ERROR: '\''scone-td-build'\'' not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image that contains /usr/local/bin/scone-td-build)"'
+printf '%s\n' 'INSTALL_WORK="$(mktemp -d /tmp/scone-install.XXXXXXXX)"'
+printf '%s\n' 'SCONE_PACKAGE_CONTAINER="scone-packages-$$-$RANDOM"'
+printf '%s\n' 'SCONE_PACKAGE_CONTAINER_CREATED=false'
+printf '%s\n' 'SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"'
+printf '%s\n' 'SCONE_TD_BUILD_CONTAINER=""'
+printf '%s\n' 'cleanup_scone_package_install() {'
+printf '%s\n' '    if [[ -n "$SCONE_TD_BUILD_CONTAINER" ]]; then'
+printf '%s\n' '        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true'
 printf '%s\n' '    fi'
+printf '%s\n' '    if [[ "$SCONE_PACKAGE_CONTAINER_CREATED" == true ]]; then'
+printf '%s\n' '        docker rm "$SCONE_PACKAGE_CONTAINER" >/dev/null 2>&1 || true'
+printf '%s\n' '    fi'
+printf '%s\n' '    rm -rf "$INSTALL_WORK"'
 printf '%s\n' '}'
-printf '%s\n' '[[ -e /tmp/scone-bin/kubectl-scone ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ 2>/dev/null || echo "ERROR: '\''kubectl scone'\'' not available"'
-printf '%s\n' '[[ -e /tmp/scone-bin/kubectl-scone-azure ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/ 2>/dev/null || echo "ERROR: '\''kubectl-scone-azure'\'' not available"'
+printf '%s\n' 'trap cleanup_scone_package_install EXIT'
+printf '%s\n' 'mkdir -p "$INSTALL_WORK/packages" "$INSTALL_WORK/bin"'
 printf '%s\n' ''
-printf '%s\n' 'docker rm scone-packages'
+printf '%s\n' 'docker create --name "$SCONE_PACKAGE_CONTAINER" "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 >/dev/null'
+printf '%s\n' 'SCONE_PACKAGE_CONTAINER_CREATED=true'
+printf '%s\n' 'docker export "$SCONE_PACKAGE_CONTAINER" | tar -tf - > "$INSTALL_WORK/image-files.txt"'
 printf '%s\n' ''
-printf '%s\n' '# install the packages'
-printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-common_amd64.deb '
-printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-libc_amd64.deb '
-printf '%s\n' 'sudo dpkg -i /tmp/packages/scone-cli_amd64.deb '
-printf '%s\n' 'sudo dpkg -i "/tmp/$SCONE_GLIBC_DEB"'
+printf '%s\n' 'while IFS= read -r archive_path; do'
+printf '%s\n' '    package_path="$archive_path"'
+printf '%s\n' '    if [[ "$package_path" == ./* ]]; then'
+printf '%s\n' '        package_path="${package_path#./}"'
+printf '%s\n' '    fi'
+printf '%s\n' '    package_name="${package_path##*/}"'
+printf '%s\n' '    case "$package_name" in'
+printf '%s\n' '        scone-common_*.deb|scone-libc_*.deb|scone-cli_*.deb|scone-glibc-*-installer_*.deb|scone-td-build*.deb|kubectl-scone*.deb|k8s-scone*.deb)'
+printf '%s\n' '            case "$package_path" in'
+printf '%s\n' '                packages/*|scone*.deb|kubectl*.deb|k8s-scone*.deb) ;;'
+printf '%s\n' '                *) continue ;;'
+printf '%s\n' '            esac'
+printf '%s\n' '            if [[ ! -e "$INSTALL_WORK/packages/$package_name" ]]; then'
+printf '%s\n' '                docker cp "$SCONE_PACKAGE_CONTAINER:/$package_path" "$INSTALL_WORK/packages/$package_name"'
+printf '%s\n' '            fi'
+printf '%s\n' '            ;;'
+printf '%s\n' '    esac'
+printf '%s\n' 'done < "$INSTALL_WORK/image-files.txt"'
 printf '%s\n' ''
-printf '%s\n' '# install binaries on host'
-printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: '\''scone-td-build'\'' not available"'
-printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone || echo "ERROR: '\''kubectl scone'\'' not available"'
-printf '%s\n' 'sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure  || echo "ERROR: '\''kubectl-scone-azure'\'' not available"'
+printf '%s\n' 'for package_prefix in scone-common scone-libc scone-cli; do'
+printf '%s\n' '    if ! compgen -G "$INSTALL_WORK/packages/$package_prefix"_*.deb >/dev/null; then'
+printf '%s\n' '        echo "Missing $package_prefix Debian package in $REPO/$IMAGE:$SCONE_VERSION" >&2'
+printf '%s\n' '        exit 1'
+printf '%s\n' '    fi'
+printf '%s\n' 'done'
 printf '%s\n' ''
-printf '%s\n' '# clean up'
-printf '%s\n' 'rm -rf /tmp/packages'
-printf '%s\n' 'rm -rf /tmp/scone-bin'
-printf '%s\n' 'rm -f "/tmp/$SCONE_GLIBC_DEB"'
+printf '%s\n' 'SCONE_GLIBC_DEB="$(find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '\''*glibc*installer*.deb'\'' -printf '\''%f\n'\'' | sort -V | tail -n 1)"'
+printf '%s\n' 'if [[ -z "$SCONE_GLIBC_DEB" ]]; then'
+printf '%s\n' '    echo "Failed to locate a scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION" >&2'
+printf '%s\n' '    exit 1'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' 'for tool in scone-td-build kubectl-scone kubectl-scone-azure; do'
+printf '%s\n' '    if grep -Fqx "usr/local/bin/$tool" "$INSTALL_WORK/image-files.txt"; then'
+printf '%s\n' '        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool"'
+printf '%s\n' '    fi'
+printf '%s\n' 'done'
 printf "${RESET}"
 
-# copy Debian packages and required binaries
-mkdir -p /tmp/packages
-mkdir -p /tmp/scone-bin
-docker cp scone-packages:/packages /tmp || {
-    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
-    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
-    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
-    docker cp scone-packages:/scone-td-build.deb /tmp/scone-bin/;
-    docker cp scone-packages:/kubectl-scone.deb /tmp/scone-bin/;
-    docker cp scone-packages:/kubectl-scone-azure.deb /tmp/scone-bin/;
-}
-
-export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)
-[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }
-docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/
-
-# scone-td-build and the kubectl plugins are not in every release's package image (e.g. 6.0.8).
-[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {
-    # Fall back to a separate scone-td-build image if one is configured.
-    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then
-        # Same signature check as for the package image; verify_image exits on failure.
-        verify_image "$SCONE_TD_BUILD_IMAGE"
-        docker rm scone-td-build-packages 2> /dev/null || true
-        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \
-          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \
-          || echo "ERROR: 'scone-td-build' not available in $SCONE_TD_BUILD_IMAGE"
-        docker rm scone-td-build-packages > /dev/null 2>&1 || true
-    else
-        echo "ERROR: 'scone-td-build' not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image that contains /usr/local/bin/scone-td-build)"
+INSTALL_WORK="$(mktemp -d /tmp/scone-install.XXXXXXXX)"
+SCONE_PACKAGE_CONTAINER="scone-packages-$$-$RANDOM"
+SCONE_PACKAGE_CONTAINER_CREATED=false
+SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"
+SCONE_TD_BUILD_CONTAINER=""
+cleanup_scone_package_install() {
+    if [[ -n "$SCONE_TD_BUILD_CONTAINER" ]]; then
+        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true
     fi
+    if [[ "$SCONE_PACKAGE_CONTAINER_CREATED" == true ]]; then
+        docker rm "$SCONE_PACKAGE_CONTAINER" >/dev/null 2>&1 || true
+    fi
+    rm -rf "$INSTALL_WORK"
 }
-[[ -e /tmp/scone-bin/kubectl-scone ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl scone' not available"
-[[ -e /tmp/scone-bin/kubectl-scone-azure ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl-scone-azure' not available"
+trap cleanup_scone_package_install EXIT
+mkdir -p "$INSTALL_WORK/packages" "$INSTALL_WORK/bin"
 
-docker rm scone-packages
+docker create --name "$SCONE_PACKAGE_CONTAINER" "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 >/dev/null
+SCONE_PACKAGE_CONTAINER_CREATED=true
+docker export "$SCONE_PACKAGE_CONTAINER" | tar -tf - > "$INSTALL_WORK/image-files.txt"
 
-# install the packages
-sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
-sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
-sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
-sudo dpkg -i "/tmp/$SCONE_GLIBC_DEB"
+while IFS= read -r archive_path; do
+    package_path="$archive_path"
+    if [[ "$package_path" == ./* ]]; then
+        package_path="${package_path#./}"
+    fi
+    package_name="${package_path##*/}"
+    case "$package_name" in
+        scone-common_*.deb|scone-libc_*.deb|scone-cli_*.deb|scone-glibc-*-installer_*.deb|scone-td-build*.deb|kubectl-scone*.deb|k8s-scone*.deb)
+            case "$package_path" in
+                packages/*|scone*.deb|kubectl*.deb|k8s-scone*.deb) ;;
+                *) continue ;;
+            esac
+            if [[ ! -e "$INSTALL_WORK/packages/$package_name" ]]; then
+                docker cp "$SCONE_PACKAGE_CONTAINER:/$package_path" "$INSTALL_WORK/packages/$package_name"
+            fi
+            ;;
+    esac
+done < "$INSTALL_WORK/image-files.txt"
 
-# install binaries on host
-sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: 'scone-td-build' not available"
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone || echo "ERROR: 'kubectl scone' not available"
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure  || echo "ERROR: 'kubectl-scone-azure' not available"
+for package_prefix in scone-common scone-libc scone-cli; do
+    if ! compgen -G "$INSTALL_WORK/packages/$package_prefix"_*.deb >/dev/null; then
+        echo "Missing $package_prefix Debian package in $REPO/$IMAGE:$SCONE_VERSION" >&2
+        exit 1
+    fi
+done
 
-# clean up
-rm -rf /tmp/packages
-rm -rf /tmp/scone-bin
-rm -f "/tmp/$SCONE_GLIBC_DEB"
+SCONE_GLIBC_DEB="$(find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '%f\n' | sort -V | tail -n 1)"
+if [[ -z "$SCONE_GLIBC_DEB" ]]; then
+    echo "Failed to locate a scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION" >&2
+    exit 1
+fi
+
+for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
+    if grep -Fqx "usr/local/bin/$tool" "$INSTALL_WORK/image-files.txt"; then
+        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool"
+    fi
+done
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Install the core packages. This requires sudo access.'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb'
+printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb'
+printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb'
+printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"'
+printf "${RESET}"
+
+sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
+sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
+sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
+sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Some releases do not include scone-td-build or the kubectl plugins. Keep the'
+printf '%s\n' 'optional binary and SCONE_TD_BUILD_IMAGE fallback for those releases.'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'if [[ ! -e "$INSTALL_WORK/bin/scone-td-build" ]]; then'
+printf '%s\n' '    if docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/scone-td-build" "$INSTALL_WORK/bin/" 2>/dev/null; then'
+printf '%s\n' '        :'
+printf '%s\n' '    elif [[ -n "$SCONE_TD_BUILD_IMAGE" ]]; then'
+printf '%s\n' '        verify_image "$SCONE_TD_BUILD_IMAGE"'
+printf '%s\n' '        SCONE_TD_BUILD_CONTAINER="scone-td-build-packages-$$-$RANDOM"'
+printf '%s\n' '        docker create --name "$SCONE_TD_BUILD_CONTAINER" "$SCONE_TD_BUILD_IMAGE" sleep 1 >/dev/null'
+printf '%s\n' '        if ! docker cp "$SCONE_TD_BUILD_CONTAINER:/usr/local/bin/scone-td-build" "$INSTALL_WORK/bin/"; then'
+printf '%s\n' '            docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true'
+printf '%s\n' '            echo "ERROR: scone-td-build not available in $SCONE_TD_BUILD_IMAGE" >&2'
+printf '%s\n' '            exit 1'
+printf '%s\n' '        fi'
+printf '%s\n' '        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null'
+printf '%s\n' '        SCONE_TD_BUILD_CONTAINER=""'
+printf '%s\n' '    else'
+printf '%s\n' '        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2'
+printf '%s\n' '    fi'
+printf '%s\n' 'fi'
+printf '%s\n' ''
+printf '%s\n' 'for tool in kubectl-scone kubectl-scone-azure; do'
+printf '%s\n' '    if [[ ! -e "$INSTALL_WORK/bin/$tool" ]]; then'
+printf '%s\n' '        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null || echo "ERROR: $tool not available"'
+printf '%s\n' '    fi'
+printf '%s\n' 'done'
+printf '%s\n' ''
+printf '%s\n' 'sudo install -m 0755 "$INSTALL_WORK/bin/scone-td-build" /usr/local/bin/scone-td-build || echo "ERROR: scone-td-build not available"'
+printf '%s\n' 'sudo install -m 0755 "$INSTALL_WORK/bin/kubectl-scone" /usr/local/bin/kubectl-scone || echo "ERROR: kubectl scone not available"'
+printf '%s\n' 'sudo install -m 0755 "$INSTALL_WORK/bin/kubectl-scone-azure" /usr/local/bin/kubectl-scone-azure || echo "ERROR: kubectl-scone-azure not available"'
+printf "${RESET}"
+
+if [[ ! -e "$INSTALL_WORK/bin/scone-td-build" ]]; then
+    if docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/scone-td-build" "$INSTALL_WORK/bin/" 2>/dev/null; then
+        :
+    elif [[ -n "$SCONE_TD_BUILD_IMAGE" ]]; then
+        verify_image "$SCONE_TD_BUILD_IMAGE"
+        SCONE_TD_BUILD_CONTAINER="scone-td-build-packages-$$-$RANDOM"
+        docker create --name "$SCONE_TD_BUILD_CONTAINER" "$SCONE_TD_BUILD_IMAGE" sleep 1 >/dev/null
+        if ! docker cp "$SCONE_TD_BUILD_CONTAINER:/usr/local/bin/scone-td-build" "$INSTALL_WORK/bin/"; then
+            docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true
+            echo "ERROR: scone-td-build not available in $SCONE_TD_BUILD_IMAGE" >&2
+            exit 1
+        fi
+        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null
+        SCONE_TD_BUILD_CONTAINER=""
+    else
+        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2
+    fi
+fi
+
+for tool in kubectl-scone kubectl-scone-azure; do
+    if [[ ! -e "$INSTALL_WORK/bin/$tool" ]]; then
+        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null || echo "ERROR: $tool not available"
+    fi
+done
+
+sudo install -m 0755 "$INSTALL_WORK/bin/scone-td-build" /usr/local/bin/scone-td-build || echo "ERROR: scone-td-build not available"
+sudo install -m 0755 "$INSTALL_WORK/bin/kubectl-scone" /usr/local/bin/kubectl-scone || echo "ERROR: kubectl scone not available"
+sudo install -m 0755 "$INSTALL_WORK/bin/kubectl-scone-azure" /usr/local/bin/kubectl-scone-azure || echo "ERROR: kubectl-scone-azure not available"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -316,49 +419,38 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Check that all required commands are properly installed by executing:'
+printf '%s\n' 'Validate the tools that the shell actually selects through `PATH`. This catches'
+printf '%s\n' 'older Cargo binaries shadowing newly installed system packages, as well as newer'
+printf '%s\n' 'plugins that expect a different CAS schema.'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'echo "Expecting SCONE version: $SCONE_VERSION"'
-printf '%s\n' 'MISSING_COMMANDS=""'
-printf '%s\n' 'scone --version || MISSING_COMMANDS="$MISSING_COMMANDS scone"'
-printf '%s\n' 'kubectl scone --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone"'
-printf '%s\n' 'kubectl scone-azure --help >/dev/null || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone-azure"'
-printf '%s\n' 'scone-td-build --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS scone-td-build"'
-printf '%s\n' 'scone-td-build --version 2>/dev/null || true'
+printf '%s\n' '# Validate the tools selected by PATH.'
+printf '%s\n' 'SCONE_VERSION="$SCONE_VERSION" ./scripts/check-scone-tooling.sh'
+printf '%s\n' 'echo "✅ All required SCONE commands installed and compatible with the workshop version requirements"'
 printf "${RESET}"
 
-echo "Expecting SCONE version: $SCONE_VERSION"
-MISSING_COMMANDS=""
-scone --version || MISSING_COMMANDS="$MISSING_COMMANDS scone"
-kubectl scone --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone"
-kubectl scone-azure --help >/dev/null || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone-azure"
-scone-td-build --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS scone-td-build"
-scone-td-build --version 2>/dev/null || true
+# Validate the tools selected by PATH.
+SCONE_VERSION="$SCONE_VERSION" ./scripts/check-scone-tooling.sh
+echo "✅ All required SCONE commands installed and compatible with the workshop version requirements"
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'This should execute the same SCONE version as the previously printed latest stable version.'
-printf '%s\n' 'The `--help` checks should also complete successfully. The `scone-td-build-demos` need'
-printf '%s\n' '`scone-td-build` 0.4.0 or newer.'
+printf '%s\n' 'The checker requires `scone` and `kubectl-scone` to match the major/minor release'
+printf '%s\n' 'line of `SCONE_VERSION`; patch versions may differ. A stable target rejects'
+printf '%s\n' 'prerelease tools. The demos require a stable `scone-td-build` version of at least'
+printf '%s\n' '0.4.0 and the `apply -f scone.yaml` interface. Workshop revision `b607bdc` supports'
+printf '%s\n' 'the current `cas-endpoint` templates. The checker also exercises the kubectl'
+printf '%s\n' 'plugins'\'' help commands. Any failure stops installation before the success message'
+printf '%s\n' 'and lists executable paths to help identify shadowed installations.'
 printf '%s\n' ''
-printf '%s\n' 'We stop with an error if any command is missing:'
+printf '%s\n' 'To repeat these checks without installing packages, run this from the repository:'
 printf '%s\n' ''
+printf '%s\n' 'SCONE_VERSION=6.0.8 ./scripts/check-scone-tooling.sh'
+printf '%s\n' ''
+printf '%s\n' 'Without `SCONE_VERSION`, the standalone checker uses `stable.txt`. Set the target'
+printf '%s\n' 'to the release used by your operator. These are local version and command checks;'
+printf '%s\n' 'they do not contact Kubernetes or verify CAS connectivity or attestation.'
 printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' 'if [[ -n "$MISSING_COMMANDS" ]]; then'
-printf '%s\n' '  echo "❌ Missing SCONE commands:$MISSING_COMMANDS"'
-printf '%s\n' '  exit 1'
-printf '%s\n' 'fi'
-printf '%s\n' 'echo "✅ All required SCONE commands installed"'
-printf "${RESET}"
-
-if [[ -n "$MISSING_COMMANDS" ]]; then
-  echo "❌ Missing SCONE commands:$MISSING_COMMANDS"
-  exit 1
-fi
-echo "✅ All required SCONE commands installed"
 

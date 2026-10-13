@@ -61,10 +61,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export SCONE_VERSION=$(cat stable.txt)'
+printf '%s\n' 'export SCONE_VERSION="${SCONE_VERSION:-$(cat stable.txt)}"'
 printf "${RESET}"
 
-export SCONE_VERSION=$(cat stable.txt)
+export SCONE_VERSION="${SCONE_VERSION:-$(cat stable.txt)}"
 
 printf "${VIOLET}"
 printf '%s\n' ''

@@ -29,7 +29,7 @@ cargo install retry-spinner
 By default, we install the latest stable SCONE version. You can override this by setting `SCONE_VERSION` to the version you want to install:
 
 ```bash
-export SCONE_VERSION=$(cat stable.txt)
+export SCONE_VERSION="${SCONE_VERSION:-$(cat stable.txt)}"
 ```
 
 `tplenv` asks for all environment variables described in `environment-variables.md` that are not yet set.

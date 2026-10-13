@@ -294,121 +294,47 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Next, we copy both Debian packages and required binaries from the same'
-printf '%s\n' '`scone-packages` container.'
+printf '%s\n' 'Next, inspect the package image archive and copy only the packages it contains.'
+printf '%s\n' 'SCONE 6.x places Debian packages at the image root; SCONE 7.x may add more packages'
+printf '%s\n' 'there. Some releases use a packages directory. This handles both layouts without'
+printf '%s\n' 'assuming that a fixed set of files exists.'
 printf '%s\n' ''
-printf '%s\n' 'You will need to type your `sudo` password:'
+printf '%s\n' 'The extracted files go in a unique temporary directory, so existing files in /tmp'
+printf '%s\n' 'are left alone. The temporary container and directory are removed when the script'
+printf '%s\n' 'exits.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-# copy Debian packages and required binaries
+INSTALL_WORK="$(mktemp -d /tmp/scone-install.XXXXXXXX)"
 EOF
 )"
 pe "$(cat <<'EOF'
-mkdir -p /tmp/packages
+SCONE_PACKAGE_CONTAINER="scone-packages-$$-$RANDOM"
 EOF
 )"
 pe "$(cat <<'EOF'
-mkdir -p /tmp/scone-bin
+SCONE_PACKAGE_CONTAINER_CREATED=false
 EOF
 )"
 pe "$(cat <<'EOF'
-docker cp scone-packages:/packages /tmp || {
+SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"
 EOF
 )"
 pe "$(cat <<'EOF'
-    docker cp scone-packages:/scone-common_amd64.deb /tmp/packages;
+SCONE_TD_BUILD_CONTAINER=""
 EOF
 )"
 pe "$(cat <<'EOF'
-    docker cp scone-packages:/scone-libc_amd64.deb /tmp/packages;
+cleanup_scone_package_install() {
 EOF
 )"
 pe "$(cat <<'EOF'
-    docker cp scone-packages:/scone-cli_amd64.deb /tmp/packages;
+    if [[ -n "$SCONE_TD_BUILD_CONTAINER" ]]; then
 EOF
 )"
 pe "$(cat <<'EOF'
-    docker cp scone-packages:/scone-td-build.deb /tmp/scone-bin/;
-EOF
-)"
-pe "$(cat <<'EOF'
-    docker cp scone-packages:/kubectl-scone.deb /tmp/scone-bin/;
-EOF
-)"
-pe "$(cat <<'EOF'
-    docker cp scone-packages:/kubectl-scone-azure.deb /tmp/scone-bin/;
-EOF
-)"
-pe "$(cat <<'EOF'
-}
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-export SCONE_GLIBC_DEB=$(docker export scone-packages | tar -t | grep -i "glibc.*installer" | sort -V | tail -1 | xargs basename)
-EOF
-)"
-pe "$(cat <<'EOF'
-[[ -n "$SCONE_GLIBC_DEB" ]] || { echo "Failed to locate scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION"; exit 1; }
-EOF
-)"
-pe "$(cat <<'EOF'
-docker cp "scone-packages:/$SCONE_GLIBC_DEB" /tmp/
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-# scone-td-build and the kubectl plugins are not in every release's package image (e.g. 6.0.8).
-EOF
-)"
-pe "$(cat <<'EOF'
-[[ -e /tmp/scone-bin/scone-td-build ]] || docker cp scone-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ 2>/dev/null || {
-EOF
-)"
-pe "$(cat <<'EOF'
-    # Fall back to a separate scone-td-build image if one is configured.
-EOF
-)"
-pe "$(cat <<'EOF'
-    if [[ -n "${SCONE_TD_BUILD_IMAGE:-}" ]]; then
-EOF
-)"
-pe "$(cat <<'EOF'
-        # Same signature check as for the package image; verify_image exits on failure.
-EOF
-)"
-pe "$(cat <<'EOF'
-        verify_image "$SCONE_TD_BUILD_IMAGE"
-EOF
-)"
-pe "$(cat <<'EOF'
-        docker rm scone-td-build-packages 2> /dev/null || true
-EOF
-)"
-pe "$(cat <<'EOF'
-        docker create --name scone-td-build-packages "$SCONE_TD_BUILD_IMAGE" sleep 1 > /dev/null \
-          && docker cp scone-td-build-packages:/usr/local/bin/scone-td-build /tmp/scone-bin/ \
-          || echo "ERROR: 'scone-td-build' not available in $SCONE_TD_BUILD_IMAGE"
-EOF
-)"
-pe "$(cat <<'EOF'
-        docker rm scone-td-build-packages > /dev/null 2>&1 || true
-EOF
-)"
-pe "$(cat <<'EOF'
-    else
-EOF
-)"
-pe "$(cat <<'EOF'
-        echo "ERROR: 'scone-td-build' not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image that contains /usr/local/bin/scone-td-build)"
+        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -416,23 +342,31 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+    if [[ "$SCONE_PACKAGE_CONTAINER_CREATED" == true ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker rm "$SCONE_PACKAGE_CONTAINER" >/dev/null 2>&1 || true
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    rm -rf "$INSTALL_WORK"
+EOF
+)"
+pe "$(cat <<'EOF'
 }
 EOF
 )"
 pe "$(cat <<'EOF'
-[[ -e /tmp/scone-bin/kubectl-scone ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl scone' not available"
+trap cleanup_scone_package_install EXIT
 EOF
 )"
 pe "$(cat <<'EOF'
-[[ -e /tmp/scone-bin/kubectl-scone-azure ]] || docker cp scone-packages:/usr/local/bin/kubectl-scone-azure /tmp/scone-bin/ 2>/dev/null || echo "ERROR: 'kubectl-scone-azure' not available"
-EOF
-)"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-docker rm scone-packages
+mkdir -p "$INSTALL_WORK/packages" "$INSTALL_WORK/bin"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -440,23 +374,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# install the packages
+docker create --name "$SCONE_PACKAGE_CONTAINER" "$REPO/$IMAGE:$SCONE_VERSION" sleep 1 >/dev/null
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo dpkg -i /tmp/packages/scone-common_amd64.deb 
+SCONE_PACKAGE_CONTAINER_CREATED=true
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo dpkg -i /tmp/packages/scone-libc_amd64.deb 
-EOF
-)"
-pe "$(cat <<'EOF'
-sudo dpkg -i /tmp/packages/scone-cli_amd64.deb 
-EOF
-)"
-pe "$(cat <<'EOF'
-sudo dpkg -i "/tmp/$SCONE_GLIBC_DEB"
+docker export "$SCONE_PACKAGE_CONTAINER" | tar -tf - > "$INSTALL_WORK/image-files.txt"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -464,19 +390,75 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# install binaries on host
+while IFS= read -r archive_path; do
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo install -m 0755 /tmp/scone-bin/scone-td-build /usr/local/bin/scone-td-build  || echo "ERROR: 'scone-td-build' not available"
+    package_path="$archive_path"
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone /usr/local/bin/kubectl-scone || echo "ERROR: 'kubectl scone' not available"
+    if [[ "$package_path" == ./* ]]; then
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo install -m 0755 /tmp/scone-bin/kubectl-scone-azure /usr/local/bin/kubectl-scone-azure  || echo "ERROR: 'kubectl-scone-azure' not available"
+        package_path="${package_path#./}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    package_name="${package_path##*/}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    case "$package_name" in
+EOF
+)"
+pe "$(cat <<'EOF'
+        scone-common_*.deb|scone-libc_*.deb|scone-cli_*.deb|scone-glibc-*-installer_*.deb|scone-td-build*.deb|kubectl-scone*.deb|k8s-scone*.deb)
+EOF
+)"
+pe "$(cat <<'EOF'
+            case "$package_path" in
+EOF
+)"
+pe "$(cat <<'EOF'
+                packages/*|scone*.deb|kubectl*.deb|k8s-scone*.deb) ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+                *) continue ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+            esac
+EOF
+)"
+pe "$(cat <<'EOF'
+            if [[ ! -e "$INSTALL_WORK/packages/$package_name" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+                docker cp "$SCONE_PACKAGE_CONTAINER:/$package_path" "$INSTALL_WORK/packages/$package_name"
+EOF
+)"
+pe "$(cat <<'EOF'
+            fi
+EOF
+)"
+pe "$(cat <<'EOF'
+            ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+    esac
+EOF
+)"
+pe "$(cat <<'EOF'
+done < "$INSTALL_WORK/image-files.txt"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -484,19 +466,218 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# clean up
+for package_prefix in scone-common scone-libc scone-cli; do
 EOF
 )"
 pe "$(cat <<'EOF'
-rm -rf /tmp/packages
+    if ! compgen -G "$INSTALL_WORK/packages/$package_prefix"_*.deb >/dev/null; then
 EOF
 )"
 pe "$(cat <<'EOF'
-rm -rf /tmp/scone-bin
+        echo "Missing $package_prefix Debian package in $REPO/$IMAGE:$SCONE_VERSION" >&2
 EOF
 )"
 pe "$(cat <<'EOF'
-rm -f "/tmp/$SCONE_GLIBC_DEB"
+        exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+done
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_GLIBC_DEB="$(find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '%f\n' | sort -V | tail -n 1)"
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -z "$SCONE_GLIBC_DEB" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Failed to locate a scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION" >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if grep -Fqx "usr/local/bin/$tool" "$INSTALL_WORK/image-files.txt"; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+done
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Install the core packages. This requires sudo access.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Some releases do not include scone-td-build or the kubectl plugins. Keep the'
+printf '%s\n' 'optional binary and SCONE_TD_BUILD_IMAGE fallback for those releases.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+if [[ ! -e "$INSTALL_WORK/bin/scone-td-build" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    if docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/scone-td-build" "$INSTALL_WORK/bin/" 2>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        :
+EOF
+)"
+pe "$(cat <<'EOF'
+    elif [[ -n "$SCONE_TD_BUILD_IMAGE" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        verify_image "$SCONE_TD_BUILD_IMAGE"
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_TD_BUILD_CONTAINER="scone-td-build-packages-$$-$RANDOM"
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker create --name "$SCONE_TD_BUILD_CONTAINER" "$SCONE_TD_BUILD_IMAGE" sleep 1 >/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+        if ! docker cp "$SCONE_TD_BUILD_CONTAINER:/usr/local/bin/scone-td-build" "$INSTALL_WORK/bin/"; then
+EOF
+)"
+pe "$(cat <<'EOF'
+            docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true
+EOF
+)"
+pe "$(cat <<'EOF'
+            echo "ERROR: scone-td-build not available in $SCONE_TD_BUILD_IMAGE" >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+            exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+        fi
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_TD_BUILD_CONTAINER=""
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+for tool in kubectl-scone kubectl-scone-azure; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ ! -e "$INSTALL_WORK/bin/$tool" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null || echo "ERROR: $tool not available"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+done
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo install -m 0755 "$INSTALL_WORK/bin/scone-td-build" /usr/local/bin/scone-td-build || echo "ERROR: scone-td-build not available"
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo install -m 0755 "$INSTALL_WORK/bin/kubectl-scone" /usr/local/bin/kubectl-scone || echo "ERROR: kubectl scone not available"
+EOF
+)"
+pe "$(cat <<'EOF'
+sudo install -m 0755 "$INSTALL_WORK/bin/kubectl-scone-azure" /usr/local/bin/kubectl-scone-azure || echo "ERROR: kubectl-scone-azure not available"
 EOF
 )"
 
@@ -541,67 +722,41 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Check that all required commands are properly installed by executing:'
+printf '%s\n' 'Validate the tools that the shell actually selects through `PATH`. This catches'
+printf '%s\n' 'older Cargo binaries shadowing newly installed system packages, as well as newer'
+printf '%s\n' 'plugins that expect a different CAS schema.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-echo "Expecting SCONE version: $SCONE_VERSION"
+# Validate the tools selected by PATH.
 EOF
 )"
 pe "$(cat <<'EOF'
-MISSING_COMMANDS=""
+SCONE_VERSION="$SCONE_VERSION" ./scripts/check-scone-tooling.sh
 EOF
 )"
 pe "$(cat <<'EOF'
-scone --version || MISSING_COMMANDS="$MISSING_COMMANDS scone"
-EOF
-)"
-pe "$(cat <<'EOF'
-kubectl scone --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone"
-EOF
-)"
-pe "$(cat <<'EOF'
-kubectl scone-azure --help >/dev/null || MISSING_COMMANDS="$MISSING_COMMANDS kubectl-scone-azure"
-EOF
-)"
-pe "$(cat <<'EOF'
-scone-td-build --help >/dev/null  || MISSING_COMMANDS="$MISSING_COMMANDS scone-td-build"
-EOF
-)"
-pe "$(cat <<'EOF'
-scone-td-build --version 2>/dev/null || true
+echo "✅ All required SCONE commands installed and compatible with the workshop version requirements"
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'This should execute the same SCONE version as the previously printed latest stable version.'
-printf '%s\n' 'The `--help` checks should also complete successfully. The `scone-td-build-demos` need'
-printf '%s\n' '`scone-td-build` 0.4.0 or newer.'
+printf '%s\n' 'The checker requires `scone` and `kubectl-scone` to match the major/minor release'
+printf '%s\n' 'line of `SCONE_VERSION`; patch versions may differ. A stable target rejects'
+printf '%s\n' 'prerelease tools. The demos require a stable `scone-td-build` version of at least'
+printf '%s\n' '0.4.0 and the `apply -f scone.yaml` interface. Workshop revision `b607bdc` supports'
+printf '%s\n' 'the current `cas-endpoint` templates. The checker also exercises the kubectl'
+printf '%s\n' 'plugins'\'' help commands. Any failure stops installation before the success message'
+printf '%s\n' 'and lists executable paths to help identify shadowed installations.'
 printf '%s\n' ''
-printf '%s\n' 'We stop with an error if any command is missing:'
+printf '%s\n' 'To repeat these checks without installing packages, run this from the repository:'
 printf '%s\n' ''
+printf '%s\n' 'SCONE_VERSION=6.0.8 ./scripts/check-scone-tooling.sh'
+printf '%s\n' ''
+printf '%s\n' 'Without `SCONE_VERSION`, the standalone checker uses `stable.txt`. Set the target'
+printf '%s\n' 'to the release used by your operator. These are local version and command checks;'
+printf '%s\n' 'they do not contact Kubernetes or verify CAS connectivity or attestation.'
 printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-if [[ -n "$MISSING_COMMANDS" ]]; then
-EOF
-)"
-pe "$(cat <<'EOF'
-  echo "❌ Missing SCONE commands:$MISSING_COMMANDS"
-EOF
-)"
-pe "$(cat <<'EOF'
-  exit 1
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
-EOF
-)"
-pe "$(cat <<'EOF'
-echo "✅ All required SCONE commands installed"
-EOF
-)"
 

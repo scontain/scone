@@ -118,7 +118,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-export SCONE_VERSION=$(cat stable.txt)
+export SCONE_VERSION="${SCONE_VERSION:-$(cat stable.txt)}"
 EOF
 )"
 

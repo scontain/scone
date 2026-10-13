@@ -7,6 +7,7 @@ usage() {
 Usage: ./scripts/build.sh --version <SCONE_VERSION> [--push-to <IMAGE_NAME>] [--test] [--verbose] [--help]
 
 Build the SCONE workshop image as described in README.md.
+Run SCONE_VERSION=<SCONE_VERSION> ./overwrite.sh first to prepare its binaries.
 
 Options:
   --version <SCONE_VERSION>  Required SCONE version tag to build and tag.
@@ -91,9 +92,13 @@ if [[ -n "${PUSH_IMAGE}" ]]; then
   fi
 fi
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+cd "$repo_root"
+
+# Validate the files Docker will copy, not unrelated executables on the host PATH.
+SCONE_VERSION="$SCONE_VERSION" ./scripts/check-scone-tooling.sh --overrides-dir "$repo_root/overwrite/bin"
 require_command docker
-require_command ip
-require_command awk
 
 if [[ ! -f "$HOME/.kube/config" ]]; then
   echo "Error: missing kubeconfig file at $HOME/.kube/config" >&2
@@ -105,16 +110,12 @@ if [[ ! -f "$HOME/.docker/config.json" ]]; then
   exit 1
 fi
 
-HOSTIP=$(ip route show default | awk '/default/ {print $3}')
 HOSTIP="172.17.0.1"
 
 docker context create dind \
   --docker "host=tcp://${HOSTIP}:2375" || true
 
-rm -f registy.credentials.yaml
-rm -f Values.credentials.yaml
-
-docker --context dind buildx build \
+docker --context dind buildx build --load \
   --secret id=kubeconfig,src="$HOME/.kube/config" \
   --secret id=dockerconfig,src="$HOME/.docker/config.json" \
   --build-arg DOCKER_HOST="tcp://${HOSTIP}:2375" \
@@ -122,7 +123,12 @@ docker --context dind buildx build \
   --build-arg SCONE_VERSION="${SCONE_VERSION}" \
   --file Dockerfile .
 
-docker tag scone:latest registry.scontain.com/workshop/scone:${SCONE_VERSION}
+# Bypass the toolbox entrypoint: this check needs neither a cluster nor credentials.
+docker --context dind run --rm --network none --entrypoint /bin/bash \
+  -e SCONE_VERSION="$SCONE_VERSION" scone:latest \
+  -c 'exec /root/scone/scripts/check-scone-tooling.sh'
+
+docker --context dind tag scone:latest "registry.scontain.com/workshop/scone:${SCONE_VERSION}"
 echo "Built image: registry.scontain.com/workshop/scone:${SCONE_VERSION}"
 
 if [[ "${RUN_TEST}" == true ]]; then
@@ -169,6 +175,6 @@ if [[ "${RUN_TEST}" == true ]]; then
 fi
 
 if [[ -n "${PUSH_IMAGE}" ]]; then
-  docker tag scone:latest "${PUSH_IMAGE}:${SCONE_VERSION}"
-  docker push "${PUSH_IMAGE}:${SCONE_VERSION}"
+  docker --context dind tag scone:latest "${PUSH_IMAGE}:${SCONE_VERSION}"
+  docker --context dind push "${PUSH_IMAGE}:${SCONE_VERSION}"
 fi
