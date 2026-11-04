@@ -86,6 +86,38 @@ printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
 printf '%s\n' 'but that are not set yet. '
 printf '%s\n' ''
+printf '%s\n' 'Check that the host OS is supported. Ubuntu 22.04 and 24.04 are supported;'
+printf '%s\n' 'Ubuntu 26.04 will be supported in an upcoming SCONE version.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Ubuntu 26.04 (glibc 2.43) is not supported yet: no matching scone-glibc installer exists.
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "ERROR: Ubuntu 26.04 is not supported yet. Support for Ubuntu 26.04 will be added in an upcoming SCONE version." >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Please use Ubuntu 22.04 or 24.04 in the meantime." >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
 printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
 printf '%s\n' ''
 printf "%b" "$RESET"
@@ -494,19 +526,108 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-SCONE_GLIBC_DEB="$(find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '%f\n' | sort -V | tail -n 1)"
+# Select the glibc installer that matches the host glibc (e.g., 2.35 on Ubuntu 22.04).
 EOF
 )"
 pe "$(cat <<'EOF'
-if [[ -z "$SCONE_GLIBC_DEB" ]]; then
+# Set SCONE_GLIBC_VERSION to override the detected version.
 EOF
 )"
 pe "$(cat <<'EOF'
-    echo "Failed to locate a scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION" >&2
+SCONE_GLIBC_VERSION="$(printenv SCONE_GLIBC_VERSION || getconf GNU_LIBC_VERSION | awk '{print $2}')"
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_GLIBC_DEB="scone-glibc-${SCONE_GLIBC_VERSION}-installer_amd64.deb"
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ ! -e "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "No scone-glibc installer for host glibc $SCONE_GLIBC_VERSION in $REPO/$IMAGE:$SCONE_VERSION. Available:" >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '  %f\n' | sort -V >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2
 EOF
 )"
 pe "$(cat <<'EOF'
     exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Older glibc installers locate the host loader with 'find /', which can pick up a
+EOF
+)"
+pe "$(cat <<'EOF'
+# read-only copy inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2).
+EOF
+)"
+pe "$(cat <<'EOF'
+# Patch the postinst script to use the canonical x86_64 loader path instead.
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_GLIBC_PKG_DIR="$INSTALL_WORK/glibc-pkg"
+EOF
+)"
+pe "$(cat <<'EOF'
+dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR"
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_GLIBC_POSTINST="$SCONE_GLIBC_PKG_DIR/DEBIAN/postinst"
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '^__ARCHIVE_START__' "$SCONE_GLIBC_POSTINST" | cut -d: -f1 || true)"
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -n "$SCONE_GLIBC_ARCHIVE_LINE" ]] && head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | grep -Fq 'find / -name ld-linux-x86-64.so.2'; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    {
+EOF
+)"
+pe "$(cat <<'EOF'
+        head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" \
+            | sed 's|find / -name ld-linux-x86-64.so.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|'
+EOF
+)"
+pe "$(cat <<'EOF'
+        tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"
+EOF
+)"
+pe "$(cat <<'EOF'
+    } > "$SCONE_GLIBC_POSTINST.patched"
+EOF
+)"
+pe "$(cat <<'EOF'
+    chmod 0755 "$SCONE_GLIBC_POSTINST.patched"
+EOF
+)"
+pe "$(cat <<'EOF'
+    mv "$SCONE_GLIBC_POSTINST.patched" "$SCONE_GLIBC_POSTINST"
+EOF
+)"
+pe "$(cat <<'EOF'
+    dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null
 EOF
 )"
 pe "$(cat <<'EOF'
