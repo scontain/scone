@@ -497,12 +497,12 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'kubectl get deployment scone-controller-manager -n scone-system -o json | \'
 printf '%s\n' '  jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \'
-printf '%s\n' '  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."'
+printf '%s\n' '  { echo "SCONE Version $SCONE_VERSION already installed" ;  } || echo "Scone Operator is not installed, ready or version does NOT match."'
 printf "${RESET}"
 
 kubectl get deployment scone-controller-manager -n scone-system -o json | \
   jq -e "any(.status.conditions[]; .type == \"Available\" and .status == \"True\") and (.spec.template.spec.containers[0].image | contains(\":$SCONE_VERSION\"))" && \
-  { echo "SCONE Version $SCONE_VERSION already installed" ; operator_cleanup ; exit 0; } || echo "Scone Operator is not installed, ready or version does NOT match."
+  { echo "SCONE Version $SCONE_VERSION already installed" ;  } || echo "Scone Operator is not installed, ready or version does NOT match."
 
 printf "${VIOLET}"
 printf '%s\n' ''
