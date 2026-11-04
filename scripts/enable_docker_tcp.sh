@@ -6,6 +6,10 @@ TARGET_HOST="tcp://0.0.0.0:2375"
 SERVICE_NAME="docker"
 OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.service.d"
 OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
+DAEMON_JSON="/etc/docker/daemon.json"
+# Backups restored by disable_docker_tcp.sh.
+OVERRIDE_BACKUP="${OVERRIDE_FILE}.scone-tcp.bak"
+DAEMON_JSON_BACKUP="${DAEMON_JSON}.scone-tcp.bak"
 
 need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 1; }; }
 
@@ -42,47 +46,74 @@ listening_on_tcp() {
   return 1
 }
 
-config_has_tcp() {
-  # Returns 0 if the systemd unit (including drop-ins) already has a tcp:// host
-  systemctl cat "${SERVICE_NAME}" 2>/dev/null | grep -Eiq -- '-H\s+tcp://'
+daemon_json_has_hosts() {
+  [[ -f "${DAEMON_JSON}" ]] && python3 - "${DAEMON_JSON}" <<'EOF'
+import json, sys
+sys.exit(0 if "hosts" in json.load(open(sys.argv[1])) else 1)
+EOF
+}
+
+add_tcp_to_daemon_json() {
+  # dockerd refuses to start if hosts are given both as -H flags and in daemon.json,
+  # so when daemon.json owns "hosts" the TCP endpoint must be added there.
+  if [[ ! -f "${DAEMON_JSON_BACKUP}" ]]; then
+    cp -p "${DAEMON_JSON}" "${DAEMON_JSON_BACKUP}"
+    echo "Backed up ${DAEMON_JSON} to ${DAEMON_JSON_BACKUP}"
+  fi
+  python3 - "${DAEMON_JSON}" "${TARGET_HOST}" <<'EOF'
+import json, os, sys
+path, host = sys.argv[1], sys.argv[2]
+cfg = json.load(open(path))
+if host in cfg["hosts"]:
+    sys.exit(0)
+cfg["hosts"].append(host)
+tmp = path + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+os.chmod(tmp, os.stat(path).st_mode & 0o7777)
+os.replace(tmp, path)
+print(f"Added {host} to {path} hosts")
+EOF
 }
 
 ensure_override() {
-  local dockerd_path
+  local dockerd_path exec_start
   dockerd_path="$(command -v dockerd || true)"
   [[ -z "${dockerd_path}" ]] && dockerd_path="/usr/bin/dockerd"
 
-  mkdir -p "${OVERRIDE_DIR}"
-
-  # Only rewrite if the file is missing or doesn't match desired TARGET_HOST.
-  local need_write=1
-  if [[ -f "${OVERRIDE_FILE}" ]]; then
-    grep -q "${TARGET_HOST//\//\\/}" "${OVERRIDE_FILE}" && need_write=0
-  fi
-
-  if [[ "${need_write}" -eq 1 ]]; then
-    echo "Writing ${OVERRIDE_FILE} with TCP host ${TARGET_HOST} ..."
-    cat > "${OVERRIDE_FILE}" <<EOF
-[Service]
-# Clear the default ExecStart and set our own with TCP + socket activation
-ExecStart=
-ExecStart=${dockerd_path} -H fd:// -H ${TARGET_HOST} --containerd=/run/containerd/containerd.sock
-EOF
+  if daemon_json_has_hosts; then
+    echo "Note: ${DAEMON_JSON} defines 'hosts'; adding TCP there and starting dockerd without -H flags."
+    need_cmd python3
+    add_tcp_to_daemon_json
+    exec_start="${dockerd_path} --containerd=/run/containerd/containerd.sock"
   else
-    echo "Override already present and points to ${TARGET_HOST}."
+    exec_start="${dockerd_path} -H fd:// -H ${TARGET_HOST} --containerd=/run/containerd/containerd.sock"
   fi
-}
 
-warn_daemon_json_hosts() {
-  # If daemon.json has "hosts" configured, warn (flags will override, but it's good to know).
-  local dj="/etc/docker/daemon.json"
-  if [[ -f "${dj}" ]] && grep -q '"hosts"\s*:' "${dj}"; then
-    if grep -q 'tcp://' "${dj}"; then
-      echo "Note: /etc/docker/daemon.json already defines TCP hosts. systemd ExecStart will override them." >&2
-    else
-      echo "Note: /etc/docker/daemon.json defines 'hosts' without TCP. systemd ExecStart will override them." >&2
-    fi
+  local desired
+  desired="$(cat <<EOF
+[Service]
+# Written by enable_docker_tcp.sh; disable_docker_tcp.sh restores the previous state.
+ExecStart=
+ExecStart=${exec_start}
+EOF
+)"
+
+  if [[ -f "${OVERRIDE_FILE}" ]] && [[ "$(cat "${OVERRIDE_FILE}")" == "${desired}" ]]; then
+    echo "Override already present: ${OVERRIDE_FILE}"
+    return
   fi
+
+  mkdir -p "${OVERRIDE_DIR}"
+  if [[ -f "${OVERRIDE_FILE}" && ! -f "${OVERRIDE_BACKUP}" ]] \
+      && ! grep -q "enable_docker_tcp.sh" "${OVERRIDE_FILE}" \
+      && ! grep -q -- "-H ${TARGET_HOST}" "${OVERRIDE_FILE}"; then
+    cp -p "${OVERRIDE_FILE}" "${OVERRIDE_BACKUP}"
+    echo "Backed up existing ${OVERRIDE_FILE} to ${OVERRIDE_BACKUP}"
+  fi
+  echo "Writing ${OVERRIDE_FILE} ..."
+  printf '%s\n' "${desired}" > "${OVERRIDE_FILE}"
 }
 
 reload_and_restart_docker() {
@@ -105,14 +136,11 @@ main() {
     exit 0
   fi
 
-  echo "Checking if systemd config already enables TCP ..."
-  if config_has_tcp; then
-    echo "TCP appears configured in systemd, but dockerd isn't listening yet."
-    reload_and_restart_docker
-  else
-    warn_daemon_json_hosts
-    ensure_override
-    reload_and_restart_docker
+  # Always reconcile: an earlier run may have left a conflicting override.
+  ensure_override
+  if ! reload_and_restart_docker; then
+    echo "Docker failed to restart. Check 'journalctl -u ${SERVICE_NAME}'; undo with ./scripts/disable_docker_tcp.sh" >&2
+    exit 1
   fi
 
   echo "Verifying..."

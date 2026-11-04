@@ -156,8 +156,20 @@ fi
 
 HOSTIP="172.17.0.1"
 
-docker context create dind \
-  --docker "host=tcp://${HOSTIP}:2375" || true
+# The Dockerfile's install step runs docker inside the build container against
+# DOCKER_HOST=tcp://${HOSTIP}:2375, so the daemon must listen on TCP there.
+if ! DOCKER_CONTEXT= timeout 15 docker -H "tcp://${HOSTIP}:2375" version >/dev/null 2>&1; then
+  echo "Error: no Docker daemon reachable at tcp://${HOSTIP}:2375." >&2
+  echo "       The image build runs docker inside the build container against this" >&2
+  echo "       endpoint, so the host daemon must listen on TCP. Enable it with:" >&2
+  echo "         sudo ./scripts/enable_docker_tcp.sh" >&2
+  echo "       (no TLS or authentication; undo with sudo ./scripts/disable_docker_tcp.sh)" >&2
+  exit 1
+fi
+
+if ! docker context inspect dind >/dev/null 2>&1; then
+  docker context create dind --docker "host=tcp://${HOSTIP}:2375" >/dev/null
+fi
 
 docker --context dind buildx build --load \
   --build-context overrides="$override_root" \

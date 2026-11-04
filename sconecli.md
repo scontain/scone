@@ -33,6 +33,18 @@ We assume in this description that you run a Debian-based distribution like Ubun
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
 but that are not set yet. 
 
+Check that the host OS is supported. Ubuntu 22.04 and 24.04 are supported;
+Ubuntu 26.04 will be supported in an upcoming SCONE version.
+
+```bash
+# Ubuntu 26.04 (glibc 2.43) is not supported yet: no matching scone-glibc installer exists.
+if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then
+    echo "ERROR: Ubuntu 26.04 is not supported yet. Support for Ubuntu 26.04 will be added in an upcoming SCONE version." >&2
+    echo "Please use Ubuntu 22.04 or 24.04 in the meantime." >&2
+    exit 1
+fi
+```
+
 Let's ask the user and set the environment variables depending on the input of the user:
 
 ```bash
@@ -158,10 +170,33 @@ for package_prefix in scone-common scone-libc scone-cli; do
     fi
 done
 
-SCONE_GLIBC_DEB="$(find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '%f\n' | sort -V | tail -n 1)"
-if [[ -z "$SCONE_GLIBC_DEB" ]]; then
-    echo "Failed to locate a scone-glibc installer in $REPO/$IMAGE:$SCONE_VERSION" >&2
+# Select the glibc installer that matches the host glibc (e.g., 2.35 on Ubuntu 22.04).
+# Set SCONE_GLIBC_VERSION to override the detected version.
+SCONE_GLIBC_VERSION="$(printenv SCONE_GLIBC_VERSION || getconf GNU_LIBC_VERSION | awk '{print $2}')"
+SCONE_GLIBC_DEB="scone-glibc-${SCONE_GLIBC_VERSION}-installer_amd64.deb"
+if [[ ! -e "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" ]]; then
+    echo "No scone-glibc installer for host glibc $SCONE_GLIBC_VERSION in $REPO/$IMAGE:$SCONE_VERSION. Available:" >&2
+    find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '  %f\n' | sort -V >&2
+    echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2
     exit 1
+fi
+
+# Older glibc installers locate the host loader with 'find /', which can pick up a
+# read-only copy inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2).
+# Patch the postinst script to use the canonical x86_64 loader path instead.
+SCONE_GLIBC_PKG_DIR="$INSTALL_WORK/glibc-pkg"
+dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR"
+SCONE_GLIBC_POSTINST="$SCONE_GLIBC_PKG_DIR/DEBIAN/postinst"
+SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '^__ARCHIVE_START__' "$SCONE_GLIBC_POSTINST" | cut -d: -f1 || true)"
+if [[ -n "$SCONE_GLIBC_ARCHIVE_LINE" ]] && head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | grep -Fq 'find / -name ld-linux-x86-64.so.2'; then
+    {
+        head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" \
+            | sed 's|find / -name ld-linux-x86-64.so.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|'
+        tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"
+    } > "$SCONE_GLIBC_POSTINST.patched"
+    chmod 0755 "$SCONE_GLIBC_POSTINST.patched"
+    mv "$SCONE_GLIBC_POSTINST.patched" "$SCONE_GLIBC_POSTINST"
+    dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null
 fi
 
 for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
