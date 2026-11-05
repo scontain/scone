@@ -76,6 +76,9 @@ fi
 read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"
 resolve_toolbox_credentials() {
   local values="$1"
+  # This runs in a subshell. tplenv 0.11 replaces the values file with a new
+  # one, so keep the copies with the registry token private while asking.
+  umask 077
   if [[ -n "${SSH_PUB_KEY:-}" ]]; then
     # A saved empty key would deploy a toolbox nobody can log in to: drop it.
     if [[ -f Values.credentials.yaml ]]; then
