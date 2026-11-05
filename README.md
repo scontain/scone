@@ -177,16 +177,28 @@ To check overrides without building:
 SCONE_VERSION=6.0.8 ./scripts/check-scone-tooling.sh --overrides-dir overwrite/bin
 ```
 
-The build uses the `dind` Docker context at `tcp://172.17.0.1:2375` for building,
-checking, tagging and pushing. It requires `$HOME/.kube/config` and
-`$HOME/.docker/config.json` as BuildKit secrets. Local credential YAML files are
-excluded from the build context by `.dockerignore` and remain on the host.
+The build uses the local Docker daemon and does not need Docker to listen on TCP.
+It builds a base image from the Dockerfile, then runs `prerequisite_check.sh` and
+`install_sconecli.sh` in a container from that image with the host Docker socket,
+`$HOME/.kube/config` and `$HOME/.docker/config.json` mounted read-only below a
+tmpfs, and commits that container as `scone:latest`. The credentials are not part
+of the committed image. Local credential YAML files are excluded from the build
+context by `.dockerignore` and remain on the host.
 
 To build and push the versioned image:
 
 ```bash
+export COSIGN_KEY=/path/outside/the/repo/cosign.key   # or a KMS URI, e.g., awskms://...
+export COSIGN_PASSWORD=...
 ./scripts/build.sh --version 6.0.8 --push
 ```
+
+`--push` and `--push-to` sign the pushed image digest with `cosign sign --key "$COSIGN_KEY"`
+and exit with an error before building if `COSIGN_KEY` or `COSIGN_PASSWORD` is not set.
+This also applies to `overwrite.sh --validate-latest`, which pushes through `build.sh`.
+`sconecli.md` only installs tools from workshop images whose signature matches the
+scone.cloud public key. Keep the private key outside this repository; `.gitignore` and
+`.dockerignore` exclude `*.key` files as a safeguard.
 
 `--push` publishes to `registry.scontain.com/workshop/scone:<SCONE_VERSION>`,
 the default image installed by `k8s_cli.sh`. Explicit `CLI_IMAGE`, `CLI_NAMESPACE`,
@@ -244,7 +256,7 @@ repository without a tag or digest. `--image-tag <TAG>` changes the image tag
 while keeping the SCONE release selected by `--version`. Validation uses this
 to put release-and-revision tags in a single `workshop/scone-validation` repository.
 Choose either `--push` or `--push-to`. Without either option, the build remains
-local to the `dind` Docker daemon and prints a warning.
+local to the Docker daemon and prints a warning.
 
 To build, push, and run the demos against the current Kubernetes context:
 

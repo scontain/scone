@@ -17,6 +17,11 @@ Options:
   --test                     Deploy toolbox and run demos; requires --push or --push-to.
   --verbose                  Print each command executed by this script.
   --help                     Show this help message.
+
+Environment (required with --push or --push-to; the pushed image is signed with cosign):
+  COSIGN_KEY       cosign private key: a file path or a KMS URI (e.g., awskms://...).
+                   Keep the key outside this repository.
+  COSIGN_PASSWORD  Password of the cosign private key.
 USAGE
 }
 
@@ -117,6 +122,21 @@ if [[ ! "$IMAGE_TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
   exit 1
 fi
 
+if [[ -n "${PUSH_OPTION}" ]]; then
+  # Check before building: pushing takes long, and an unsigned image is skipped by
+  # sconecli.md, which only installs tools from workshop images with a valid signature.
+  missing_cosign_settings=()
+  [[ -n "${COSIGN_KEY:-}" ]] || missing_cosign_settings+=(COSIGN_KEY)
+  [[ -n "${COSIGN_PASSWORD:-}" ]] || missing_cosign_settings+=(COSIGN_PASSWORD)
+  if [[ ${#missing_cosign_settings[@]} -gt 0 ]]; then
+    echo "Error: --${PUSH_OPTION} signs the pushed image and requires: ${missing_cosign_settings[*]}" >&2
+    echo "       Set COSIGN_KEY to the cosign private key (file path or KMS URI) and" >&2
+    echo "       COSIGN_PASSWORD to its password. Keep the key outside this repository." >&2
+    exit 1
+  fi
+  require_command cosign
+fi
+
 if [[ -n "${PUSH_IMAGE}" ]]; then
   if [[ "${PUSH_IMAGE}" == *"@"* ]]; then
     echo "Error: --push-to must not include a digest: ${PUSH_IMAGE}" >&2
@@ -154,45 +174,84 @@ if [[ ! -f "$HOME/.docker/config.json" ]]; then
   exit 1
 fi
 
-HOSTIP="172.17.0.1"
+BASE_IMAGE="scone:build-base"
 
-# The Dockerfile's install step runs docker inside the build container against
-# DOCKER_HOST=tcp://${HOSTIP}:2375, so the daemon must listen on TCP there.
-if ! DOCKER_CONTEXT= timeout 15 docker -H "tcp://${HOSTIP}:2375" version >/dev/null 2>&1; then
-  echo "Error: no Docker daemon reachable at tcp://${HOSTIP}:2375." >&2
-  echo "       The image build runs docker inside the build container against this" >&2
-  echo "       endpoint, so the host daemon must listen on TCP. Enable it with:" >&2
-  echo "         sudo ./scripts/enable_docker_tcp.sh" >&2
-  echo "       (no TLS or authentication; undo with sudo ./scripts/disable_docker_tcp.sh)" >&2
-  exit 1
-fi
-
-if ! docker context inspect dind >/dev/null 2>&1; then
-  docker context create dind --docker "host=tcp://${HOSTIP}:2375" >/dev/null
-fi
-
-docker --context dind buildx build --load \
+# Stage 1: everything that needs neither Docker nor cluster credentials.
+docker buildx build --load \
   --build-context overrides="$override_root" \
-  --secret id=kubeconfig,src="$HOME/.kube/config" \
-  --secret id=dockerconfig,src="$HOME/.docker/config.json" \
-  --build-arg DOCKER_HOST="tcp://${HOSTIP}:2375" \
-  -t scone:latest \
+  -t "$BASE_IMAGE" \
   --build-arg SCONE_VERSION="${SCONE_VERSION}" \
   --file Dockerfile .
 
+# Stage 2: prerequisite_check.sh and install_sconecli.sh drive a Docker daemon, which
+# a "docker build" step cannot reach without exposing the daemon on TCP. Run them in a
+# container with the host socket mounted instead, and commit that container.
+#
+# Everything is mounted below a tmpfs on /mnt (empty in the image), so neither the
+# credentials nor their mount points end up in the committed image. The socket is not
+# mounted at /var/run/docker.sock: check_docker_setup.sh would chgrp/chmod it there,
+# changing the host socket. Settings go in the command, not "-e", so that the commit
+# does not bake them into the image's environment.
+install_container=""
+cleanup_install_container() {
+  if [[ -n "$install_container" ]]; then
+    docker rm -f "$install_container" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup_install_container EXIT
+
+# shellcheck disable=SC2016 # The container's shell expands these.
+install_container="$(docker create \
+  --tmpfs /mnt \
+  --mount type=bind,src=/var/run/docker.sock,dst=/mnt/docker.sock \
+  --mount type=bind,src="$HOME/.kube/config",dst=/mnt/kube/config,readonly \
+  --mount type=bind,src="$HOME/.docker/config.json",dst=/mnt/docker/config.json,readonly \
+  --entrypoint /bin/bash "$BASE_IMAGE" -c '
+    set -euo pipefail
+    export DOCKER_HOST=unix:///mnt/docker.sock
+    export DOCKER_CONFIG=/mnt/docker
+    export KUBECONFIG=/mnt/kube/config
+    export SCONE_VERSION="$1" VERSION="$1" CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
+    # This build replaces the workshop image: do not install tools from its previous version.
+    export SCONE_WORKSHOP_IMAGE=""
+    cd /root/scone
+    docker version
+    ./scripts/prerequisite_check.sh
+    ./scripts/install_sconecli.sh
+  ' install "$SCONE_VERSION")"
+docker start --attach "$install_container"
+docker commit \
+  --change 'ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]' \
+  --change 'CMD ["/bin/bash"]' \
+  "$install_container" scone:latest >/dev/null
+docker rm "$install_container" >/dev/null
+install_container=""
+# Untag only; the layers stay referenced by scone:latest.
+docker image rm "$BASE_IMAGE" >/dev/null
+
 # Bypass the toolbox entrypoint: this check needs neither a cluster nor credentials.
-docker --context dind run --rm --network none --entrypoint /bin/bash \
+docker run --rm --network none --entrypoint /bin/bash \
   -e SCONE_VERSION="$SCONE_VERSION" scone:latest \
   -c 'exec /root/scone/scripts/check-scone-tooling.sh'
 
-docker --context dind tag scone:latest "registry.scontain.com/workshop/scone:${IMAGE_TAG}"
+docker tag scone:latest "registry.scontain.com/workshop/scone:${IMAGE_TAG}"
 echo "Built image: registry.scontain.com/workshop/scone:${IMAGE_TAG}"
 
 if [[ -n "${PUSH_IMAGE}" ]]; then
-  docker --context dind tag scone:latest "${PUSH_IMAGE}:${IMAGE_TAG}"
-  docker --context dind push "${PUSH_IMAGE}:${IMAGE_TAG}"
+  docker tag scone:latest "${PUSH_IMAGE}:${IMAGE_TAG}"
+  docker push "${PUSH_IMAGE}:${IMAGE_TAG}"
+  # Sign the pushed digest, not the tag, which could be moved in the meantime.
+  pushed_ref="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' \
+    "${PUSH_IMAGE}:${IMAGE_TAG}" | grep -F -m1 "${PUSH_IMAGE}@" || true)"
+  if [[ -z "$pushed_ref" ]]; then
+    echo "Error: cannot determine the digest of the pushed image ${PUSH_IMAGE}:${IMAGE_TAG}" >&2
+    exit 1
+  fi
+  # cosign reads the key password from COSIGN_PASSWORD.
+  cosign sign --yes --key "$COSIGN_KEY" "$pushed_ref"
+  echo "Signed image: $pushed_ref"
 else
-  echo "WARNING: Image was not pushed. It is available only to the dind Docker daemon."
+  echo "WARNING: Image was not pushed. It is available only to the local Docker daemon."
   echo "         To make it available to Kubernetes, rerun with --push."
 fi
 

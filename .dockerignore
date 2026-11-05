@@ -3,3 +3,6 @@ registy.credentials.yaml
 Values.credentials.yaml
 Values.credentials.yaml.*
 scone-registry.env
+# cosign signing keys: never copy them into the workshop image
+cosign.key
+*.key

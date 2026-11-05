@@ -20,3 +20,6 @@ Values.credentials.yaml
 Values.credentials.yaml.*
 registy.credentials.yaml
 k8s/demo-rbac.yaml
+# cosign signing keys (cosign generate-key-pair writes cosign.key to the current directory)
+cosign.key
+*.key

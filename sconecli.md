@@ -126,9 +126,13 @@ SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"
 # Locally built tools (see ./overwrite.sh) for releases whose package image lacks them.
 SCONE_TOOL_OVERRIDE_DIR="$(printenv SCONE_TOOL_OVERRIDE_DIR || echo "$PWD/overwrite/bin")"
 SCONE_TD_BUILD_CONTAINER=""
+SCONE_WORKSHOP_CONTAINER=""
 cleanup_scone_package_install() {
     if [[ -n "$SCONE_TD_BUILD_CONTAINER" ]]; then
         docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true
+    fi
+    if [[ -n "$SCONE_WORKSHOP_CONTAINER" ]]; then
+        docker rm "$SCONE_WORKSHOP_CONTAINER" >/dev/null 2>&1 || true
     fi
     if [[ "$SCONE_PACKAGE_CONTAINER_CREATED" == true ]]; then
         docker rm "$SCONE_PACKAGE_CONTAINER" >/dev/null 2>&1 || true
@@ -225,6 +229,45 @@ sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
 sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+```
+
+The workshop image `registry.scontain.com/workshop/scone:$SCONE_VERSION`, built by
+`./scripts/build.sh`, is always newer than the package image of the same release.
+If it exists and has a valid cosign signature, its `scone-td-build`, `kubectl-scone`
+and `kubectl-scone-azure` replace the ones from the package image. Unsigned or
+missing workshop images are skipped. Set `SCONE_WORKSHOP_IMAGE` to use a different
+image, or to an empty value to skip this step.
+
+```bash
+SCONE_WORKSHOP_IMAGE="${SCONE_WORKSHOP_IMAGE-registry.scontain.com/workshop/scone:$SCONE_VERSION}"
+if [[ -n "$SCONE_WORKSHOP_IMAGE" ]]; then
+    if [[ -z "${cosign_public_key_file:-}" ]]; then
+        create_cosign_verification_key
+    fi
+    # Check the signature before pulling: the workshop image is large.
+    if ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+        echo "Workshop image $SCONE_WORKSHOP_IMAGE is not available: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+    elif ! cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+        echo "Workshop image $SCONE_WORKSHOP_IMAGE has no valid signature: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+    else
+        echo "Taking the tools from the verified workshop image $SCONE_WORKSHOP_IMAGE"
+        docker pull "$SCONE_WORKSHOP_IMAGE" >/dev/null
+        SCONE_WORKSHOP_CONTAINER="scone-workshop-$$-$RANDOM"
+        docker create --name "$SCONE_WORKSHOP_CONTAINER" "$SCONE_WORKSHOP_IMAGE" true >/dev/null
+        for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
+            # /root/.cargo/bin holds the tools built by ./overwrite.sh and comes first in its PATH.
+            for dir in /root/.cargo/bin /usr/local/bin; do
+                if docker cp -L "$SCONE_WORKSHOP_CONTAINER:$dir/$tool" "$INSTALL_WORK/bin/$tool.workshop" 2>/dev/null; then
+                    mv -f "$INSTALL_WORK/bin/$tool.workshop" "$INSTALL_WORK/bin/$tool"
+                    echo " - $tool from $dir"
+                    break
+                fi
+            done
+        done
+        docker rm "$SCONE_WORKSHOP_CONTAINER" >/dev/null
+        SCONE_WORKSHOP_CONTAINER=""
+    fi
+fi
 ```
 
 Some releases (e.g., 6.0.8) do not include scone-td-build or the kubectl plugins.
