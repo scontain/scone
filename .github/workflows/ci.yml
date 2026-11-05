@@ -1,0 +1,145 @@
+name: CI
+
+# All jobs run on a dedicated self-hosted runner: it can pull from
+# registry.scontain.com (a "docker login registry.scontain.com" done once on the
+# runner host, so this workflow uses no secrets) and it runs privileged containers.
+#
+# The repository is public. Pull requests from forks must never reach the runner:
+# every job checks that the pull request comes from this repository, and the
+# workflow never uses pull_request_target.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64]
+    container: ubuntu:24.04
+    timeout-minutes: 30
+    env:
+      # tests/toolbox-image.test.sh runs the real tplenv.
+      TPLENV_VERSION: 0.8.0
+    steps:
+      - name: Install tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git python3 shellcheck curl jq openssh-client gcc libc6-dev
+      - uses: actions/checkout@v4
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Restore tplenv
+        id: tplenv-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/tplenv
+          key: tplenv-${{ env.TPLENV_VERSION }}-ubuntu24.04-x64
+      - name: Build tplenv
+        if: steps.tplenv-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sSf https://sh.rustup.rs | env RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo \
+            sh -s -- -y --profile minimal --no-modify-path
+          RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo /opt/cargo/bin/cargo install \
+            --locked --root /opt/tplenv --version "$TPLENV_VERSION" tplenv
+      - name: Add tplenv to PATH
+        run: |
+          /opt/tplenv/bin/tplenv --version
+          echo /opt/tplenv/bin >> "$GITHUB_PATH"
+      - name: Unit tests (tests/*.test.sh, tests/*.test.py)
+        run: |
+          failed=()
+          for t in tests/*.test.sh tests/*.test.py; do
+            echo "::group::$t"
+            case "$t" in
+              *.sh) runner=bash ;;
+              *.py) runner=python3 ;;
+            esac
+            if "$runner" "$t"; then
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              echo "::error file=$t::$t failed"
+              failed+=("$t")
+            fi
+          done
+          if (( ${#failed[@]} )); then
+            echo "Failed: ${failed[*]}"
+            exit 1
+          fi
+      - name: Generated scripts match the markdown
+        run: |
+          ./scripts/extract-all-scripts.sh
+          git status --short
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git diff
+            echo "::error::scripts/ and docs/ are out of date. Run ./scripts/extract-all-scripts.sh and commit the result."
+            exit 1
+          fi
+      # The existing scripts have shellcheck warnings, so scripts/ fails only on errors.
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck -S error scripts/*.sh
+          shellcheck tests/ci/*.sh
+      # The job container runs as root. Hand the workspace back to the runner user,
+      # whose jobs on the host share this directory.
+      - name: Return the workspace to the runner user
+        if: always()
+        run: |
+          owner="$(stat -c %u:%g "$(dirname "$RUNNER_WORKSPACE")")"
+          chown -R "$owner" "$GITHUB_WORKSPACE" "$RUNNER_TEMP" || true
+
+  glibc-install:
+    name: glibc-install (ubuntu:${{ matrix.ubuntu }}, glibc ${{ matrix.glibc }})
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { ubuntu: "20.04", glibc: "2.31" }
+          - { ubuntu: "22.04", glibc: "2.35" }
+          - { ubuntu: "24.04", glibc: "2.39" }
+    env:
+      SCONE_CI_ID: ${{ github.run_id }}-${{ github.run_attempt }}-glibc-${{ matrix.ubuntu }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the SCONE packages with the patched and the unpatched scone-glibc installer
+        run: tests/ci/glibc-install.sh "${{ matrix.ubuntu }}"
+      - name: Remove the containers, images and volumes of this job
+        if: always()
+        run: tests/ci/docker-cleanup.sh "$SCONE_CI_ID"
+
+  docker-tcp:
+    name: docker-tcp (ubuntu:${{ matrix.ubuntu }})
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ["22.04", "24.04"]
+    env:
+      SCONE_CI_ID: ${{ github.run_id }}-${{ github.run_attempt }}-tcp-${{ matrix.ubuntu }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable and disable the Docker TCP API under systemd
+        run: tests/ci/docker-tcp.sh "${{ matrix.ubuntu }}"
+      - name: Remove the containers, images, volumes and networks of this job
+        if: always()
+        run: tests/ci/docker-cleanup.sh "$SCONE_CI_ID"
