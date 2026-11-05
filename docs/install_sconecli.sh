@@ -747,8 +747,13 @@ printf '%s\n' 'The workshop image `registry.scontain.com/workshop/scone:$SCONE_V
 printf '%s\n' '`./scripts/build.sh`, is always newer than the package image of the same release.'
 printf '%s\n' 'If it exists and has a valid cosign signature, its `scone-td-build`, `kubectl-scone`'
 printf '%s\n' 'and `kubectl-scone-azure` replace the ones from the package image. Unsigned or'
-printf '%s\n' 'missing workshop images are skipped. Set `SCONE_WORKSHOP_IMAGE` to use a different'
-printf '%s\n' 'image, or to an empty value to skip this step.'
+printf '%s\n' 'missing workshop images are skipped, and so is the whole step if `cosign` is not'
+printf '%s\n' 'installed. The image is pulled by the digest that `cosign verify` checked, so a tag'
+printf '%s\n' 'that moves after the check cannot slip in an unverified image. A tool that needs a'
+printf '%s\n' 'newer glibc than the host has (e.g., the 6.0.8 workshop tools need glibc 2.34, so'
+printf '%s\n' 'they do not run on Ubuntu 20.04) is skipped, and the package image'\''s version is kept.'
+printf '%s\n' 'Set `SCONE_WORKSHOP_IMAGE` to use a different image, or to an empty value to skip'
+printf '%s\n' 'this step.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -777,7 +782,19 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    if ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+    SCONE_WORKSHOP_DIGEST=""
+EOF
+)"
+pe "$(cat <<'EOF'
+    if ! command -v cosign >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "cosign is not installed, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+    elif ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -785,7 +802,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    elif ! cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+    elif ! SCONE_WORKSHOP_VERIFIED="$(cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" 2>/dev/null)"; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -797,11 +814,59 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        echo "Taking the tools from the verified workshop image $SCONE_WORKSHOP_IMAGE"
+        SCONE_WORKSHOP_DIGEST="$(printf '%s' "$SCONE_WORKSHOP_VERIFIED" | grep -o '"docker-manifest-digest": *"sha256:[0-9a-f]\{64\}"' | grep -o 'sha256:[0-9a-f]*' | head -n 1 || true)"
 EOF
 )"
 pe "$(cat <<'EOF'
-        docker pull "$SCONE_WORKSHOP_IMAGE" >/dev/null
+        if [[ -z "$SCONE_WORKSHOP_DIGEST" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+            echo "cosign did not report the verified digest of $SCONE_WORKSHOP_IMAGE: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+        fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -n "$SCONE_WORKSHOP_DIGEST" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        # Drop the tag (a ':' after the last '/') or digest and pin the verified digest.
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_WORKSHOP_REPO="${SCONE_WORKSHOP_IMAGE%@*}"
+EOF
+)"
+pe "$(cat <<'EOF'
+        if [[ "${SCONE_WORKSHOP_REPO##*/}" == *:* ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+            SCONE_WORKSHOP_REPO="${SCONE_WORKSHOP_REPO%:*}"
+EOF
+)"
+pe "$(cat <<'EOF'
+        fi
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_WORKSHOP_REF="$SCONE_WORKSHOP_REPO@$SCONE_WORKSHOP_DIGEST"
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Taking the tools from the verified workshop image $SCONE_WORKSHOP_REF"
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker pull "$SCONE_WORKSHOP_REF" >/dev/null
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -809,7 +874,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        docker create --name "$SCONE_WORKSHOP_CONTAINER" "$SCONE_WORKSHOP_IMAGE" true >/dev/null
+        docker create --name "$SCONE_WORKSHOP_CONTAINER" "$SCONE_WORKSHOP_REF" true >/dev/null
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -829,11 +894,43 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-                    mv -f "$INSTALL_WORK/bin/$tool.workshop" "$INSTALL_WORK/bin/$tool"
+                    # ldd reports "version `GLIBC_x' not found" if the host glibc is too old.
 EOF
 )"
 pe "$(cat <<'EOF'
-                    echo " - $tool from $dir"
+                    SCONE_WORKSHOP_LDD="$(ldd "$INSTALL_WORK/bin/$tool.workshop" 2>&1 || true)"
+EOF
+)"
+pe "$(cat <<'EOF'
+                    if [[ "$SCONE_WORKSHOP_LDD" == *"not found"* ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+                        rm -f "$INSTALL_WORK/bin/$tool.workshop"
+EOF
+)"
+pe "$(cat <<'EOF'
+                        echo " - $tool from $dir does not run on this host, keeping the package version:"
+EOF
+)"
+pe "$(cat <<'EOF'
+                        printf '%s\n' "$SCONE_WORKSHOP_LDD" | grep 'not found' | sed 's/^/     /'
+EOF
+)"
+pe "$(cat <<'EOF'
+                    else
+EOF
+)"
+pe "$(cat <<'EOF'
+                        mv -f "$INSTALL_WORK/bin/$tool.workshop" "$INSTALL_WORK/bin/$tool"
+EOF
+)"
+pe "$(cat <<'EOF'
+                        echo " - $tool from $dir"
+EOF
+)"
+pe "$(cat <<'EOF'
+                    fi
 EOF
 )"
 pe "$(cat <<'EOF'
