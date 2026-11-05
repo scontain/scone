@@ -235,8 +235,13 @@ The workshop image `registry.scontain.com/workshop/scone:$SCONE_VERSION`, built 
 `./scripts/build.sh`, is always newer than the package image of the same release.
 If it exists and has a valid cosign signature, its `scone-td-build`, `kubectl-scone`
 and `kubectl-scone-azure` replace the ones from the package image. Unsigned or
-missing workshop images are skipped. Set `SCONE_WORKSHOP_IMAGE` to use a different
-image, or to an empty value to skip this step.
+missing workshop images are skipped, and so is the whole step if `cosign` is not
+installed. The image is pulled by the digest that `cosign verify` checked, so a tag
+that moves after the check cannot slip in an unverified image. A tool that needs a
+newer glibc than the host has (e.g., the 6.0.8 workshop tools need glibc 2.34, so
+they do not run on Ubuntu 20.04) is skipped, and the package image's version is kept.
+Set `SCONE_WORKSHOP_IMAGE` to use a different image, or to an empty value to skip
+this step.
 
 ```bash
 SCONE_WORKSHOP_IMAGE="${SCONE_WORKSHOP_IMAGE-registry.scontain.com/workshop/scone:$SCONE_VERSION}"
@@ -245,21 +250,44 @@ if [[ -n "$SCONE_WORKSHOP_IMAGE" ]]; then
         create_cosign_verification_key
     fi
     # Check the signature before pulling: the workshop image is large.
-    if ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+    SCONE_WORKSHOP_DIGEST=""
+    if ! command -v cosign >/dev/null 2>&1; then
+        echo "cosign is not installed, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+    elif ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
         echo "Workshop image $SCONE_WORKSHOP_IMAGE is not available: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
-    elif ! cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+    elif ! SCONE_WORKSHOP_VERIFIED="$(cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" 2>/dev/null)"; then
         echo "Workshop image $SCONE_WORKSHOP_IMAGE has no valid signature: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
     else
-        echo "Taking the tools from the verified workshop image $SCONE_WORKSHOP_IMAGE"
-        docker pull "$SCONE_WORKSHOP_IMAGE" >/dev/null
+        SCONE_WORKSHOP_DIGEST="$(printf '%s' "$SCONE_WORKSHOP_VERIFIED" | grep -o '"docker-manifest-digest": *"sha256:[0-9a-f]\{64\}"' | grep -o 'sha256:[0-9a-f]*' | head -n 1 || true)"
+        if [[ -z "$SCONE_WORKSHOP_DIGEST" ]]; then
+            echo "cosign did not report the verified digest of $SCONE_WORKSHOP_IMAGE: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+        fi
+    fi
+    if [[ -n "$SCONE_WORKSHOP_DIGEST" ]]; then
+        # Drop the tag (a ':' after the last '/') or digest and pin the verified digest.
+        SCONE_WORKSHOP_REPO="${SCONE_WORKSHOP_IMAGE%@*}"
+        if [[ "${SCONE_WORKSHOP_REPO##*/}" == *:* ]]; then
+            SCONE_WORKSHOP_REPO="${SCONE_WORKSHOP_REPO%:*}"
+        fi
+        SCONE_WORKSHOP_REF="$SCONE_WORKSHOP_REPO@$SCONE_WORKSHOP_DIGEST"
+        echo "Taking the tools from the verified workshop image $SCONE_WORKSHOP_REF"
+        docker pull "$SCONE_WORKSHOP_REF" >/dev/null
         SCONE_WORKSHOP_CONTAINER="scone-workshop-$$-$RANDOM"
-        docker create --name "$SCONE_WORKSHOP_CONTAINER" "$SCONE_WORKSHOP_IMAGE" true >/dev/null
+        docker create --name "$SCONE_WORKSHOP_CONTAINER" "$SCONE_WORKSHOP_REF" true >/dev/null
         for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
             # /root/.cargo/bin holds the tools built by ./overwrite.sh and comes first in its PATH.
             for dir in /root/.cargo/bin /usr/local/bin; do
                 if docker cp -L "$SCONE_WORKSHOP_CONTAINER:$dir/$tool" "$INSTALL_WORK/bin/$tool.workshop" 2>/dev/null; then
-                    mv -f "$INSTALL_WORK/bin/$tool.workshop" "$INSTALL_WORK/bin/$tool"
-                    echo " - $tool from $dir"
+                    # ldd reports "version `GLIBC_x' not found" if the host glibc is too old.
+                    SCONE_WORKSHOP_LDD="$(ldd "$INSTALL_WORK/bin/$tool.workshop" 2>&1 || true)"
+                    if [[ "$SCONE_WORKSHOP_LDD" == *"not found"* ]]; then
+                        rm -f "$INSTALL_WORK/bin/$tool.workshop"
+                        echo " - $tool from $dir does not run on this host, keeping the package version:"
+                        printf '%s\n' "$SCONE_WORKSHOP_LDD" | grep 'not found' | sed 's/^/     /'
+                    else
+                        mv -f "$INSTALL_WORK/bin/$tool.workshop" "$INSTALL_WORK/bin/$tool"
+                        echo " - $tool from $dir"
+                    fi
                     break
                 fi
             done
