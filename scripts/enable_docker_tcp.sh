@@ -48,6 +48,14 @@ check_docker_service() {
   fi
 }
 
+start_docker() {
+  # docker.service allows only a few starts per minute (StartLimitBurst). Running this
+  # script and disable_docker_tcp.sh back to back can exceed that and leave Docker
+  # stopped with "start-limit-hit", so reset the counter first.
+  systemctl reset-failed "${SERVICE_NAME}.service" 2>/dev/null || true
+  systemctl start "${SERVICE_NAME}"
+}
+
 api_reachable() {
   # Returns 0 if the Docker API answers on the TCP endpoint.
   if command -v curl >/dev/null 2>&1; then
@@ -168,10 +176,10 @@ main() {
   systemctl stop "${SERVICE_NAME}"
   if ! systemctl restart "${SOCKET_UNIT}"; then
     echo "Cannot listen on ${TCP_ADDRESS}:${TCP_PORT}. Is another process using the port? Check 'ss -lntp | grep :${TCP_PORT}'." >&2
-    systemctl start "${SERVICE_NAME}" || true
+    start_docker || true
     exit 1
   fi
-  if ! systemctl start "${SERVICE_NAME}"; then
+  if ! start_docker; then
     echo "Docker failed to start. Check 'journalctl -u ${SERVICE_NAME}'; undo with sudo ./scripts/disable_docker_tcp.sh" >&2
     exit 1
   fi

@@ -392,14 +392,57 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'Install the core packages. This requires sudo access.'
 printf '%s\n' ''
+printf '%s\n' '`dpkg -i` does not install dependencies from the distribution. For example, `scone-cli`'
+printf '%s\n' 'needs `gettext-base`, which minimal images do not include. We first install the'
+printf '%s\n' 'dependencies that the packages declare and that this host is missing. Most hosts'
+printf '%s\n' 'already have all of them, so `apt-get` does not run.'
+printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' 'SCONE_CORE_DEBS=('
+printf '%s\n' '    "$INSTALL_WORK/packages"/scone-common_*.deb'
+printf '%s\n' '    "$INSTALL_WORK/packages"/scone-libc_*.deb'
+printf '%s\n' '    "$INSTALL_WORK/packages"/scone-cli_*.deb'
+printf '%s\n' '    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"'
+printf '%s\n' ')'
+printf '%s\n' 'SCONE_MISSING_DEPS=()'
+printf '%s\n' 'while IFS= read -r dep; do'
+printf '%s\n' '    if ! dpkg -s "$dep" 2>/dev/null | grep -qx '\''Status: install ok installed'\''; then'
+printf '%s\n' '        SCONE_MISSING_DEPS+=("$dep")'
+printf '%s\n' '    fi'
+printf '%s\n' 'done < <(for deb in "${SCONE_CORE_DEBS[@]}"; do dpkg-deb -f "$deb" Depends; done \'
+printf '%s\n' '    | tr '\'','\'' '\''\n'\'' | sed -E '\''s/\|.*//; s/\(.*\)//; s/:.*//; s/[[:space:]]//g'\'' | grep -v -e '\''^scone-'\'' -e '\''^$'\'' | sort -u)'
+printf '%s\n' 'if [[ ${#SCONE_MISSING_DEPS[@]} -gt 0 ]]; then'
+printf '%s\n' '    echo "Installing the dependencies of the SCONE packages: ${SCONE_MISSING_DEPS[*]}"'
+printf '%s\n' '    sudo apt-get update'
+printf '%s\n' '    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${SCONE_MISSING_DEPS[@]}"'
+printf '%s\n' 'fi'
+printf '%s\n' ''
 printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb'
 printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb'
 printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb'
 printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"'
 printf "${RESET}"
+
+SCONE_CORE_DEBS=(
+    "$INSTALL_WORK/packages"/scone-common_*.deb
+    "$INSTALL_WORK/packages"/scone-libc_*.deb
+    "$INSTALL_WORK/packages"/scone-cli_*.deb
+    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+)
+SCONE_MISSING_DEPS=()
+while IFS= read -r dep; do
+    if ! dpkg -s "$dep" 2>/dev/null | grep -qx 'Status: install ok installed'; then
+        SCONE_MISSING_DEPS+=("$dep")
+    fi
+done < <(for deb in "${SCONE_CORE_DEBS[@]}"; do dpkg-deb -f "$deb" Depends; done \
+    | tr ',' '\n' | sed -E 's/\|.*//; s/\(.*\)//; s/:.*//; s/[[:space:]]//g' | grep -v -e '^scone-' -e '^$' | sort -u)
+if [[ ${#SCONE_MISSING_DEPS[@]} -gt 0 ]]; then
+    echo "Installing the dependencies of the SCONE packages: ${SCONE_MISSING_DEPS[*]}"
+    sudo apt-get update
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${SCONE_MISSING_DEPS[@]}"
+fi
 
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
