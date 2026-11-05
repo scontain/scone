@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -233,7 +234,14 @@ class ToolboxForwardTest(unittest.TestCase):
     def test_identity_checks_a_real_process_and_rejects_different_arguments(self):
         process = subprocess.Popen(["sleep", "30"])
         try:
-            self.assertIsNotNone(helper.process_identity(process.pid, ["sleep", "30"]))
+            # Popen can return before the kernel has set up the new arguments, so
+            # /proc/<pid>/cmdline may still be empty. Wait until the exec is visible.
+            deadline = time.monotonic() + 5
+            identity = helper.process_identity(process.pid, ["sleep", "30"])
+            while identity is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+                identity = helper.process_identity(process.pid, ["sleep", "30"])
+            self.assertIsNotNone(identity)
             self.assertIsNone(helper.process_identity(process.pid, ["sleep", "31"]))
         finally:
             process.terminate()
