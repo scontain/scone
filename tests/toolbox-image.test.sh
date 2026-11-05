@@ -54,7 +54,16 @@ if [[ "${MOCK_FAIL_RENDER:-false}" == true && "$*" == *deployment.template.yaml*
         shift
     done
 fi
-exec "$MOCK_REAL_TPLENV" "$@"
+status=0
+"$MOCK_REAL_TPLENV" "$@" || status=$?
+# Record the mode each call leaves on a staged credentials file.
+for ((i = 1; i < $#; i++)); do
+    next=$((i + 1))
+    if [[ "${!i}" == --values && "$(basename "${!next}")" == Values.credentials.yaml* && -f "${!next}" ]]; then
+        printf '%s %s\n' "$(ls -l "${!next}" | cut -c1-10)" "${!next}" >> "$MOCK_MODES"
+    fi
+done
+exit "$status"
 MOCK
 cat > "$work/bin/kubectl" <<'MOCK'
 #!/usr/bin/env python3
@@ -84,7 +93,7 @@ elif "exec" in arguments and "scone-td-build" in arguments and "--version" in ar
     print("scone-td-build 0.4.0")
 MOCK
 chmod +x "$work/bin/tplenv" "$work/bin/kubectl"
-export MOCK_REAL_TPLENV="$real_tplenv" MOCK_CALLS="$work/calls" MOCK_SECRETS="$work/secrets.json"
+export MOCK_REAL_TPLENV="$real_tplenv" MOCK_CALLS="$work/calls" MOCK_SECRETS="$work/secrets.json" MOCK_MODES="$work/modes"
 export PATH="$work/bin:$PATH" SSH_PUB_KEY=test-key K8S_CLI_DEPLOY_ONLY=true
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 export TOOLBOX_SSH_CONFIG="$work/ssh/config"
@@ -289,3 +298,12 @@ fi
 sha256sum "$fixture/k8s/deployment.yaml" > "$work/after"
 cmp -s "$work/before" "$work/after"
 printf 'ok - failed render preserves the previous deployment manifest\n'
+
+# tplenv 0.11 replaces the values file, so staged credentials holding the
+# registry token must stay private while tplenv asks.
+[[ -s "$MOCK_MODES" ]]
+if grep -v '^-rw------- ' "$MOCK_MODES"; then
+    echo 'FAIL - staged credentials were readable by other users' >&2
+    exit 1
+fi
+printf 'ok - staged credentials stay private while tplenv asks\n'

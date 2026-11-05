@@ -108,6 +108,9 @@ printf '%s\n' '# if rendering fails, then restore an explicit caller key for thi
 printf '%s\n' 'read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"'
 printf '%s\n' 'resolve_toolbox_credentials() {'
 printf '%s\n' '  local values="$1"'
+printf '%s\n' '  # This runs in a subshell. tplenv 0.11 replaces the values file with a new'
+printf '%s\n' '  # one, so keep the copies with the registry token private while asking.'
+printf '%s\n' '  umask 077'
 printf '%s\n' '  if [[ -n "${SSH_PUB_KEY:-}" ]]; then'
 printf '%s\n' '    # A saved empty key would deploy a toolbox nobody can log in to: drop it.'
 printf '%s\n' '    if [[ -f Values.credentials.yaml ]]; then'
@@ -150,6 +153,9 @@ fi
 read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"
 resolve_toolbox_credentials() {
   local values="$1"
+  # This runs in a subshell. tplenv 0.11 replaces the values file with a new
+  # one, so keep the copies with the registry token private while asking.
+  umask 077
   if [[ -n "${SSH_PUB_KEY:-}" ]]; then
     # A saved empty key would deploy a toolbox nobody can log in to: drop it.
     if [[ -f Values.credentials.yaml ]]; then

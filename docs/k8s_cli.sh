@@ -220,6 +220,18 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+  # This runs in a subshell. tplenv 0.11 replaces the values file with a new
+EOF
+)"
+pe "$(cat <<'EOF'
+  # one, so keep the copies with the registry token private while asking.
+EOF
+)"
+pe "$(cat <<'EOF'
+  umask 077
+EOF
+)"
+pe "$(cat <<'EOF'
   if [[ -n "${SSH_PUB_KEY:-}" ]]; then
 EOF
 )"
