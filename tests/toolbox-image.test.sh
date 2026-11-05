@@ -88,6 +88,8 @@ export MOCK_REAL_TPLENV="$real_tplenv" MOCK_CALLS="$work/calls" MOCK_SECRETS="$w
 export PATH="$work/bin:$PATH" SSH_PUB_KEY=test-key K8S_CLI_DEPLOY_ONLY=true
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 export TOOLBOX_SSH_CONFIG="$work/ssh/config"
+# An unexpected tplenv prompt must fail the checks below instead of waiting for input.
+exec < /dev/null
 run_toolbox() {
     : > "$MOCK_CALLS"
     (cd "$fixture" && "$@" ./scripts/k8s_cli.sh > "$work/output" 2>&1) || {
