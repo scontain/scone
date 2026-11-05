@@ -7,9 +7,10 @@
 #   unpatched  install the scone-glibc installer as shipped; it must fail when the
 #              postinst's loader lookup finds the fake snap first
 #
-# Expects /debs (the packages from scone-deb-pkgs), /opt/scone-ci/glibc-block.sh
-# (the glibc block extracted from scripts/install_sconecli.sh) and a read-only fake
-# core24 snap at /snap/core24/1643.
+# Expects /debs (the packages from scone-deb-pkgs), two blocks extracted from
+# scripts/install_sconecli.sh (/opt/scone-ci/glibc-block.sh: glibc selection and
+# postinst patch; /opt/scone-ci/deps-block.sh: dependency install) and a read-only
+# fake core24 snap at /snap/core24/1643.
 set -euo pipefail
 
 mode="${1:?usage: $0 patched|unpatched}"
@@ -37,22 +38,14 @@ else
   snap_first=false
 fi
 
-install_dependencies() {
-  # The installer runs plain dpkg -i, which does not resolve dependencies. Desktop and
-  # server installs have them (e.g., gettext-base for scone-cli); a container image
-  # does not, so install the non-SCONE dependencies the packages declare first.
-  local deps
-  deps="$(for deb in "${INSTALL_WORK}"/packages/*.deb; do dpkg-deb -f "${deb}" Depends; done \
-    | tr ',' '\n' | sed -E 's/\|.*//; s/\(.*\)//; s/[[:space:]]//g' | grep -v -e '^scone-' -e '^$' | sort -u)"
-  [[ -n "${deps}" ]] || return 0
-  echo "Installing the dependencies of the SCONE packages: ${deps//$'\n'/ }"
-  apt-get update -qq
-  # shellcheck disable=SC2086 # one package per word
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ${deps} >/dev/null
-}
+# The installer runs its commands with sudo; the container runs as root without sudo.
+sudo() { "$@"; }
 
 install_core() {
-  install_dependencies
+  # The installer's own dependency check and install for the four core debs (a plain
+  # Ubuntu image lacks, e.g., gettext-base for scone-cli). Needs SCONE_GLIBC_DEB.
+  # shellcheck source=/dev/null
+  source /opt/scone-ci/deps-block.sh
   dpkg -i "${INSTALL_WORK}"/packages/scone-common_*.deb
   dpkg -i "${INSTALL_WORK}"/packages/scone-libc_*.deb
   dpkg -i "${INSTALL_WORK}"/packages/scone-cli_*.deb
@@ -104,6 +97,7 @@ case "${mode}" in
       echo "SKIP - the unpatched lookup does not reach the fake snap in this container"
       exit 0
     fi
+    SCONE_GLIBC_DEB="${deb}"
     install_core
     rc=0
     out="$(dpkg -i "${INSTALL_WORK}/packages/${deb}" 2>&1)" || rc=$?
