@@ -58,7 +58,9 @@ mkdir -p "${INSTALL_WORK}/packages"
   extract_block '^docker export "\$SCONE_PACKAGE_CONTAINER"' '^for package_prefix in ' '^done$'
 } > "${work}/copy-packages.sh"
 extract_block '^SCONE_GLIBC_VERSION=' 'dpkg-deb --root-owner-group -b' '^fi$' > "${work}/glibc-block.sh"
-echo "Extracted from scripts/install_sconecli.sh: $(wc -l < "${work}/copy-packages.sh") lines of the package copy loop, $(wc -l < "${work}/glibc-block.sh") lines of the glibc block."
+extract_block '^SCONE_CORE_DEBS=\(' '^SCONE_CORE_DEBS=\(' '^fi$' > "${work}/deps-block.sh"
+echo "Extracted from scripts/install_sconecli.sh: $(wc -l < "${work}/copy-packages.sh") lines of the package copy loop," \
+  "$(wc -l < "${work}/glibc-block.sh") of the glibc block, $(wc -l < "${work}/deps-block.sh") of the dependency block."
 
 echo "Copying the packages out of ${REPO}/${IMAGE}:${SCONE_VERSION} ..."
 "${repo_root}/tests/ci/docker-cleanup.sh" --pull "${id}" "${REPO}/${IMAGE}:${SCONE_VERSION}" "${platform}"
@@ -86,6 +88,7 @@ run_in_ubuntu() {
     -e "SCONE_VERSION=${SCONE_VERSION}" \
     -v "${INSTALL_WORK}/packages:/debs:ro" \
     -v "${work}/glibc-block.sh:/opt/scone-ci/glibc-block.sh:ro" \
+    -v "${work}/deps-block.sh:/opt/scone-ci/deps-block.sh:ro" \
     -v "${repo_root}/tests/ci/glibc-install-container.sh:/opt/scone-ci/test.sh:ro" \
     -v "${name}-snap:/snap/core24/1643:ro" \
     "${ubuntu}" bash /opt/scone-ci/test.sh "$1"

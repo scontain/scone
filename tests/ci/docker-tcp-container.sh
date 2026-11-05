@@ -31,10 +31,6 @@ fail() {
 run_script() {
   # Usage: run_script <path> ; prints the output and stores it in $out.
   local rc=0
-  # docker.service allows only StartLimitBurst=3 starts in 60 s, and each enable or
-  # disable restarts Docker once or twice. The scenarios run them seconds apart, far
-  # faster than a person would, so give every run a fresh start budget.
-  systemctl reset-failed docker.service
   out="$(bash "$1" 2>&1)" || rc=$?
   printf '%s\n' "${out}" | sed 's/^/    | /'
   return "${rc}"
@@ -106,6 +102,8 @@ hosts_in_daemon_json() {
   || fail "missing scripts under ${SCRIPTS} or ${LEGACY}"
 ip -4 addr show docker0 | grep -q "inet ${ADDR}/" || fail "docker0 does not have ${ADDR}"
 assert_docker_runs
+# The scenarios restart Docker more often than this limit allows; the scripts must
+# reset it themselves.
 echo "docker.service: $(systemctl show -p StartLimitBurst -p StartLimitIntervalUSec docker.service | paste -sd ' ')"
 
 scenario "A: enable on a stock docker.service"
