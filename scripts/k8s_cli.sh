@@ -83,6 +83,8 @@ printf '%s\n' 'SSH public keys belong in the ignored `Values.credentials.yaml`, 
 printf '%s\n' 'registry credentials. Shared `Values.yaml` must not contain a user'\''s SSH key.'
 printf '%s\n' 'An explicit `SSH_PUB_KEY` takes precedence for this deployment; otherwise we use'
 printf '%s\n' 'its saved local value, falling back to the first public key in `~/.ssh`.'
+printf '%s\n' 'A saved empty key counts as missing. A missing key is saved before `tplenv`'
+printf '%s\n' 'asks for the credentials, so the prompt offers it and pressing Enter keeps it.'
 printf '%s\n' 'The following snippet resolves the SSH key and registry credentials together'
 printf '%s\n' 'and saves them using an atomic update:'
 printf '%s\n' ''
@@ -104,11 +106,23 @@ printf '%s\n' ''
 printf '%s\n' '# tplenv prioritizes saved values. Stage its update to protect local credentials'
 printf '%s\n' '# if rendering fails, then restore an explicit caller key for this deployment.'
 printf '%s\n' 'read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"'
+printf '%s\n' 'resolve_toolbox_credentials() {'
+printf '%s\n' '  local values="$1"'
+printf '%s\n' '  if [[ -n "${SSH_PUB_KEY:-}" ]]; then'
+printf '%s\n' '    # A saved empty key would deploy a toolbox nobody can log in to: drop it.'
+printf '%s\n' '    if [[ -f Values.credentials.yaml ]]; then'
+printf '%s\n' '      sed -E "/^[[:space:]]+SSH_PUB_KEY:[[:space:]]*('\'''\''|\"\")?[[:space:]]*\$/d" Values.credentials.yaml > "$values" || return 1'
+printf '%s\n' '    fi'
+printf '%s\n' '    # Save the key if it is missing (tplenv does so without asking here), so the'
+printf '%s\n' '    # prompt below offers it: tplenv 0.8.0 --force offers only saved values.'
+printf '%s\n' '    tplenv --values "$values" --file <(printf '\''%s\n'\'' '\''${SSH_PUB_KEY}'\'') --create-values-file < /dev/null > /dev/null || return 1'
+printf '%s\n' '  elif [[ -f Values.credentials.yaml ]]; then'
+printf '%s\n' '    cp -p Values.credentials.yaml "$values" || return 1'
+printf '%s\n' '  fi'
+printf '%s\n' '  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}"'
+printf '%s\n' '}'
 printf '%s\n' 'toolbox_credentials_temporary="$(mktemp Values.credentials.yaml.XXXXXX)"'
-printf '%s\n' 'if [[ -f Values.credentials.yaml ]]; then'
-printf '%s\n' '  cp -p Values.credentials.yaml "$toolbox_credentials_temporary"'
-printf '%s\n' 'fi'
-printf '%s\n' 'if toolbox_ssh_exports="$(tplenv --values "$toolbox_credentials_temporary" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}")"; then'
+printf '%s\n' 'if toolbox_ssh_exports="$(resolve_toolbox_credentials "$toolbox_credentials_temporary")"; then'
 printf '%s\n' '  chmod 600 "$toolbox_credentials_temporary"'
 printf '%s\n' '  mv -f "$toolbox_credentials_temporary" Values.credentials.yaml'
 printf '%s\n' '  eval "$toolbox_ssh_exports"'
@@ -134,11 +148,23 @@ fi
 # tplenv prioritizes saved values. Stage its update to protect local credentials
 # if rendering fails, then restore an explicit caller key for this deployment.
 read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"
+resolve_toolbox_credentials() {
+  local values="$1"
+  if [[ -n "${SSH_PUB_KEY:-}" ]]; then
+    # A saved empty key would deploy a toolbox nobody can log in to: drop it.
+    if [[ -f Values.credentials.yaml ]]; then
+      sed -E "/^[[:space:]]+SSH_PUB_KEY:[[:space:]]*(''|\"\")?[[:space:]]*\$/d" Values.credentials.yaml > "$values" || return 1
+    fi
+    # Save the key if it is missing (tplenv does so without asking here), so the
+    # prompt below offers it: tplenv 0.8.0 --force offers only saved values.
+    tplenv --values "$values" --file <(printf '%s\n' '${SSH_PUB_KEY}') --create-values-file < /dev/null > /dev/null || return 1
+  elif [[ -f Values.credentials.yaml ]]; then
+    cp -p Values.credentials.yaml "$values" || return 1
+  fi
+  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}"
+}
 toolbox_credentials_temporary="$(mktemp Values.credentials.yaml.XXXXXX)"
-if [[ -f Values.credentials.yaml ]]; then
-  cp -p Values.credentials.yaml "$toolbox_credentials_temporary"
-fi
-if toolbox_ssh_exports="$(tplenv --values "$toolbox_credentials_temporary" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}")"; then
+if toolbox_ssh_exports="$(resolve_toolbox_credentials "$toolbox_credentials_temporary")"; then
   chmod 600 "$toolbox_credentials_temporary"
   mv -f "$toolbox_credentials_temporary" Values.credentials.yaml
   eval "$toolbox_ssh_exports"
