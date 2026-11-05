@@ -396,8 +396,10 @@ printf '%s\n' 'echo -e "${YELLOW}📦 Checking access to required container imag
 printf '%s\n' ''
 printf '%s\n' 'if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then'
 printf '%s\n' '      echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"'
-printf '%s\n' '    # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )'
+printf '%s\n' '    # ask user for the credentials for accessing the registry. tplenv creates or'
+printf '%s\n' '    # replaces the file with the umask'\''s mode: keep the saved token private.'
+printf '%s\n' '  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi'
+printf '%s\n' '  eval $(umask 077; tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )'
 printf '%s\n' '    kubectl create secret docker-registry sconeapps --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN || true'
 printf '%s\n' '      scone_registry_login'
 printf '%s\n' 'fi'
@@ -426,8 +428,10 @@ echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
 
 if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
-    # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
+    # ask user for the credentials for accessing the registry. tplenv creates or
+    # replaces the file with the umask's mode: keep the saved token private.
+  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi
+  eval $(umask 077; tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
     kubectl create secret docker-registry sconeapps --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN || true
       scone_registry_login
 fi

@@ -322,8 +322,10 @@ ask the user to input the values for these variables:
 
 ```bash
 if [[ $install_sconeapps_secret == 1 ]] ; then
-    # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
+    # ask user for the credentials for accessing the registry. tplenv creates or
+    # replaces the file with the umask's mode: keep the saved token private.
+  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi
+  eval $(umask 077; tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
 
 ```
 
