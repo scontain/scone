@@ -86,38 +86,6 @@ printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
 printf '%s\n' 'but that are not set yet. '
 printf '%s\n' ''
-printf '%s\n' 'Check that the host OS is supported. Ubuntu 22.04 and 24.04 are supported;'
-printf '%s\n' 'Ubuntu 26.04 will be supported in an upcoming SCONE version.'
-printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-# Ubuntu 26.04 (glibc 2.43) is not supported yet: no matching scone-glibc installer exists.
-EOF
-)"
-pe "$(cat <<'EOF'
-if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then
-EOF
-)"
-pe "$(cat <<'EOF'
-    echo "ERROR: Ubuntu 26.04 is not supported yet. Support for Ubuntu 26.04 will be added in an upcoming SCONE version." >&2
-EOF
-)"
-pe "$(cat <<'EOF'
-    echo "Please use Ubuntu 22.04 or 24.04 in the meantime." >&2
-EOF
-)"
-pe "$(cat <<'EOF'
-    exit 1
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
-EOF
-)"
-
-printf "%b" "$LILAC"
-printf '%s\n' ''
 printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
 printf '%s\n' ''
 printf "%b" "$RESET"
@@ -334,6 +302,14 @@ printf '%s\n' ''
 printf '%s\n' 'The extracted files go in a unique temporary directory, so existing files in /tmp'
 printf '%s\n' 'are left alone. The temporary container and directory are removed when the script'
 printf '%s\n' 'exits.'
+printf '%s\n' ''
+printf '%s\n' 'The `scone-glibc` installer must match the glibc of the host. The package image'
+printf '%s\n' 'ships installers for glibc 2.31, 2.35 and 2.39, i.e., Ubuntu 20.04, 22.04 and 24.04.'
+printf '%s\n' 'Ubuntu 26.04 (glibc 2.43) will be supported in an upcoming SCONE version.'
+printf '%s\n' 'The installer'\''s post-installation script searches the whole filesystem for the'
+printf '%s\n' 'dynamic loader. On hosts with snaps it can pick a read-only copy inside a snap and'
+printf '%s\n' 'fail with `cp: can'\''t create '\''/snap/core24/...'\'': File exists`, so we patch it to use'
+printf '%s\n' 'the canonical loader path `/lib64/ld-linux-x86-64.so.2`.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -554,7 +530,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2
+    if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Ubuntu 26.04 will be supported in an upcoming SCONE version. Please use Ubuntu 20.04, 22.04 or 24.04 in the meantime." >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -570,15 +562,19 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Older glibc installers locate the host loader with 'find /', which can pick up a
+# The postinst finds the host loader with 'find /', which can return a read-only copy
 EOF
 )"
 pe "$(cat <<'EOF'
-# read-only copy inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2).
+# inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2). Use the canonical path.
 EOF
 )"
 pe "$(cat <<'EOF'
-# Patch the postinst script to use the canonical x86_64 loader path instead.
+SCONE_GLIBC_LOADER_FIND='find / -name ld-linux-x86-64.so.2 -type l -print -quit'
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_GLIBC_LOADER_SED='s|find / -name ld-linux-x86-64\.so\.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|g'
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -586,7 +582,11 @@ SCONE_GLIBC_PKG_DIR="$INSTALL_WORK/glibc-pkg"
 EOF
 )"
 pe "$(cat <<'EOF'
-dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR"
+# dpkg-deb -b rejects control directories below mode 0755: do not inherit a strict umask.
+EOF
+)"
+pe "$(cat <<'EOF'
+(umask 022 && dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR")
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -594,28 +594,63 @@ SCONE_GLIBC_POSTINST="$SCONE_GLIBC_PKG_DIR/DEBIAN/postinst"
 EOF
 )"
 pe "$(cat <<'EOF'
-SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '^__ARCHIVE_START__' "$SCONE_GLIBC_POSTINST" | cut -d: -f1 || true)"
+if [[ -f "$SCONE_GLIBC_POSTINST" ]] && grep -aFq "$SCONE_GLIBC_LOADER_FIND" "$SCONE_GLIBC_POSTINST"; then
 EOF
 )"
 pe "$(cat <<'EOF'
-if [[ -n "$SCONE_GLIBC_ARCHIVE_LINE" ]] && head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | grep -Fq 'find / -name ld-linux-x86-64.so.2'; then
+    if SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '^__ARCHIVE_START__' "$SCONE_GLIBC_POSTINST")"; then
 EOF
 )"
 pe "$(cat <<'EOF'
-    {
+        # Self-extracting postinst: only edit the script in front of the embedded archive.
 EOF
 )"
 pe "$(cat <<'EOF'
-        head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" \
-            | sed 's|find / -name ld-linux-x86-64.so.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|'
+        SCONE_GLIBC_ARCHIVE_LINE="${SCONE_GLIBC_ARCHIVE_LINE%%:*}"
 EOF
 )"
 pe "$(cat <<'EOF'
-        tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"
+        {
 EOF
 )"
 pe "$(cat <<'EOF'
-    } > "$SCONE_GLIBC_POSTINST.patched"
+            head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | sed "$SCONE_GLIBC_LOADER_SED"
+EOF
+)"
+pe "$(cat <<'EOF'
+            tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"
+EOF
+)"
+pe "$(cat <<'EOF'
+        } > "$SCONE_GLIBC_POSTINST.patched"
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        sed "$SCONE_GLIBC_LOADER_SED" "$SCONE_GLIBC_POSTINST" > "$SCONE_GLIBC_POSTINST.patched"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    if grep -aFq "$SCONE_GLIBC_LOADER_FIND" "$SCONE_GLIBC_POSTINST.patched"; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Failed to patch the loader lookup in the postinst script of $SCONE_GLIBC_DEB" >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+        exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -627,7 +662,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null
+    (umask 022 && dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null)
 EOF
 )"
 pe "$(cat <<'EOF'
