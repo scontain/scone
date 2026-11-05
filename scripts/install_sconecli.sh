@@ -199,6 +199,8 @@ printf '%s\n' 'INSTALL_WORK="$(mktemp -d /tmp/scone-install.XXXXXXXX)"'
 printf '%s\n' 'SCONE_PACKAGE_CONTAINER="scone-packages-$$-$RANDOM"'
 printf '%s\n' 'SCONE_PACKAGE_CONTAINER_CREATED=false'
 printf '%s\n' 'SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"'
+printf '%s\n' '# Locally built tools (see ./overwrite.sh) for releases whose package image lacks them.'
+printf '%s\n' 'SCONE_TOOL_OVERRIDE_DIR="$(printenv SCONE_TOOL_OVERRIDE_DIR || echo "$PWD/overwrite/bin")"'
 printf '%s\n' 'SCONE_TD_BUILD_CONTAINER=""'
 printf '%s\n' 'cleanup_scone_package_install() {'
 printf '%s\n' '    if [[ -n "$SCONE_TD_BUILD_CONTAINER" ]]; then'
@@ -296,6 +298,8 @@ INSTALL_WORK="$(mktemp -d /tmp/scone-install.XXXXXXXX)"
 SCONE_PACKAGE_CONTAINER="scone-packages-$$-$RANDOM"
 SCONE_PACKAGE_CONTAINER_CREATED=false
 SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"
+# Locally built tools (see ./overwrite.sh) for releases whose package image lacks them.
+SCONE_TOOL_OVERRIDE_DIR="$(printenv SCONE_TOOL_OVERRIDE_DIR || echo "$PWD/overwrite/bin")"
 SCONE_TD_BUILD_CONTAINER=""
 cleanup_scone_package_install() {
     if [[ -n "$SCONE_TD_BUILD_CONTAINER" ]]; then
@@ -408,8 +412,10 @@ sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Some releases do not include scone-td-build or the kubectl plugins. Keep the'
-printf '%s\n' 'optional binary and SCONE_TD_BUILD_IMAGE fallback for those releases.'
+printf '%s\n' 'Some releases (e.g., 6.0.8) do not include scone-td-build or the kubectl plugins.'
+printf '%s\n' 'For those releases, `scone-td-build` is taken from `SCONE_TD_BUILD_IMAGE` if set.'
+printf '%s\n' 'Otherwise, missing tools are taken from `SCONE_TOOL_OVERRIDE_DIR` (default:'
+printf '%s\n' '`overwrite/bin`), which `./overwrite.sh` builds.'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -428,14 +434,24 @@ printf '%s\n' '            exit 1'
 printf '%s\n' '        fi'
 printf '%s\n' '        docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null'
 printf '%s\n' '        SCONE_TD_BUILD_CONTAINER=""'
+printf '%s\n' '    elif [[ -x "${SCONE_TOOL_OVERRIDE_DIR:-}/scone-td-build" ]]; then'
+printf '%s\n' '        echo "Using scone-td-build from $SCONE_TOOL_OVERRIDE_DIR"'
+printf '%s\n' '        cp "$SCONE_TOOL_OVERRIDE_DIR/scone-td-build" "$INSTALL_WORK/bin/"'
 printf '%s\n' '    else'
-printf '%s\n' '        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2'
+printf '%s\n' '        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (run ./overwrite.sh to build it into overwrite/bin, or set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2'
 printf '%s\n' '    fi'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' 'for tool in kubectl-scone kubectl-scone-azure; do'
 printf '%s\n' '    if [[ ! -e "$INSTALL_WORK/bin/$tool" ]]; then'
-printf '%s\n' '        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null || echo "ERROR: $tool not available"'
+printf '%s\n' '        if docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null; then'
+printf '%s\n' '            :'
+printf '%s\n' '        elif [[ -x "$SCONE_TOOL_OVERRIDE_DIR/$tool" ]]; then'
+printf '%s\n' '            echo "Using $tool from $SCONE_TOOL_OVERRIDE_DIR"'
+printf '%s\n' '            cp "$SCONE_TOOL_OVERRIDE_DIR/$tool" "$INSTALL_WORK/bin/$tool"'
+printf '%s\n' '        else'
+printf '%s\n' '            echo "ERROR: $tool not available in $REPO/$IMAGE:$SCONE_VERSION (run ./overwrite.sh to build it into overwrite/bin, or set SCONE_TOOL_OVERRIDE_DIR)" >&2'
+printf '%s\n' '        fi'
 printf '%s\n' '    fi'
 printf '%s\n' 'done'
 printf '%s\n' ''
@@ -458,14 +474,24 @@ if [[ ! -e "$INSTALL_WORK/bin/scone-td-build" ]]; then
         fi
         docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null
         SCONE_TD_BUILD_CONTAINER=""
+    elif [[ -x "${SCONE_TOOL_OVERRIDE_DIR:-}/scone-td-build" ]]; then
+        echo "Using scone-td-build from $SCONE_TOOL_OVERRIDE_DIR"
+        cp "$SCONE_TOOL_OVERRIDE_DIR/scone-td-build" "$INSTALL_WORK/bin/"
     else
-        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2
+        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (run ./overwrite.sh to build it into overwrite/bin, or set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2
     fi
 fi
 
 for tool in kubectl-scone kubectl-scone-azure; do
     if [[ ! -e "$INSTALL_WORK/bin/$tool" ]]; then
-        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null || echo "ERROR: $tool not available"
+        if docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null; then
+            :
+        elif [[ -x "$SCONE_TOOL_OVERRIDE_DIR/$tool" ]]; then
+            echo "Using $tool from $SCONE_TOOL_OVERRIDE_DIR"
+            cp "$SCONE_TOOL_OVERRIDE_DIR/$tool" "$INSTALL_WORK/bin/$tool"
+        else
+            echo "ERROR: $tool not available in $REPO/$IMAGE:$SCONE_VERSION (run ./overwrite.sh to build it into overwrite/bin, or set SCONE_TOOL_OVERRIDE_DIR)" >&2
+        fi
     fi
 done
 

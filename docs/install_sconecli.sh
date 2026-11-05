@@ -330,6 +330,14 @@ SCONE_TD_BUILD_IMAGE="$(printenv SCONE_TD_BUILD_IMAGE || true)"
 EOF
 )"
 pe "$(cat <<'EOF'
+# Locally built tools (see ./overwrite.sh) for releases whose package image lacks them.
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_TOOL_OVERRIDE_DIR="$(printenv SCONE_TOOL_OVERRIDE_DIR || echo "$PWD/overwrite/bin")"
+EOF
+)"
+pe "$(cat <<'EOF'
 SCONE_TD_BUILD_CONTAINER=""
 EOF
 )"
@@ -719,8 +727,10 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Some releases do not include scone-td-build or the kubectl plugins. Keep the'
-printf '%s\n' 'optional binary and SCONE_TD_BUILD_IMAGE fallback for those releases.'
+printf '%s\n' 'Some releases (e.g., 6.0.8) do not include scone-td-build or the kubectl plugins.'
+printf '%s\n' 'For those releases, `scone-td-build` is taken from `SCONE_TD_BUILD_IMAGE` if set.'
+printf '%s\n' 'Otherwise, missing tools are taken from `SCONE_TOOL_OVERRIDE_DIR` (default:'
+printf '%s\n' '`overwrite/bin`), which `./overwrite.sh` builds.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -781,11 +791,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+    elif [[ -x "${SCONE_TOOL_OVERRIDE_DIR:-}/scone-td-build" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Using scone-td-build from $SCONE_TOOL_OVERRIDE_DIR"
+EOF
+)"
+pe "$(cat <<'EOF'
+        cp "$SCONE_TOOL_OVERRIDE_DIR/scone-td-build" "$INSTALL_WORK/bin/"
+EOF
+)"
+pe "$(cat <<'EOF'
     else
 EOF
 )"
 pe "$(cat <<'EOF'
-        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2
+        echo "ERROR: scone-td-build not available in $REPO/$IMAGE:$SCONE_VERSION (run ./overwrite.sh to build it into overwrite/bin, or set SCONE_TD_BUILD_IMAGE to an image containing /usr/local/bin/scone-td-build)" >&2
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -809,7 +831,35 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null || echo "ERROR: $tool not available"
+        if docker cp "$SCONE_PACKAGE_CONTAINER:/usr/local/bin/$tool" "$INSTALL_WORK/bin/$tool" 2>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+            :
+EOF
+)"
+pe "$(cat <<'EOF'
+        elif [[ -x "$SCONE_TOOL_OVERRIDE_DIR/$tool" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+            echo "Using $tool from $SCONE_TOOL_OVERRIDE_DIR"
+EOF
+)"
+pe "$(cat <<'EOF'
+            cp "$SCONE_TOOL_OVERRIDE_DIR/$tool" "$INSTALL_WORK/bin/$tool"
+EOF
+)"
+pe "$(cat <<'EOF'
+        else
+EOF
+)"
+pe "$(cat <<'EOF'
+            echo "ERROR: $tool not available in $REPO/$IMAGE:$SCONE_VERSION (run ./overwrite.sh to build it into overwrite/bin, or set SCONE_TOOL_OVERRIDE_DIR)" >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+        fi
 EOF
 )"
 pe "$(cat <<'EOF'
