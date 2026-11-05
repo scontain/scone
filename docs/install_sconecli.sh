@@ -698,8 +698,86 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Install the core packages. This requires sudo access.'
 printf '%s\n' ''
+printf '%s\n' '`dpkg -i` does not install dependencies from the distribution. For example, `scone-cli`'
+printf '%s\n' 'needs `gettext-base`, which minimal images do not include. We first install the'
+printf '%s\n' 'dependencies that the packages declare and that this host is missing. Most hosts'
+printf '%s\n' 'already have all of them, so `apt-get` does not run.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
+pe "$(cat <<'EOF'
+SCONE_CORE_DEBS=(
+EOF
+)"
+pe "$(cat <<'EOF'
+    "$INSTALL_WORK/packages"/scone-common_*.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+    "$INSTALL_WORK/packages"/scone-libc_*.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+    "$INSTALL_WORK/packages"/scone-cli_*.deb
+EOF
+)"
+pe "$(cat <<'EOF'
+    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+EOF
+)"
+pe "$(cat <<'EOF'
+)
+EOF
+)"
+pe "$(cat <<'EOF'
+SCONE_MISSING_DEPS=()
+EOF
+)"
+pe "$(cat <<'EOF'
+while IFS= read -r dep; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if ! dpkg -s "$dep" 2>/dev/null | grep -qx 'Status: install ok installed'; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_MISSING_DEPS+=("$dep")
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+done < <(for deb in "${SCONE_CORE_DEBS[@]}"; do dpkg-deb -f "$deb" Depends; done \
+    | tr ',' '\n' | sed -E 's/\|.*//; s/\(.*\)//; s/:.*//; s/[[:space:]]//g' | grep -v -e '^scone-' -e '^$' | sort -u)
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ ${#SCONE_MISSING_DEPS[@]} -gt 0 ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Installing the dependencies of the SCONE packages: ${SCONE_MISSING_DEPS[*]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo apt-get update
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${SCONE_MISSING_DEPS[@]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
 pe "$(cat <<'EOF'
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
 EOF

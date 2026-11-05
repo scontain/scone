@@ -218,7 +218,31 @@ done
 
 Install the core packages. This requires sudo access.
 
+`dpkg -i` does not install dependencies from the distribution. For example, `scone-cli`
+needs `gettext-base`, which minimal images do not include. We first install the
+dependencies that the packages declare and that this host is missing. Most hosts
+already have all of them, so `apt-get` does not run.
+
 ```bash
+SCONE_CORE_DEBS=(
+    "$INSTALL_WORK/packages"/scone-common_*.deb
+    "$INSTALL_WORK/packages"/scone-libc_*.deb
+    "$INSTALL_WORK/packages"/scone-cli_*.deb
+    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+)
+SCONE_MISSING_DEPS=()
+while IFS= read -r dep; do
+    if ! dpkg -s "$dep" 2>/dev/null | grep -qx 'Status: install ok installed'; then
+        SCONE_MISSING_DEPS+=("$dep")
+    fi
+done < <(for deb in "${SCONE_CORE_DEBS[@]}"; do dpkg-deb -f "$deb" Depends; done \
+    | tr ',' '\n' | sed -E 's/\|.*//; s/\(.*\)//; s/:.*//; s/[[:space:]]//g' | grep -v -e '^scone-' -e '^$' | sort -u)
+if [[ ${#SCONE_MISSING_DEPS[@]} -gt 0 ]]; then
+    echo "Installing the dependencies of the SCONE packages: ${SCONE_MISSING_DEPS[*]}"
+    sudo apt-get update
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${SCONE_MISSING_DEPS[@]}"
+fi
+
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
 sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
