@@ -13,7 +13,7 @@ case "${0##*/}" in
     kubectl)
         case "$*" in
             'scone --help') exec kubectl-scone --help ;;
-            'scone-azure --help') exec kubectl-scone-azure --help ;;
+            # kubectl-scone-azure is a standalone CLI, not dispatched via kubectl.
             *) echo "unexpected kubectl request: $*" >&2; exit 99 ;;
         esac ;;
     scone) version="${MOCK_SCONE:-6.0.7}" ;;
@@ -90,7 +90,7 @@ run_case 'version metadata is accepted' 0 'checks passed' MOCK_PLUGIN=6.0.7+buil
 run_case 'runtime warning versions are ignored' 0 'checks passed' MOCK_VERSION_NOISE=1
 run_case 'malformed version is rejected' 1 'cannot read version' MOCK_TD_BUILD=unknown
 run_case 'failed version command is rejected' 1 '--version failed' MOCK_BROKEN_TOOL=scone
-run_case 'failed plugin dispatch is rejected' 1 'kubectl scone-azure --help failed' MOCK_AZURE_RC=1
+run_case 'failed Azure CLI help is rejected' 1 "$work/bin/kubectl-scone-azure --help failed" MOCK_AZURE_RC=1
 run_case 'failed apply help is rejected' 1 'apply --help failed' MOCK_APPLY_RC=1
 run_case 'invalid target is rejected' 2 'invalid SCONE_VERSION' SCONE_VERSION=unknown
 rm "$work/bin/scone-td-build"
