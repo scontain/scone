@@ -613,14 +613,18 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'if [[ $install_sconeapps_secret == 1 ]] ; then'
-printf '%s\n' '    # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )'
+printf '%s\n' '    # ask user for the credentials for accessing the registry. tplenv creates or'
+printf '%s\n' '    # replaces the file with the umask'\''s mode: keep the saved token private.'
+printf '%s\n' '  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi'
+printf '%s\n' '  eval $(umask 077; tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )'
 printf '%s\n' ''
 printf "${RESET}"
 
 if [[ $install_sconeapps_secret == 1 ]] ; then
-    # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
+    # ask user for the credentials for accessing the registry. tplenv creates or
+    # replaces the file with the umask's mode: keep the saved token private.
+  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi
+  eval $(umask 077; tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
 
 
 printf "${VIOLET}"
