@@ -114,6 +114,35 @@ run_toolbox env -u SSH_PUB_KEY
 grep -Fq 'value: "test-key"' "$fixture/k8s/deployment.yaml"
 printf 'ok - saved local SSH key takes precedence over auto-detected defaults\n'
 
+# By default the script asks to confirm every key, and tplenv 0.8.0 then offers
+# only saved values. Pressing Enter on a first run, or after such a run saved an
+# empty key, must still deploy the key found in ~/.ssh.
+detected_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDetectedTestKey detected@test'
+mkdir -p "$work/home/.ssh"
+printf '%s\n' "$detected_key" > "$work/home/.ssh/id_ed25519.pub"
+printf '\n%.0s' {1..20} > "$work/enter"
+cp "$fixture/Values.credentials.yaml" "$work/saved-credentials"
+write_credentials() {
+    printf 'environment:\n  REGISTRY: registry.scontain.com\n  REGISTRY_USER: test-user\n  REGISTRY_TOKEN: test-token\n%s' "$1" > "$fixture/Values.credentials.yaml"
+}
+confirm_all_with_enter() {
+    run_toolbox env -u SSH_PUB_KEY HOME="$work/home" CONFIRM_ALL_ENVIRONMENT_VARIABLES=--force < "$work/enter"
+}
+for saved_key in "" $'  SSH_PUB_KEY: \'\'\n' $'  SSH_PUB_KEY: ""\n'; do
+    write_credentials "$saved_key"
+    confirm_all_with_enter
+    grep -Fq "environment.SSH_PUB_KEY [$detected_key]" "$work/output"
+    grep -Fq "value: \"$detected_key\"" "$fixture/k8s/deployment.yaml"
+    grep -Fq "SSH_PUB_KEY: $detected_key" "$fixture/Values.credentials.yaml"
+    grep -Fq 'REGISTRY_TOKEN: test-token' "$fixture/Values.credentials.yaml"
+done
+printf 'ok - confirming all keys with Enter keeps the auto-detected SSH key\n'
+write_credentials $'  SSH_PUB_KEY: saved-key\n'
+confirm_all_with_enter
+grep -Fq 'value: "saved-key"' "$fixture/k8s/deployment.yaml"
+printf 'ok - confirming all keys with Enter keeps a saved SSH key\n'
+mv "$work/saved-credentials" "$fixture/Values.credentials.yaml"
+
 run_toolbox env CLI_IMAGE=registry.scontain.com/workshop/scone-validation:6.0.8-candidate CLI_NAMESPACE=validation SCONE_VERSION=6.0.8 TOOLBOX_SSH_PORT=2200
 grep -Fq 'image: registry.scontain.com/workshop/scone-validation:6.0.8-candidate' "$fixture/k8s/deployment.yaml"
 for file in deployment dind rbac; do
