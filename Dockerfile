@@ -4,7 +4,6 @@ FROM registry.scontain.com/cicd/sconecli:${SCONE_VERSION} AS sconectl
 FROM registry.scontain.com/cicd/container-diff AS builder
 
 FROM ubuntu:24.04
-ARG DOCKER_HOST
 ARG KUBECTL_VERSION="v1.33.2"
 ARG YQ_VERSION="v4.46.1"
 ARG HELM_VERSION="v3.19.0"
@@ -123,9 +122,6 @@ RUN mkdir -p /var/run/sshd /root/.ssh && chmod 700 /root/.ssh && \
       > /etc/ssh/sshd_config.d/99-scone.conf
 
 COPY . /root/scone
-# Run prerequisite check during build to fail fast if something is missing
-# Use a secret mount to provide kubeconfig during build time
-# The secret can be provided using: --secret id=kubeconfig,src=$HOME/.kube/config
 
 RUN export PATH=$HOME/.cargo/bin:$PATH && cargo install tplenv && cargo install retry-spinner
 
@@ -140,13 +136,9 @@ RUN --mount=type=bind,from=overrides,source=.,target=/overrides \
          install -m 0755 "/overrides/bin/$tool" "/root/.cargo/bin/$tool" || exit 1; \
        done
 
-RUN --mount=type=secret,id=kubeconfig,target=/root/.kube/config,required=true \
-    --mount=type=secret,id=dockerconfig,target=/root/.docker/config.json,required=true \
-    docker version && \
-    cd /root/scone \
-    && export PATH=$HOME/.cargo/bin:$PATH \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" SCONE_VERSION="${SCONE_VERSION}" VERSION="${SCONE_VERSION}" ./scripts/prerequisite_check.sh \
-    && CONFIRM_ALL_ENVIRONMENT_VARIABLES="" SCONE_VERSION="${SCONE_VERSION}" VERSION="${SCONE_VERSION}" ./scripts/install_sconecli.sh
+# prerequisite_check.sh and install_sconecli.sh need a Docker daemon and cluster
+# credentials. scripts/build.sh runs them in a container created from this image,
+# with the host Docker socket mounted, and commits the result as the final image.
 
 ENV DOCKER_CONFIG=/root/.docker
 

@@ -342,6 +342,10 @@ SCONE_TD_BUILD_CONTAINER=""
 EOF
 )"
 pe "$(cat <<'EOF'
+SCONE_WORKSHOP_CONTAINER=""
+EOF
+)"
+pe "$(cat <<'EOF'
 cleanup_scone_package_install() {
 EOF
 )"
@@ -351,6 +355,18 @@ EOF
 )"
 pe "$(cat <<'EOF'
         docker rm "$SCONE_TD_BUILD_CONTAINER" >/dev/null 2>&1 || true
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -n "$SCONE_WORKSHOP_CONTAINER" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker rm "$SCONE_WORKSHOP_CONTAINER" >/dev/null 2>&1 || true
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -722,6 +738,134 @@ EOF
 )"
 pe "$(cat <<'EOF'
 sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'The workshop image `registry.scontain.com/workshop/scone:$SCONE_VERSION`, built by'
+printf '%s\n' '`./scripts/build.sh`, is always newer than the package image of the same release.'
+printf '%s\n' 'If it exists and has a valid cosign signature, its `scone-td-build`, `kubectl-scone`'
+printf '%s\n' 'and `kubectl-scone-azure` replace the ones from the package image. Unsigned or'
+printf '%s\n' 'missing workshop images are skipped. Set `SCONE_WORKSHOP_IMAGE` to use a different'
+printf '%s\n' 'image, or to an empty value to skip this step.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+SCONE_WORKSHOP_IMAGE="${SCONE_WORKSHOP_IMAGE-registry.scontain.com/workshop/scone:$SCONE_VERSION}"
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ -n "$SCONE_WORKSHOP_IMAGE" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -z "${cosign_public_key_file:-}" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        create_cosign_verification_key
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    # Check the signature before pulling: the workshop image is large.
+EOF
+)"
+pe "$(cat <<'EOF'
+    if ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Workshop image $SCONE_WORKSHOP_IMAGE is not available: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+    elif ! cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Workshop image $SCONE_WORKSHOP_IMAGE has no valid signature: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "Taking the tools from the verified workshop image $SCONE_WORKSHOP_IMAGE"
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker pull "$SCONE_WORKSHOP_IMAGE" >/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_WORKSHOP_CONTAINER="scone-workshop-$$-$RANDOM"
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker create --name "$SCONE_WORKSHOP_CONTAINER" "$SCONE_WORKSHOP_IMAGE" true >/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+        for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
+EOF
+)"
+pe "$(cat <<'EOF'
+            # /root/.cargo/bin holds the tools built by ./overwrite.sh and comes first in its PATH.
+EOF
+)"
+pe "$(cat <<'EOF'
+            for dir in /root/.cargo/bin /usr/local/bin; do
+EOF
+)"
+pe "$(cat <<'EOF'
+                if docker cp -L "$SCONE_WORKSHOP_CONTAINER:$dir/$tool" "$INSTALL_WORK/bin/$tool.workshop" 2>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+                    mv -f "$INSTALL_WORK/bin/$tool.workshop" "$INSTALL_WORK/bin/$tool"
+EOF
+)"
+pe "$(cat <<'EOF'
+                    echo " - $tool from $dir"
+EOF
+)"
+pe "$(cat <<'EOF'
+                    break
+EOF
+)"
+pe "$(cat <<'EOF'
+                fi
+EOF
+)"
+pe "$(cat <<'EOF'
+            done
+EOF
+)"
+pe "$(cat <<'EOF'
+        done
+EOF
+)"
+pe "$(cat <<'EOF'
+        docker rm "$SCONE_WORKSHOP_CONTAINER" >/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+        SCONE_WORKSHOP_CONTAINER=""
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
 EOF
 )"
 

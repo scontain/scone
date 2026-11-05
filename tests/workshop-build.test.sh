@@ -51,11 +51,22 @@ MOCK
 cat > "$work/bin/docker" <<'MOCK'
 #!/usr/bin/env bash
 printf 'docker %s\n' "$*" >> "$MOCK_CALLS"
-if [[ "$*" == *' run '* ]]; then
-    exit "${MOCK_IMAGE_CHECK_RC:-0}"
-fi
+case "$1" in
+    run) exit "${MOCK_IMAGE_CHECK_RC:-0}" ;;
+    create) echo mock-install-container ;;
+    start) exit "${MOCK_INSTALL_RC:-0}" ;;
+    image)
+        if [[ "$2" == inspect ]]; then
+            ref="${*: -1}"
+            echo "${ref%:*}@sha256:0123456789abcdef"
+        fi ;;
+esac
 MOCK
-chmod +x "$work/bin/cargo" "$work/bin/docker"
+cat > "$work/bin/cosign" <<'MOCK'
+#!/usr/bin/env bash
+printf 'cosign %s password=%s\n' "$*" "${COSIGN_PASSWORD:-}" >> "$MOCK_CALLS"
+MOCK
+chmod +x "$work/bin/cargo" "$work/bin/docker" "$work/bin/cosign"
 export MOCK_CALLS="$work/calls" MOCK_TOOL="$work/tool"
 export KUBECTL_PROVISION_BINARY="$work/kubectl-provision"
 export PATH="$work/bin:$PATH"
@@ -86,6 +97,24 @@ rc=0
 check 'test without push fails early' test "$rc" = 1
 check 'test without push explains the required option' grep -Fq -- '--test requires --push or --push-to' "$work/output"
 check 'test without push never invokes external tools' test ! -s "$MOCK_CALLS"
+
+# Pushing signs the image: missing cosign settings must fail before anything is built.
+for unset_vars in "COSIGN_KEY COSIGN_PASSWORD" COSIGN_KEY COSIGN_PASSWORD; do
+    : > "$MOCK_CALLS"
+    rc=0
+    unset_args=()
+    for name in $unset_vars; do unset_args+=(-u "$name"); done
+    env COSIGN_KEY=/keys/cosign.key COSIGN_PASSWORD=secret env "${unset_args[@]}" \
+        "$fixture/scripts/build.sh" --version 6.0.8 --push > "$work/output" 2>&1 || rc=$?
+    check "push without $unset_vars fails" test "$rc" = 1
+    check "push without $unset_vars names the missing settings" grep -Fq "requires: $unset_vars" "$work/output"
+    check "push without $unset_vars never invokes external tools" test ! -s "$MOCK_CALLS"
+done
+# shellcheck disable=SC2016 # The inner shell expands $1.
+check 'help documents COSIGN_KEY' bash -c '"$1" --help | grep -q "COSIGN_KEY "' _ "$fixture/scripts/build.sh"
+# shellcheck disable=SC2016 # The inner shell expands $1.
+check 'help documents COSIGN_PASSWORD' bash -c '"$1" --help | grep -q "COSIGN_PASSWORD "' _ "$fixture/scripts/build.sh"
+export COSIGN_KEY=/keys/cosign.key COSIGN_PASSWORD=secret
 
 check 'missing overrides fail before Docker, despite compatible host tools' run_build 1 env
 check 'Docker was not invoked' test ! -s "$MOCK_CALLS"
@@ -141,12 +170,19 @@ if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
     printf 'preserve this file\n' > "$fixture/registy.credentials.yaml"
     check 'valid overrides allow the build' run_build 0 env
     check 'build uses the requested SCONE release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
-    check 'build loads the image into dind' grep -Fq -- '--context dind buildx build --load' "$MOCK_CALLS"
+    check 'build loads the base image into the local daemon' grep -Fq -- 'docker buildx build --load' "$MOCK_CALLS"
+    check 'build never uses the Docker TCP endpoint' bash -c '! grep -Eq -- "--context dind|tcp://" "$1"' _ "$MOCK_CALLS"
+    check 'install step reaches Docker via the mounted host socket' grep -Fq -- 'src=/var/run/docker.sock,dst=/mnt/docker.sock' "$MOCK_CALLS"
+    check 'install step mounts credentials read-only below the tmpfs' grep -Fq -- "src=$HOME/.kube/config,dst=/mnt/kube/config,readonly" "$MOCK_CALLS"
+    check 'commit restores the toolbox entrypoint' grep -Fq -- 'commit --change ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"] --change CMD ["/bin/bash"] mock-install-container scone:latest' "$MOCK_CALLS"
     check 'build passes prepared overrides as a named context' grep -Fq -- "--build-context overrides=$fixture/overwrite" "$MOCK_CALLS"
     check 'completed image is checked without entrypoint/network' grep -Fq -- 'run --rm --network none --entrypoint /bin/bash -e SCONE_VERSION=6.0.8' "$MOCK_CALLS"
-    check 'tag uses the same dind context' grep -Fq -- '--context dind tag scone:latest registry.scontain.com/workshop/scone:6.0.8' "$MOCK_CALLS"
+    check 'completed image is tagged' grep -Fq -- 'docker tag scone:latest registry.scontain.com/workshop/scone:6.0.8' "$MOCK_CALLS"
     check 'build preserves Values credentials' grep -Fq 'preserve this file' "$fixture/Values.credentials.yaml"
     check 'build preserves registry credentials' grep -Fq 'preserve this file' "$fixture/registy.credentials.yaml"
+    check 'failed install step fails the build' run_build 1 env MOCK_INSTALL_RC=1
+    check 'failed install step is not committed' bash -c '! grep -Fq "docker commit" "$1"' _ "$MOCK_CALLS"
+    check 'failed install container is removed' grep -Fq 'docker rm -f mock-install-container' "$MOCK_CALLS"
     check 'failed image check fails the build' run_build 1 env MOCK_IMAGE_CHECK_RC=1
     if grep -Eq 'docker .* (tag|push) ' "$MOCK_CALLS"; then
         echo 'FAIL - image validation failure still tagged or pushed an image'
@@ -159,7 +195,7 @@ if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$K8S_CLI_DEPLOY_ONLY" == true && "$SCONE_VERSION" == 6.0.8 ]]
-grep -Fq "docker --context dind push $CLI_IMAGE" "$MOCK_CALLS"
+grep -Fq "docker push $CLI_IMAGE" "$MOCK_CALLS"
 sleep 0.1
 printf 'toolbox deployed %s\n' "$CLI_IMAGE" >> "$MOCK_CALLS"
 MOCK
@@ -190,6 +226,10 @@ MOCK
     check 'custom validation tag is pushed and tested' run_validation_test
     check 'validation uses one registry repository' grep -Fq 'push registry.scontain.com/workshop/scone-validation:6.0.8-0123456789ab' "$MOCK_CALLS"
     check 'custom image tag preserves SCONE build release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
+    check 'pushed image is signed by digest' grep -Fq 'cosign sign --yes --key /keys/cosign.key registry.scontain.com/workshop/scone-validation@sha256:0123456789abcdef password=secret' "$MOCK_CALLS"
+    push_line="$(grep -n '^docker push' "$MOCK_CALLS" | cut -d: -f1 | head -1)"
+    sign_line="$(grep -n '^cosign sign' "$MOCK_CALLS" | cut -d: -f1 | head -1)"
+    check 'image is signed after the push' test -n "$push_line" -a -n "$sign_line" -a "${sign_line:-0}" -gt "${push_line:-0}"
     check 'deployment uses the candidate tag' grep -Fq 'toolbox deployed registry.scontain.com/workshop/scone-validation:6.0.8-0123456789ab' "$MOCK_CALLS"
 else
     echo 'skip - wrapper Docker tests require kubeconfig and Docker config files to exist'
@@ -200,6 +240,6 @@ version_statement="$(sed -n '/^export SCONE_VERSION=/{p;q;}' "$repo_root/scripts
 SCONE_VERSION=6.0.9 bash -c "$version_statement"$'\n[[ "$SCONE_VERSION" == 6.0.9 ]]' > "$work/output" 2>&1 \
     || { echo 'FAIL - prerequisite script resets requested SCONE_VERSION'; failures=$((failures + 1)); }
 check 'Docker context excludes local credentials' grep -Fxq 'Values.credentials.yaml' "$repo_root/.dockerignore"
-# shellcheck disable=SC2016 # Match the literal Dockerfile variable expansion.
-check 'Docker passes SCONE_VERSION to the installer' grep -Fq 'SCONE_VERSION="${SCONE_VERSION}" VERSION="${SCONE_VERSION}" ./scripts/install_sconecli.sh' "$repo_root/Dockerfile"
+# shellcheck disable=SC2016 # Match the literal variable expansion in build.sh.
+check 'build passes SCONE_VERSION to the installer' grep -Fq 'export SCONE_VERSION="$1" VERSION="$1"' "$repo_root/scripts/build.sh"
 exit "$failures"

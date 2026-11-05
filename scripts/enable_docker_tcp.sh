@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Makes the Docker API reachable at tcp://172.17.0.1:2375, the docker0 bridge
-# address. scripts/build.sh runs docker inside the build container against it.
+# address, for tools that need the host daemon over TCP. scripts/build.sh does
+# not need it; it mounts the local Docker socket instead.
 #
 # The endpoint has no TLS or authentication: whoever can connect gets root on this
 # host. Binding the bridge address instead of 0.0.0.0 keeps it off the external
@@ -17,7 +18,6 @@ set -euo pipefail
 #
 # Undo with: sudo ./scripts/disable_docker_tcp.sh
 
-# Must match HOSTIP in scripts/build.sh.
 TCP_ADDRESS="172.17.0.1"
 TCP_PORT="2375"
 SERVICE_NAME="docker"
