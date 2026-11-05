@@ -43,29 +43,6 @@ printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`'
 printf '%s\n' 'but that are not set yet. '
 printf '%s\n' ''
-printf '%s\n' 'Check that the host OS is supported. Ubuntu 22.04 and 24.04 are supported;'
-printf '%s\n' 'Ubuntu 26.04 will be supported in an upcoming SCONE version.'
-printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' '# Ubuntu 26.04 (glibc 2.43) is not supported yet: no matching scone-glibc installer exists.'
-printf '%s\n' 'if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then'
-printf '%s\n' '    echo "ERROR: Ubuntu 26.04 is not supported yet. Support for Ubuntu 26.04 will be added in an upcoming SCONE version." >&2'
-printf '%s\n' '    echo "Please use Ubuntu 22.04 or 24.04 in the meantime." >&2'
-printf '%s\n' '    exit 1'
-printf '%s\n' 'fi'
-printf "${RESET}"
-
-# Ubuntu 26.04 (glibc 2.43) is not supported yet: no matching scone-glibc installer exists.
-if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then
-    echo "ERROR: Ubuntu 26.04 is not supported yet. Support for Ubuntu 26.04 will be added in an upcoming SCONE version." >&2
-    echo "Please use Ubuntu 22.04 or 24.04 in the meantime." >&2
-    exit 1
-fi
-
-printf "${VIOLET}"
-printf '%s\n' ''
 printf '%s\n' 'Let'\''s ask the user and set the environment variables depending on the input of the user:'
 printf '%s\n' ''
 printf "${RESET}"
@@ -207,6 +184,14 @@ printf '%s\n' 'The extracted files go in a unique temporary directory, so existi
 printf '%s\n' 'are left alone. The temporary container and directory are removed when the script'
 printf '%s\n' 'exits.'
 printf '%s\n' ''
+printf '%s\n' 'The `scone-glibc` installer must match the glibc of the host. The package image'
+printf '%s\n' 'ships installers for glibc 2.31, 2.35 and 2.39, i.e., Ubuntu 20.04, 22.04 and 24.04.'
+printf '%s\n' 'Ubuntu 26.04 (glibc 2.43) will be supported in an upcoming SCONE version.'
+printf '%s\n' 'The installer'\''s post-installation script searches the whole filesystem for the'
+printf '%s\n' 'dynamic loader. On hosts with snaps it can pick a read-only copy inside a snap and'
+printf '%s\n' 'fail with `cp: can'\''t create '\''/snap/core24/...'\'': File exists`, so we patch it to use'
+printf '%s\n' 'the canonical loader path `/lib64/ld-linux-x86-64.so.2`.'
+printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
@@ -264,26 +249,40 @@ printf '%s\n' 'SCONE_GLIBC_DEB="scone-glibc-${SCONE_GLIBC_VERSION}-installer_amd
 printf '%s\n' 'if [[ ! -e "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" ]]; then'
 printf '%s\n' '    echo "No scone-glibc installer for host glibc $SCONE_GLIBC_VERSION in $REPO/$IMAGE:$SCONE_VERSION. Available:" >&2'
 printf '%s\n' '    find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '\''*glibc*installer*.deb'\'' -printf '\''  %f\n'\'' | sort -V >&2'
-printf '%s\n' '    echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2'
+printf '%s\n' '    if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then'
+printf '%s\n' '        echo "Ubuntu 26.04 will be supported in an upcoming SCONE version. Please use Ubuntu 20.04, 22.04 or 24.04 in the meantime." >&2'
+printf '%s\n' '    else'
+printf '%s\n' '        echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2'
+printf '%s\n' '    fi'
 printf '%s\n' '    exit 1'
 printf '%s\n' 'fi'
 printf '%s\n' ''
-printf '%s\n' '# Older glibc installers locate the host loader with '\''find /'\'', which can pick up a'
-printf '%s\n' '# read-only copy inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2).'
-printf '%s\n' '# Patch the postinst script to use the canonical x86_64 loader path instead.'
+printf '%s\n' '# The postinst finds the host loader with '\''find /'\'', which can return a read-only copy'
+printf '%s\n' '# inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2). Use the canonical path.'
+printf '%s\n' 'SCONE_GLIBC_LOADER_FIND='\''find / -name ld-linux-x86-64.so.2 -type l -print -quit'\'''
+printf '%s\n' 'SCONE_GLIBC_LOADER_SED='\''s|find / -name ld-linux-x86-64\.so\.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|g'\'''
 printf '%s\n' 'SCONE_GLIBC_PKG_DIR="$INSTALL_WORK/glibc-pkg"'
-printf '%s\n' 'dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR"'
+printf '%s\n' '# dpkg-deb -b rejects control directories below mode 0755: do not inherit a strict umask.'
+printf '%s\n' '(umask 022 && dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR")'
 printf '%s\n' 'SCONE_GLIBC_POSTINST="$SCONE_GLIBC_PKG_DIR/DEBIAN/postinst"'
-printf '%s\n' 'SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '\''^__ARCHIVE_START__'\'' "$SCONE_GLIBC_POSTINST" | cut -d: -f1 || true)"'
-printf '%s\n' 'if [[ -n "$SCONE_GLIBC_ARCHIVE_LINE" ]] && head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | grep -Fq '\''find / -name ld-linux-x86-64.so.2'\''; then'
-printf '%s\n' '    {'
-printf '%s\n' '        head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" \'
-printf '%s\n' '            | sed '\''s|find / -name ld-linux-x86-64.so.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|'\'''
-printf '%s\n' '        tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"'
-printf '%s\n' '    } > "$SCONE_GLIBC_POSTINST.patched"'
+printf '%s\n' 'if [[ -f "$SCONE_GLIBC_POSTINST" ]] && grep -aFq "$SCONE_GLIBC_LOADER_FIND" "$SCONE_GLIBC_POSTINST"; then'
+printf '%s\n' '    if SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '\''^__ARCHIVE_START__'\'' "$SCONE_GLIBC_POSTINST")"; then'
+printf '%s\n' '        # Self-extracting postinst: only edit the script in front of the embedded archive.'
+printf '%s\n' '        SCONE_GLIBC_ARCHIVE_LINE="${SCONE_GLIBC_ARCHIVE_LINE%%:*}"'
+printf '%s\n' '        {'
+printf '%s\n' '            head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | sed "$SCONE_GLIBC_LOADER_SED"'
+printf '%s\n' '            tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"'
+printf '%s\n' '        } > "$SCONE_GLIBC_POSTINST.patched"'
+printf '%s\n' '    else'
+printf '%s\n' '        sed "$SCONE_GLIBC_LOADER_SED" "$SCONE_GLIBC_POSTINST" > "$SCONE_GLIBC_POSTINST.patched"'
+printf '%s\n' '    fi'
+printf '%s\n' '    if grep -aFq "$SCONE_GLIBC_LOADER_FIND" "$SCONE_GLIBC_POSTINST.patched"; then'
+printf '%s\n' '        echo "Failed to patch the loader lookup in the postinst script of $SCONE_GLIBC_DEB" >&2'
+printf '%s\n' '        exit 1'
+printf '%s\n' '    fi'
 printf '%s\n' '    chmod 0755 "$SCONE_GLIBC_POSTINST.patched"'
 printf '%s\n' '    mv "$SCONE_GLIBC_POSTINST.patched" "$SCONE_GLIBC_POSTINST"'
-printf '%s\n' '    dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null'
+printf '%s\n' '    (umask 022 && dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null)'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' 'for tool in scone-td-build kubectl-scone kubectl-scone-azure; do'
@@ -347,26 +346,40 @@ SCONE_GLIBC_DEB="scone-glibc-${SCONE_GLIBC_VERSION}-installer_amd64.deb"
 if [[ ! -e "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" ]]; then
     echo "No scone-glibc installer for host glibc $SCONE_GLIBC_VERSION in $REPO/$IMAGE:$SCONE_VERSION. Available:" >&2
     find "$INSTALL_WORK/packages" -maxdepth 1 -type f -name '*glibc*installer*.deb' -printf '  %f\n' | sort -V >&2
-    echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2
+    if [[ -r /etc/os-release ]] && (. /etc/os-release && [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "26.04" ]]); then
+        echo "Ubuntu 26.04 will be supported in an upcoming SCONE version. Please use Ubuntu 20.04, 22.04 or 24.04 in the meantime." >&2
+    else
+        echo "Set SCONE_GLIBC_VERSION to select one of these explicitly." >&2
+    fi
     exit 1
 fi
 
-# Older glibc installers locate the host loader with 'find /', which can pick up a
-# read-only copy inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2).
-# Patch the postinst script to use the canonical x86_64 loader path instead.
+# The postinst finds the host loader with 'find /', which can return a read-only copy
+# inside a snap (e.g., /snap/core24/.../ld-linux-x86-64.so.2). Use the canonical path.
+SCONE_GLIBC_LOADER_FIND='find / -name ld-linux-x86-64.so.2 -type l -print -quit'
+SCONE_GLIBC_LOADER_SED='s|find / -name ld-linux-x86-64\.so\.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|g'
 SCONE_GLIBC_PKG_DIR="$INSTALL_WORK/glibc-pkg"
-dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR"
+# dpkg-deb -b rejects control directories below mode 0755: do not inherit a strict umask.
+(umask 022 && dpkg-deb -R "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" "$SCONE_GLIBC_PKG_DIR")
 SCONE_GLIBC_POSTINST="$SCONE_GLIBC_PKG_DIR/DEBIAN/postinst"
-SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '^__ARCHIVE_START__' "$SCONE_GLIBC_POSTINST" | cut -d: -f1 || true)"
-if [[ -n "$SCONE_GLIBC_ARCHIVE_LINE" ]] && head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | grep -Fq 'find / -name ld-linux-x86-64.so.2'; then
-    {
-        head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" \
-            | sed 's|find / -name ld-linux-x86-64.so.2 -type l -print -quit|echo /lib64/ld-linux-x86-64.so.2|'
-        tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"
-    } > "$SCONE_GLIBC_POSTINST.patched"
+if [[ -f "$SCONE_GLIBC_POSTINST" ]] && grep -aFq "$SCONE_GLIBC_LOADER_FIND" "$SCONE_GLIBC_POSTINST"; then
+    if SCONE_GLIBC_ARCHIVE_LINE="$(grep -a -n -m1 '^__ARCHIVE_START__' "$SCONE_GLIBC_POSTINST")"; then
+        # Self-extracting postinst: only edit the script in front of the embedded archive.
+        SCONE_GLIBC_ARCHIVE_LINE="${SCONE_GLIBC_ARCHIVE_LINE%%:*}"
+        {
+            head -n "$SCONE_GLIBC_ARCHIVE_LINE" "$SCONE_GLIBC_POSTINST" | sed "$SCONE_GLIBC_LOADER_SED"
+            tail -n +"$((SCONE_GLIBC_ARCHIVE_LINE + 1))" "$SCONE_GLIBC_POSTINST"
+        } > "$SCONE_GLIBC_POSTINST.patched"
+    else
+        sed "$SCONE_GLIBC_LOADER_SED" "$SCONE_GLIBC_POSTINST" > "$SCONE_GLIBC_POSTINST.patched"
+    fi
+    if grep -aFq "$SCONE_GLIBC_LOADER_FIND" "$SCONE_GLIBC_POSTINST.patched"; then
+        echo "Failed to patch the loader lookup in the postinst script of $SCONE_GLIBC_DEB" >&2
+        exit 1
+    fi
     chmod 0755 "$SCONE_GLIBC_POSTINST.patched"
     mv "$SCONE_GLIBC_POSTINST.patched" "$SCONE_GLIBC_POSTINST"
-    dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null
+    (umask 022 && dpkg-deb --root-owner-group -b "$SCONE_GLIBC_PKG_DIR" "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB" >/dev/null)
 fi
 
 for tool in scone-td-build kubectl-scone kubectl-scone-azure; do

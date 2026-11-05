@@ -33,9 +33,9 @@ kubectl get nodes || { echo "Failed to list Kubernetes nodes: Exiting" ; exit 1;
 
 The Kubernetes toolbox connects to a separate Docker-in-Docker (`dind`) Deployment through `tcp://dind.${CLI_NAMESPACE}.svc.cluster.local:2375`. The [DIND manifest](k8s/dind.template.yaml) already enables that TCP listener, and this script deploys it below. You do not need to enable Docker TCP on your laptop or Kubernetes nodes for the toolbox to use this service.
 
-The [enable docker script](scripts/enable_docker_tcp.sh) changes the local Linux systemd Docker service on the machine where you execute it. It writes `/etc/systemd/system/docker.service.d/override.conf` and restarts Docker to listen on `0.0.0.0:2375`. Running it on a laptop affects that laptop; running it over SSH on a node affects that node. It does not change remote Kubernetes resources or the node's containerd configuration.
+The [enable docker script](scripts/enable_docker_tcp.sh) changes the local Linux systemd Docker service on the machine where you execute it. It adds the systemd socket `/etc/systemd/system/scone-docker-tcp.socket` and restarts Docker, which then also listens on `172.17.0.1:2375`, the address of the `docker0` bridge that `build.sh` uses. Running it on a laptop affects that laptop; running it over SSH on a node affects that node. It does not change remote Kubernetes resources or the node's containerd configuration.
 
-> Note: This Docker TCP listener has no TLS or authentication. Restrict access to trusted clients. The [disable docker script](scripts/disable_docker_tcp.sh) removes the local systemd override. `build.sh` separately requires its configured Docker endpoint at `tcp://172.17.0.1:2375` to be reachable from where the build runs.
+> Note: This Docker TCP listener has no TLS or authentication, so anyone who can connect to it gets root access to the machine. It does not listen on external interfaces, but local users and containers can reach it. The [disable docker script](scripts/disable_docker_tcp.sh) removes the socket again, as well as the `docker.service.d/override.conf` with which earlier versions of the enable script listened on `0.0.0.0:2375`. `build.sh` separately requires its configured Docker endpoint at `tcp://172.17.0.1:2375` to be reachable from where the build runs.
 
 ## Deployment
 

@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Config
+# Undoes enable_docker_tcp.sh: removes the systemd socket that exposes the Docker
+# API on 172.17.0.1:2375, and the configuration written by earlier versions of
+# enable_docker_tcp.sh, which made dockerd listen on 0.0.0.0:2375.
+
 SERVICE_NAME="docker"
-OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.service.d"
-OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
+SOCKET_UNIT="scone-docker-tcp.socket"
+SOCKET_FILE="/etc/systemd/system/${SOCKET_UNIT}"
 DAEMON_JSON="/etc/docker/daemon.json"
-# Backups written by enable_docker_tcp.sh.
-OVERRIDE_BACKUP="${OVERRIDE_FILE}.scone-tcp.bak"
-DAEMON_JSON_BACKUP="${DAEMON_JSON}.scone-tcp.bak"
+# Written by enable_docker_tcp.sh into the socket unit when it added "fd://" to daemon.json.
+FD_HOST_NOTE="# Added \"fd://\" to ${DAEMON_JSON} hosts; disable_docker_tcp.sh removes it."
+LEGACY_OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.service.d"
+LEGACY_OVERRIDE="${LEGACY_OVERRIDE_DIR}/override.conf"
+LEGACY_MARKERS='enable_docker_tcp\.sh|Clear the default ExecStart and set our own with TCP'
 
 need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 1; }; }
 
@@ -36,65 +41,66 @@ listening_on_tcp() {
   return 1
 }
 
-config_has_tcp() {
-  # Returns 0 if the systemd unit (including drop-ins) has a tcp:// host configured
-  systemctl cat "${SERVICE_NAME}" 2>/dev/null | grep -Eiq -- '-H\s+tcp://'
+remove_fd_host() {
+  echo "Removing \"fd://\" from the hosts in ${DAEMON_JSON} ..."
+  need_cmd python3
+  python3 - "${DAEMON_JSON}" <<'EOF'
+import json, os, sys
+path = sys.argv[1]
+with open(path) as f:
+    cfg = json.load(f)
+hosts = cfg.get("hosts") or []
+if "fd://" in hosts:
+    hosts.remove("fd://")
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cfg, f, indent=2)
+        f.write("\n")
+    os.chmod(tmp, os.stat(path).st_mode & 0o7777)
+    os.replace(tmp, path)
+EOF
 }
 
-restore_daemon_json() {
-  if [[ -f "${DAEMON_JSON_BACKUP}" ]]; then
-    echo "Restoring ${DAEMON_JSON} from ${DAEMON_JSON_BACKUP} ..."
-    mv -f "${DAEMON_JSON_BACKUP}" "${DAEMON_JSON}"
-    return 0
+remove_socket() {
+  [[ -f "${SOCKET_FILE}" ]] || return 1
+  if grep -Fqx "${FD_HOST_NOTE}" "${SOCKET_FILE}" && [[ -f "${DAEMON_JSON}" ]]; then
+    remove_fd_host
   fi
-  return 1
+  echo "Removing ${SOCKET_FILE} ..."
+  systemctl disable --now "${SOCKET_UNIT}" || true
+  rm -f "${SOCKET_FILE}"
 }
 
-remove_override() {
-  if [[ -f "${OVERRIDE_BACKUP}" ]]; then
-    echo "Restoring previous ${OVERRIDE_FILE} from ${OVERRIDE_BACKUP} ..."
-    mv -f "${OVERRIDE_BACKUP}" "${OVERRIDE_FILE}"
-    return 0
-  elif [[ -f "${OVERRIDE_FILE}" ]] && [[ -f "${DAEMON_JSON}" ]] && grep -q '"hosts"[[:space:]]*:' "${DAEMON_JSON}"; then
-    # The stock unit passes -H fd://, which dockerd rejects when daemon.json sets hosts.
-    local dockerd_path
-    dockerd_path="$(command -v dockerd || echo /usr/bin/dockerd)"
-    echo "${DAEMON_JSON} defines 'hosts'; rewriting ${OVERRIDE_FILE} to start dockerd without -H flags ..."
-    printf '[Service]\nExecStart=\nExecStart=%s --containerd=/run/containerd/containerd.sock\n' "${dockerd_path}" > "${OVERRIDE_FILE}"
-    return 0
-  elif [[ -f "${OVERRIDE_FILE}" ]]; then
-    echo "Removing ${OVERRIDE_FILE} ..."
-    rm -f "${OVERRIDE_FILE}"
-
-    # Remove directory if empty
-    if [[ -d "${OVERRIDE_DIR}" ]] && [[ -z "$(ls -A "${OVERRIDE_DIR}" 2>/dev/null)" ]]; then
-      echo "Removing empty directory ${OVERRIDE_DIR} ..."
-      rmdir "${OVERRIDE_DIR}"
+remove_legacy_config() {
+  # Earlier versions of enable_docker_tcp.sh replaced ExecStart in override.conf with
+  # "-H fd:// -H tcp://0.0.0.0:2375"; one also edited daemon.json and kept backups
+  # with the suffix .scone-tcp.bak.
+  local changed=1
+  if [[ -f "${DAEMON_JSON}.scone-tcp.bak" ]]; then
+    echo "Restoring ${DAEMON_JSON} from ${DAEMON_JSON}.scone-tcp.bak ..."
+    mv -f "${DAEMON_JSON}.scone-tcp.bak" "${DAEMON_JSON}"
+    changed=0
+  fi
+  if [[ -f "${LEGACY_OVERRIDE}.scone-tcp.bak" ]]; then
+    echo "Restoring ${LEGACY_OVERRIDE} from ${LEGACY_OVERRIDE}.scone-tcp.bak ..."
+    mv -f "${LEGACY_OVERRIDE}.scone-tcp.bak" "${LEGACY_OVERRIDE}"
+    changed=0
+  elif [[ -f "${LEGACY_OVERRIDE}" ]] && grep -Eq "${LEGACY_MARKERS}" "${LEGACY_OVERRIDE}"; then
+    if [[ -f "${DAEMON_JSON}" ]] && grep -q '"hosts"[[:space:]]*:' "${DAEMON_JSON}"; then
+      # The stock unit passes -H fd://, which dockerd rejects when daemon.json sets hosts.
+      local dockerd_path
+      dockerd_path="$(command -v dockerd || echo /usr/bin/dockerd)"
+      echo "${DAEMON_JSON} defines hosts; rewriting ${LEGACY_OVERRIDE} to start dockerd without -H flags ..."
+      printf '[Service]\n# dockerd takes its hosts from %s.\nExecStart=\nExecStart=%s --containerd=/run/containerd/containerd.sock\n' \
+        "${DAEMON_JSON}" "${dockerd_path}" > "${LEGACY_OVERRIDE}"
+    else
+      echo "Removing ${LEGACY_OVERRIDE} ..."
+      rm -f "${LEGACY_OVERRIDE}"
+      rmdir "${LEGACY_OVERRIDE_DIR}" 2>/dev/null || true
     fi
-    return 0
-  else
-    echo "No override file found at ${OVERRIDE_FILE}"
-    return 1
+    changed=0
   fi
-}
-
-warn_daemon_json_hosts() {
-  # If daemon.json has TCP configured, warn that it won't be modified
-  local dj="/etc/docker/daemon.json"
-  if [[ -f "${dj}" ]] && grep -q '"hosts"\s*:' "${dj}"; then
-    if grep -q 'tcp://' "${dj}"; then
-      echo "Warning: /etc/docker/daemon.json defines TCP hosts. This script only removes systemd overrides." >&2
-      echo "You may need to manually edit ${dj} to fully disable TCP." >&2
-      return 0
-    fi
-  fi
-  return 1
-}
-
-reload_and_restart_docker() {
-  echo "Reloading systemd and restarting Docker..."
-  systemctl daemon-reload
-  systemctl restart "${SERVICE_NAME}"
+  return "${changed}"
 }
 
 main() {
@@ -102,75 +108,29 @@ main() {
   need_cmd systemctl
   check_docker_service
 
-  echo "Checking if Docker TCP is currently enabled..."
+  local changed=false
+  if remove_socket; then
+    changed=true
+  fi
+  if remove_legacy_config; then
+    changed=true
+  fi
 
-  local tcp_listening=false
-  local tcp_configured=false
+  if [[ "${changed}" == true ]]; then
+    echo "Reloading systemd and restarting Docker ..."
+    systemctl daemon-reload
+    systemctl restart "${SERVICE_NAME}"
+  else
+    echo "No configuration from enable_docker_tcp.sh found. Nothing to remove."
+  fi
 
+  echo "Verifying ..."
   if listening_on_tcp; then
-    tcp_listening=true
-    echo "Docker is currently listening on TCP."
-  else
-    echo "Docker is not currently listening on TCP."
+    echo "Docker still listens on TCP. That is configured outside these scripts:" >&2
+    echo "check \"hosts\" in ${DAEMON_JSON} and the -H flags in 'systemctl cat ${SERVICE_NAME}'." >&2
+    exit 1
   fi
-
-  if config_has_tcp; then
-    tcp_configured=true
-    echo "TCP is configured in systemd."
-  else
-    echo "TCP is not configured in systemd."
-  fi
-
-  if [[ -f "${DAEMON_JSON_BACKUP}" || -f "${OVERRIDE_BACKUP}" ]]; then
-    tcp_configured=true
-    echo "Backups from enable_docker_tcp.sh found; restoring them."
-  fi
-
-  # If neither listening nor configured, nothing to do
-  if [[ "${tcp_listening}" == "false" ]] && [[ "${tcp_configured}" == "false" ]]; then
-    echo "Docker TCP is already disabled. Nothing to do."
-    exit 0
-  fi
-
-  local daemon_json_restored=false
-  if restore_daemon_json; then
-    daemon_json_restored=true
-  fi
-
-  # Check for daemon.json conflicts
-  local has_daemon_json_tcp=false
-  if warn_daemon_json_hosts; then
-    has_daemon_json_tcp=true
-  fi
-
-  # Remove systemd override if present
-  local override_removed=false
-  if remove_override; then
-    override_removed=true
-  fi
-
-  # Only restart if we actually made changes
-  if [[ "${override_removed}" == "true" || "${daemon_json_restored}" == "true" ]]; then
-    reload_and_restart_docker
-  else
-    echo "No systemd changes made. Docker restart not required."
-  fi
-
-  # Verify final state
-  echo "Verifying..."
-  if listening_on_tcp; then
-    if [[ "${has_daemon_json_tcp}" == "true" ]]; then
-      echo "Docker is still listening on TCP (likely due to /etc/docker/daemon.json configuration)."
-      echo "Systemd override has been removed, but manual daemon.json edit is required."
-      exit 0
-    else
-      echo "Docker is still listening on TCP after restart. Check 'journalctl -u ${SERVICE_NAME}' for details." >&2
-      exit 1
-    fi
-  else
-    echo "Docker TCP API successfully disabled."
-    exit 0
-  fi
+  echo "Docker TCP API is disabled."
 }
 
 main "$@"

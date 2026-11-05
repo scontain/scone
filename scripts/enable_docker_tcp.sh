@@ -1,15 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Config — change if you want a different bind address/port.
-TARGET_HOST="tcp://0.0.0.0:2375"
+# Makes the Docker API reachable at tcp://172.17.0.1:2375, the docker0 bridge
+# address. scripts/build.sh runs docker inside the build container against it.
+#
+# The endpoint has no TLS or authentication: whoever can connect gets root on this
+# host. Binding the bridge address instead of 0.0.0.0 keeps it off the external
+# interfaces, but local users and containers can still reach it.
+#
+# A systemd socket unit holds the listener instead of a "dockerd -H tcp://..." flag:
+# - FreeBind lets systemd bind 172.17.0.1 at boot, before dockerd creates docker0.
+#   dockerd opens its API listeners before it sets up networking, so with
+#   "-H tcp://172.17.0.1:2375" Docker would fail to start after every reboot.
+# - dockerd takes the socket over through socket activation ("-H fd://", which
+#   the stock docker.service already uses), so docker.service stays unchanged.
+#
+# Undo with: sudo ./scripts/disable_docker_tcp.sh
+
+# Must match HOSTIP in scripts/build.sh.
+TCP_ADDRESS="172.17.0.1"
+TCP_PORT="2375"
 SERVICE_NAME="docker"
-OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.service.d"
-OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
+SOCKET_UNIT="scone-docker-tcp.socket"
+SOCKET_FILE="/etc/systemd/system/${SOCKET_UNIT}"
 DAEMON_JSON="/etc/docker/daemon.json"
-# Backups restored by disable_docker_tcp.sh.
-OVERRIDE_BACKUP="${OVERRIDE_FILE}.scone-tcp.bak"
-DAEMON_JSON_BACKUP="${DAEMON_JSON}.scone-tcp.bak"
+# Recorded in the socket unit when this script added "fd://" to the daemon.json hosts.
+FD_HOST_NOTE="# Added \"fd://\" to ${DAEMON_JSON} hosts; disable_docker_tcp.sh removes it."
+# Earlier versions of this script made dockerd listen on 0.0.0.0:2375 via override.conf.
+LEGACY_OVERRIDE="/etc/systemd/system/${SERVICE_NAME}.service.d/override.conf"
+LEGACY_MARKERS='enable_docker_tcp\.sh|Clear the default ExecStart and set our own with TCP'
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 1; }; }
 
@@ -27,130 +48,144 @@ check_docker_service() {
   fi
 }
 
-extract_port() {
-  # Extract port number from TARGET_HOST (e.g., tcp://0.0.0.0:2375 -> 2375)
-  echo "${TARGET_HOST}" | sed -n 's/.*:\([0-9]\+\)$/\1/p'
-}
-
-listening_on_tcp() {
-  # Returns 0 if dockerd is currently listening on the configured TCP port.
-  local port
-  port="$(extract_port)"
-  [[ -z "${port}" ]] && return 1
-
-  if command -v ss >/dev/null 2>&1; then
-    ss -lntp 2>/dev/null | grep -E "LISTEN.*:${port}\s" | grep -Eiq "dockerd|docker" && return 0
-  elif command -v netstat >/dev/null 2>&1; then
-    netstat -lntp 2>/dev/null | grep -E ":${port}.*LISTEN" | grep -Eiq "dockerd|docker" && return 0
+api_reachable() {
+  # Returns 0 if the Docker API answers on the TCP endpoint.
+  if command -v curl >/dev/null 2>&1; then
+    [[ "$(curl -fsS --max-time 5 "http://${TCP_ADDRESS}:${TCP_PORT}/_ping" 2>/dev/null)" == "OK" ]]
+  else
+    timeout 10 docker -H "tcp://${TCP_ADDRESS}:${TCP_PORT}" version >/dev/null 2>&1
   fi
-  return 1
 }
 
-daemon_json_has_hosts() {
-  [[ -f "${DAEMON_JSON}" ]] && python3 - "${DAEMON_JSON}" <<'EOF'
-import json, sys
-sys.exit(0 if "hosts" in json.load(open(sys.argv[1])) else 1)
-EOF
-}
-
-add_tcp_to_daemon_json() {
-  # dockerd refuses to start if hosts are given both as -H flags and in daemon.json,
-  # so when daemon.json owns "hosts" the TCP endpoint must be added there.
-  if [[ ! -f "${DAEMON_JSON_BACKUP}" ]]; then
-    cp -p "${DAEMON_JSON}" "${DAEMON_JSON_BACKUP}"
-    echo "Backed up ${DAEMON_JSON} to ${DAEMON_JSON_BACKUP}"
-  fi
-  python3 - "${DAEMON_JSON}" "${TARGET_HOST}" <<'EOF'
+daemon_json() {
+  # Usage: daemon_json has-hosts|has-fd|add-fd
+  # Returns 1 when daemon.json does not exist or the answer is no.
+  [[ -f "${DAEMON_JSON}" ]] || return 1
+  need_cmd python3
+  local rc=0
+  python3 - "$1" "${DAEMON_JSON}" <<'EOF' || rc=$?
 import json, os, sys
-path, host = sys.argv[1], sys.argv[2]
-cfg = json.load(open(path))
-if host in cfg["hosts"]:
-    sys.exit(0)
-cfg["hosts"].append(host)
+action, path = sys.argv[1:3]
+try:
+    with open(path) as f:
+        text = f.read()
+    cfg = json.loads(text) if text.strip() else {}
+except (OSError, ValueError) as e:
+    print(f"Cannot read {path}: {e}", file=sys.stderr)
+    sys.exit(2)
+hosts = cfg.get("hosts")
+if action == "has-hosts":
+    sys.exit(0 if hosts is not None else 1)
+if action == "has-fd":
+    sys.exit(0 if hosts and "fd://" in hosts else 1)
+hosts.append("fd://")  # add-fd
 tmp = path + ".tmp"
 with open(tmp, "w") as f:
     json.dump(cfg, f, indent=2)
     f.write("\n")
 os.chmod(tmp, os.stat(path).st_mode & 0o7777)
 os.replace(tmp, path)
-print(f"Added {host} to {path} hosts")
 EOF
+  (( rc <= 1 )) || exit "${rc}"
+  return "${rc}"
 }
 
-ensure_override() {
-  local dockerd_path exec_start
-  dockerd_path="$(command -v dockerd || true)"
-  [[ -z "${dockerd_path}" ]] && dockerd_path="/usr/bin/dockerd"
-
-  if daemon_json_has_hosts; then
-    echo "Note: ${DAEMON_JSON} defines 'hosts'; adding TCP there and starting dockerd without -H flags."
-    need_cmd python3
-    add_tcp_to_daemon_json
-    exec_start="${dockerd_path} --containerd=/run/containerd/containerd.sock"
-  else
-    exec_start="${dockerd_path} -H fd:// -H ${TARGET_HOST} --containerd=/run/containerd/containerd.sock"
-  fi
-
-  local desired
-  desired="$(cat <<EOF
-[Service]
-# Written by enable_docker_tcp.sh; disable_docker_tcp.sh restores the previous state.
-ExecStart=
-ExecStart=${exec_start}
-EOF
-)"
-
-  if [[ -f "${OVERRIDE_FILE}" ]] && [[ "$(cat "${OVERRIDE_FILE}")" == "${desired}" ]]; then
-    echo "Override already present: ${OVERRIDE_FILE}"
-    return
-  fi
-
-  mkdir -p "${OVERRIDE_DIR}"
-  if [[ -f "${OVERRIDE_FILE}" && ! -f "${OVERRIDE_BACKUP}" ]] \
-      && ! grep -q "enable_docker_tcp.sh" "${OVERRIDE_FILE}" \
-      && ! grep -q -- "-H ${TARGET_HOST}" "${OVERRIDE_FILE}"; then
-    cp -p "${OVERRIDE_FILE}" "${OVERRIDE_BACKUP}"
-    echo "Backed up existing ${OVERRIDE_FILE} to ${OVERRIDE_BACKUP}"
-  fi
-  echo "Writing ${OVERRIDE_FILE} ..."
-  printf '%s\n' "${desired}" > "${OVERRIDE_FILE}"
+legacy_config_present() {
+  [[ -f "${LEGACY_OVERRIDE}.scone-tcp.bak" || -f "${DAEMON_JSON}.scone-tcp.bak" ]] && return 0
+  [[ -f "${LEGACY_OVERRIDE}" ]] && grep -Eq "${LEGACY_MARKERS}" "${LEGACY_OVERRIDE}"
 }
 
-reload_and_restart_docker() {
-  echo "Reloading systemd and restarting Docker..."
-  systemctl daemon-reload
-  systemctl restart "${SERVICE_NAME}"
+ensure_dockerd_accepts_socket() {
+  # Sets added_fd=true when this run or an earlier one added "fd://" to daemon.json.
+  local exec_start
+  exec_start="$(systemctl show -p ExecStart --value "${SERVICE_NAME}")"
+  if [[ -f "${SOCKET_FILE}" ]] && grep -Fqx "${FD_HOST_NOTE}" "${SOCKET_FILE}"; then
+    added_fd=true
+  fi
+
+  if grep -Eq '(-H|--host)[= ]*fd://' <<<"${exec_start}"; then
+    return 0  # stock docker.service
+  fi
+  if daemon_json has-hosts; then
+    # dockerd rejects -H flags when daemon.json defines hosts, so add fd:// there.
+    if ! daemon_json has-fd; then
+      echo "Adding \"fd://\" to the hosts in ${DAEMON_JSON} so that dockerd accepts the socket ..."
+      daemon_json add-fd
+      added_fd=true
+    fi
+    return 0
+  fi
+  echo "dockerd is started without -H fd://, so it would ignore the systemd socket:" >&2
+  echo "  ${exec_start}" >&2
+  echo "Add \"-H fd://\" to ExecStart of ${SERVICE_NAME}.service, or \"fd://\" to \"hosts\" in ${DAEMON_JSON}, and rerun." >&2
+  exit 1
+}
+
+write_socket_unit() {
+  local note=""
+  [[ "${added_fd}" == true ]] && note="${FD_HOST_NOTE}"$'\n'
+  echo "Writing ${SOCKET_FILE} ..."
+  cat > "${SOCKET_FILE}" <<EOF
+# Written by enable_docker_tcp.sh; disable_docker_tcp.sh removes it.
+${note}[Unit]
+Description=Docker API on ${TCP_ADDRESS}:${TCP_PORT} for SCONE image builds (no TLS)
+
+[Socket]
+ListenStream=${TCP_ADDRESS}:${TCP_PORT}
+# Bind before dockerd has created the docker0 bridge that owns this address.
+FreeBind=true
+Service=${SERVICE_NAME}.service
+
+[Install]
+WantedBy=sockets.target
+EOF
 }
 
 main() {
-  local port
-  port="$(extract_port)"
-
   require_root
   need_cmd systemctl
   check_docker_service
 
-  echo "Checking if Docker is already listening on TCP :${port} ..."
-  if listening_on_tcp; then
-    echo "TCP already enabled (dockerd is listening on :${port}). Nothing to do."
+  if legacy_config_present; then
+    echo "Removing the configuration of an earlier version of this script (it listened on 0.0.0.0:${TCP_PORT}) ..."
+    "${script_dir}/disable_docker_tcp.sh"
+  fi
+
+  if api_reachable; then
+    echo "Docker API already reachable at tcp://${TCP_ADDRESS}:${TCP_PORT}. Nothing to do."
     exit 0
   fi
 
-  # Always reconcile: an earlier run may have left a conflicting override.
-  ensure_override
-  if ! reload_and_restart_docker; then
-    echo "Docker failed to restart. Check 'journalctl -u ${SERVICE_NAME}'; undo with ./scripts/disable_docker_tcp.sh" >&2
+  added_fd=false
+  ensure_dockerd_accepts_socket
+  write_socket_unit
+
+  systemctl daemon-reload
+  systemctl enable "${SOCKET_UNIT}"
+  # dockerd gets the socket only when it starts, and it keeps an old copy open
+  # until it stops, so stop it before (re)binding the socket.
+  echo "Restarting Docker with the socket ..."
+  systemctl stop "${SERVICE_NAME}"
+  if ! systemctl restart "${SOCKET_UNIT}"; then
+    echo "Cannot listen on ${TCP_ADDRESS}:${TCP_PORT}. Is another process using the port? Check 'ss -lntp | grep :${TCP_PORT}'." >&2
+    systemctl start "${SERVICE_NAME}" || true
+    exit 1
+  fi
+  if ! systemctl start "${SERVICE_NAME}"; then
+    echo "Docker failed to start. Check 'journalctl -u ${SERVICE_NAME}'; undo with sudo ./scripts/disable_docker_tcp.sh" >&2
     exit 1
   fi
 
-  echo "Verifying..."
-  if listening_on_tcp; then
-    echo "Docker TCP API enabled at ${TARGET_HOST}"
-    exit 0
-  else
-    echo "Docker is not listening on TCP :${port} after restart. Check 'journalctl -u ${SERVICE_NAME}' for errors." >&2
-    exit 1
-  fi
+  echo "Verifying ..."
+  for _ in 1 2 3 4 5; do
+    if api_reachable; then
+      echo "Docker API enabled at tcp://${TCP_ADDRESS}:${TCP_PORT}"
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "Docker API is not reachable at tcp://${TCP_ADDRESS}:${TCP_PORT}. Check 'journalctl -u ${SERVICE_NAME} -u ${SOCKET_UNIT}'." >&2
+  exit 1
 }
 
 main "$@"
