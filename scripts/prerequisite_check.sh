@@ -121,15 +121,42 @@ printf '%s\n' '        echo "WARNING: Cannot access private SCONE images without
 printf '%s\n' '    fi'
 printf '%s\n' '}'
 printf '%s\n' ''
-printf '%s\n' '# Auto-install Cosign if not present'
-printf '%s\n' 'if ! check_command cosign; then'
-printf '%s\n' '  echo "📥 Installing Cosign..."'
+printf '%s\n' '# The SCONE images are signed with cosign 3.x, which older cosign versions fail to verify.'
+printf '%s\n' 'COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"'
+printf '%s\n' ''
+printf '%s\n' '# Prints the version of the installed cosign (e.g., 2.4.1), or nothing if unknown.'
+printf '%s\n' 'cosign_version() {'
+printf '%s\n' '  cosign version 2>/dev/null | grep -o '\''GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+'\'' | grep -o '\''[0-9]\+\.[0-9]\+\.[0-9]\+'\'' | head -n 1 || true'
+printf '%s\n' '}'
+printf '%s\n' ''
+printf '%s\n' '# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.'
+printf '%s\n' 'cosign_version_ok() {'
+printf '%s\n' '  local version'
+printf '%s\n' '  check_command cosign || return 1'
+printf '%s\n' '  version="$(cosign_version)"'
+printf '%s\n' '  [[ -n "$version" ]] || return 1'
+printf '%s\n' '  [[ "$(printf '\''%s\n%s\n'\'' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]'
+printf '%s\n' '}'
+printf '%s\n' ''
+printf '%s\n' '# Auto-install Cosign if not present or too old'
+printf '%s\n' 'if ! check_command cosign || ! cosign_version_ok; then'
+printf '%s\n' '  if check_command cosign; then'
+printf '%s\n' '    echo "📥 Cosign version '\''$(cosign_version)'\'' of $(command -v cosign) is older than $COSIGN_MIN_VERSION: installing the latest Cosign..."'
+printf '%s\n' '  else'
+printf '%s\n' '    echo "📥 Installing Cosign..."'
+printf '%s\n' '  fi'
 printf '%s\n' '  curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"'
 printf '%s\n' '  sudo mv cosign-linux-amd64 /usr/local/bin/cosign'
 printf '%s\n' '  sudo chmod +x /usr/local/bin/cosign'
-printf '%s\n' '  echo "✔️ Cosign installed successfully."'
+printf '%s\n' '  hash -r'
+printf '%s\n' '  if cosign_version_ok; then'
+printf '%s\n' '    echo "✔️ Cosign $(cosign_version) installed successfully."'
+printf '%s\n' '  else'
+printf '%s\n' '    echo -e "${RED}❌ $(command -v cosign) still reports cosign version '\''$(cosign_version)'\'', but we need >= $COSIGN_MIN_VERSION. Remove the old cosign or put /usr/local/bin first in your PATH.${NC}"'
+printf '%s\n' '    exit 1'
+printf '%s\n' '  fi'
 printf '%s\n' 'else'
-printf '%s\n' '  echo "✔️ Cosign is already installed."'
+printf '%s\n' '  echo "✔️ Cosign $(cosign_version) is already installed."'
 printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' '# Auto-install Docker if not present'
@@ -260,15 +287,42 @@ scone_registry_login() {
     fi
 }
 
-# Auto-install Cosign if not present
-if ! check_command cosign; then
-  echo "📥 Installing Cosign..."
+# The SCONE images are signed with cosign 3.x, which older cosign versions fail to verify.
+COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"
+
+# Prints the version of the installed cosign (e.g., 2.4.1), or nothing if unknown.
+cosign_version() {
+  cosign version 2>/dev/null | grep -o 'GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+' | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 || true
+}
+
+# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.
+cosign_version_ok() {
+  local version
+  check_command cosign || return 1
+  version="$(cosign_version)"
+  [[ -n "$version" ]] || return 1
+  [[ "$(printf '%s\n%s\n' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]
+}
+
+# Auto-install Cosign if not present or too old
+if ! check_command cosign || ! cosign_version_ok; then
+  if check_command cosign; then
+    echo "📥 Cosign version '$(cosign_version)' of $(command -v cosign) is older than $COSIGN_MIN_VERSION: installing the latest Cosign..."
+  else
+    echo "📥 Installing Cosign..."
+  fi
   curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
   sudo mv cosign-linux-amd64 /usr/local/bin/cosign
   sudo chmod +x /usr/local/bin/cosign
-  echo "✔️ Cosign installed successfully."
+  hash -r
+  if cosign_version_ok; then
+    echo "✔️ Cosign $(cosign_version) installed successfully."
+  else
+    echo -e "${RED}❌ $(command -v cosign) still reports cosign version '$(cosign_version)', but we need >= $COSIGN_MIN_VERSION. Remove the old cosign or put /usr/local/bin first in your PATH.${NC}"
+    exit 1
+  fi
 else
-  echo "✔️ Cosign is already installed."
+  echo "✔️ Cosign $(cosign_version) is already installed."
 fi
 
 # Auto-install Docker if not present

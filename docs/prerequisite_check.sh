@@ -233,15 +233,99 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Auto-install Cosign if not present
+# The SCONE images are signed with cosign 3.x, which older cosign versions fail to verify.
 EOF
 )"
 pe "$(cat <<'EOF'
-if ! check_command cosign; then
+COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "📥 Installing Cosign..."
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Prints the version of the installed cosign (e.g., 2.4.1), or nothing if unknown.
+EOF
+)"
+pe "$(cat <<'EOF'
+cosign_version() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  cosign version 2>/dev/null | grep -o 'GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+' | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 || true
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.
+EOF
+)"
+pe "$(cat <<'EOF'
+cosign_version_ok() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  local version
+EOF
+)"
+pe "$(cat <<'EOF'
+  check_command cosign || return 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  version="$(cosign_version)"
+EOF
+)"
+pe "$(cat <<'EOF'
+  [[ -n "$version" ]] || return 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  [[ "$(printf '%s\n%s\n' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Auto-install Cosign if not present or too old
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! check_command cosign || ! cosign_version_ok; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  if check_command cosign; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "📥 Cosign version '$(cosign_version)' of $(command -v cosign) is older than $COSIGN_MIN_VERSION: installing the latest Cosign..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "📥 Installing Cosign..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -257,7 +341,31 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "✔️ Cosign installed successfully."
+  hash -r
+EOF
+)"
+pe "$(cat <<'EOF'
+  if cosign_version_ok; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "✔️ Cosign $(cosign_version) installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo -e "${RED}❌ $(command -v cosign) still reports cosign version '$(cosign_version)', but we need >= $COSIGN_MIN_VERSION. Remove the old cosign or put /usr/local/bin first in your PATH.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -265,7 +373,7 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "✔️ Cosign is already installed."
+  echo "✔️ Cosign $(cosign_version) is already installed."
 EOF
 )"
 pe "$(cat <<'EOF'
