@@ -1,0 +1,75 @@
+name: macos
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Blocking: every script in scripts/ must at least parse with the bash that ships with macOS (3.2).
+  # `#!/usr/bin/env bash` resolves to /bin/bash on a Mac without Homebrew bash.
+  bash32:
+    name: Scripts parse with macOS bash 3.2
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show environment
+        run: |
+          sw_vers
+          uname -m
+          /bin/bash --version | head -n 1
+
+      - name: Syntax check
+        run: |
+          status=0
+          for f in scripts/*.sh; do
+            /bin/bash -n "$f" || { echo "::error file=$f::does not parse with the macOS /bin/bash 3.2"; status=1; }
+          done
+          exit "$status"
+
+      # bash -n does not catch features that only fail at runtime on bash 3.2.
+      # Report them as warnings until macOS is supported.
+      - name: Report bash 4+ features
+        run: |
+          grep -nE 'declare -A|local -A|mapfile|readarray|\$\{[A-Za-z_][A-Za-z0-9_]*(,,|\^\^)\}|coproc' scripts/*.sh \
+            | grep -v "printf '%s" \
+            | while IFS=: read -r file line text; do
+                echo "::warning file=$file,line=$line::needs bash 4+, fails with macOS /bin/bash 3.2: $text"
+              done
+
+  # Informational until the installer supports macOS: shows how far prerequisite_check.sh
+  # gets on a Mac. The hosted macOS runners have no Docker, so it cannot go past that step.
+  prerequisite-check:
+    name: prerequisite_check.sh on macOS
+    runs-on: macos-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run prerequisite_check.sh with /bin/bash
+        id: run
+        run: |
+          set -o pipefail
+          /bin/bash ./scripts/prerequisite_check.sh 2>&1 | tee prerequisite_check.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### prerequisite_check.sh on macOS: ${{ steps.run.outcome }}"
+            echo
+            echo '```'
+            tail -n 30 prerequisite_check.log 2>/dev/null || echo "no log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
