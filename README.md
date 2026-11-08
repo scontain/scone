@@ -85,8 +85,10 @@ This creates `scone-registry.env`.
   your token, so only you may read them:
 
 ```bash
-(umask 077; tplenv --file scone-registry.env.template --output scone-registry.env --values registy.credentials.yaml --create-values-file --context --force)
-chmod 600 scone-registry.env registy.credentials.yaml
+# Earlier versions of this README saved your values as registy.credentials.yaml: keep them.
+if [[ -f registy.credentials.yaml && ! -f registry.credentials.yaml ]]; then mv registy.credentials.yaml registry.credentials.yaml; fi
+(umask 077; tplenv --file scone-registry.env.template --output scone-registry.env --values registry.credentials.yaml --create-values-file --context --force)
+chmod 600 scone-registry.env registry.credentials.yaml
 ```
 
 ### Run the Workshop Image

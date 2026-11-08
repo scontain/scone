@@ -167,6 +167,7 @@ check 'full disk reports the storage error' grep -Fq 'simulated full disk' "$wor
 # No credentials are read by mock Docker. The wrapper only checks their presence.
 if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
     printf 'preserve this file\n' > "$fixture/Values.credentials.yaml"
+    printf 'preserve this file\n' > "$fixture/registry.credentials.yaml"
     printf 'preserve this file\n' > "$fixture/registy.credentials.yaml"
     check 'valid overrides allow the build' run_build 0 env
     check 'build uses the requested SCONE release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
@@ -179,7 +180,8 @@ if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
     check 'completed image is checked without entrypoint/network' grep -Fq -- 'run --rm --network none --entrypoint /bin/bash -e SCONE_VERSION=6.0.8' "$MOCK_CALLS"
     check 'completed image is tagged' grep -Fq -- 'docker tag scone:latest registry.scontain.com/workshop/scone:6.0.8' "$MOCK_CALLS"
     check 'build preserves Values credentials' grep -Fq 'preserve this file' "$fixture/Values.credentials.yaml"
-    check 'build preserves registry credentials' grep -Fq 'preserve this file' "$fixture/registy.credentials.yaml"
+    check 'build preserves registry credentials' grep -Fq 'preserve this file' "$fixture/registry.credentials.yaml"
+    check 'build preserves registry credentials of the earlier name' grep -Fq 'preserve this file' "$fixture/registy.credentials.yaml"
     check 'failed install step fails the build' run_build 1 env MOCK_INSTALL_RC=1
     check 'failed install step is not committed' bash -c '! grep -Fq "docker commit" "$1"' _ "$MOCK_CALLS"
     check 'failed install container is removed' grep -Fq 'docker rm -f mock-install-container' "$MOCK_CALLS"
@@ -240,6 +242,8 @@ version_statement="$(sed -n '/^export SCONE_VERSION=/{p;q;}' "$repo_root/scripts
 SCONE_VERSION=6.0.9 bash -c "$version_statement"$'\n[[ "$SCONE_VERSION" == 6.0.9 ]]' > "$work/output" 2>&1 \
     || { echo 'FAIL - prerequisite script resets requested SCONE_VERSION'; failures=$((failures + 1)); }
 check 'Docker context excludes local credentials' grep -Fxq 'Values.credentials.yaml' "$repo_root/.dockerignore"
+check 'Docker context excludes registry credentials' grep -Fxq 'registry.credentials.yaml' "$repo_root/.dockerignore"
+check 'Docker context excludes registry credentials of the earlier name' grep -Fxq 'registy.credentials.yaml' "$repo_root/.dockerignore"
 # shellcheck disable=SC2016 # Match the literal variable expansion in build.sh.
 check 'build passes SCONE_VERSION to the installer' grep -Fq 'export SCONE_VERSION="$1" VERSION="$1"' "$repo_root/scripts/build.sh"
 exit "$failures"
