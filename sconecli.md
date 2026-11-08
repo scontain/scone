@@ -41,7 +41,7 @@ eval $(tplenv --file environment-variables.md --create-values-file --eval --cont
 
 The core SCONE packages are available as Debian packages as part of a container image. We first verify that the container image is properly signed by cosign.
 
-To do so, we define the cosign public verification key using a function `create_cosign_verification_key`. We verify the signature of a given container image with function `verify_image`:
+To do so, we define the cosign public verification key using a function `create_cosign_verification_key`. We verify the signature of a given container image with function `verify_image`, which needs cosign 2.0.0 or newer (`COSIGN_MIN_VERSION`):
 
 ```bash
 #
@@ -58,21 +58,23 @@ wS7K6tXeRlWLlUX1GeEtTdcuhZMKb5VUNaWEJW2ZU0YIF91D93dCZbUYpw==
 SEOF
 }
 
-# Our images are signed with cosign 3.x, which older cosign versions fail to verify.
-COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"
+# cosign >= 2.0.0 verifies the SCONE package images. Images signed with cosign 3.x in its
+# bundle format, such as the workshop image built by ./scripts/build.sh, need cosign >= 3.0.0.
+COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-2.0.0}"
+COSIGN_BUNDLE_MIN_VERSION="${COSIGN_BUNDLE_MIN_VERSION:-3.0.0}"
 
 # Prints the version of the installed cosign (e.g., 2.4.1), or nothing if unknown.
 function cosign_version() {
-    cosign version 2>/dev/null | grep -o 'GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+' | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 || true
+    cosign version 2>/dev/null | grep -Eo 'GitVersion: *v?[0-9]+\.[0-9]+\.[0-9]+' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
 }
 
-# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.
+# Succeeds if cosign is installed and its version is at least $1 (default: COSIGN_MIN_VERSION).
 function cosign_version_ok() {
-    local version
+    local version min_version="${1:-$COSIGN_MIN_VERSION}"
     command -v cosign >/dev/null 2>&1 || return 1
     version="$(cosign_version)"
     [[ -n "$version" ]] || return 1
-    [[ "$(printf '%s\n%s\n' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]
+    [[ "$(printf '%s\n%s\n' "$min_version" "$version" | sort -V | head -n 1)" == "$min_version" ]]
 }
 
 function verify_image() {
@@ -261,7 +263,8 @@ The workshop image `registry.scontain.com/workshop/scone:$SCONE_VERSION`, built 
 If it exists and has a valid cosign signature, its `scone-td-build`, `kubectl-scone`
 and `kubectl-scone-azure` replace the ones from the package image. Unsigned or
 missing workshop images are skipped, and so is the whole step if `cosign` is not
-installed or older than `COSIGN_MIN_VERSION` (default 3.0.0). The image is pulled
+installed or older than `COSIGN_BUNDLE_MIN_VERSION` (default 3.0.0): the workshop image
+is signed with cosign 3, which cosign 2.x cannot verify. The image is pulled
 by the digest that `cosign verify` checked, so a tag
 that moves after the check cannot slip in an unverified image. A tool that needs a
 newer glibc than the host has (e.g., the 6.0.8 workshop tools need glibc 2.34, so
@@ -279,8 +282,8 @@ if [[ -n "$SCONE_WORKSHOP_IMAGE" ]]; then
     SCONE_WORKSHOP_DIGEST=""
     if ! command -v cosign >/dev/null 2>&1; then
         echo "cosign is not installed, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
-    elif ! cosign_version_ok; then
-        echo "cosign version '$(cosign_version)' is older than $COSIGN_MIN_VERSION, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+    elif ! cosign_version_ok "$COSIGN_BUNDLE_MIN_VERSION"; then
+        echo "cosign version '$(cosign_version)' is older than $COSIGN_BUNDLE_MIN_VERSION, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION. Run ./scripts/prerequisite_check.sh to update cosign."
     elif ! docker manifest inspect "$SCONE_WORKSHOP_IMAGE" >/dev/null 2>&1; then
         echo "Workshop image $SCONE_WORKSHOP_IMAGE is not available: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
     elif ! SCONE_WORKSHOP_VERIFIED="$(cosign verify --key "$cosign_public_key_file" "$SCONE_WORKSHOP_IMAGE" 2>/dev/null)"; then
