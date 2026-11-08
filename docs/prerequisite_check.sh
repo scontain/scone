@@ -231,6 +231,74 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Succeeds if you sourced this script (". ./scripts/prerequisite_check.sh"), as the README says:
+EOF
+)"
+pe "$(cat <<'EOF'
+# then BASH_SOURCE[0] is this script and $0 is your shell. zsh, which has no BASH_SOURCE, can
+EOF
+)"
+pe "$(cat <<'EOF'
+# only source this script.
+EOF
+)"
+pe "$(cat <<'EOF'
+is_sourced() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  [[ "${BASH_SOURCE[0]:-}" != "$0" ]]
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# If something is missing, we stop with "stop_check || return 1 2>/dev/null || exit 1": it
+EOF
+)"
+pe "$(cat <<'EOF'
+# returns to your shell if you sourced this script, and exits with 1 if you ran it. "exit 1"
+EOF
+)"
+pe "$(cat <<'EOF'
+# would close your shell, and so would "return 1" while the "set -e" of this script is on:
+EOF
+)"
+pe "$(cat <<'EOF'
+# stop_check turns "set -e" off if you sourced this script.
+EOF
+)"
+pe "$(cat <<'EOF'
+stop_check() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  if is_sourced; then set +e; fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  return 1
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Installs the Homebrew formulae $@. Fails if Homebrew is missing: then the caller stops.
+EOF
+)"
+pe "$(cat <<'EOF'
 brew_install() {
 EOF
 )"
@@ -243,7 +311,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    exit 1
+    return 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -251,7 +319,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  brew install "$@"
+  brew install "$@" || return
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -704,7 +772,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    exit 1
+    stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -740,7 +808,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    exit 1
+    stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -776,11 +844,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Ensure that we can run docker without being root
+# Ensure that we can run docker without being root (on macOS: that Docker runs)
 EOF
 )"
 pe "$(cat <<'EOF'
-./scripts/check_docker_setup.sh
+./scripts/check_docker_setup.sh || stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -804,7 +872,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    brew_install gh
+    brew_install gh || stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -868,7 +936,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    brew_install kubectl
+    brew_install kubectl || stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -944,7 +1012,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    brew_install helm
+    brew_install helm || stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -981,30 +1049,6 @@ EOF
 )"
 pe "$(cat <<'EOF'
 install_yq_v4() {
-EOF
-)"
-pe "$(cat <<'EOF'
-  if is_macos; then
-EOF
-)"
-pe "$(cat <<'EOF'
-    # Homebrew's yq is mikefarah/yq v4.
-EOF
-)"
-pe "$(cat <<'EOF'
-    brew_install yq
-EOF
-)"
-pe "$(cat <<'EOF'
-    echo "✔️ yq installed successfully."
-EOF
-)"
-pe "$(cat <<'EOF'
-    return
-EOF
-)"
-pe "$(cat <<'EOF'
-  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1048,6 +1092,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+install_yq=false
+EOF
+)"
+pe "$(cat <<'EOF'
 if check_command yq; then
 EOF
 )"
@@ -1064,7 +1112,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        install_yq_v4
+        install_yq=true
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1088,7 +1136,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-        install_yq_v4
+        install_yq=true
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1104,7 +1152,51 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+    install_yq=true
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+# On macOS, we stop here if Homebrew is missing: a function like install_yq_v4 can only
+EOF
+)"
+pe "$(cat <<'EOF'
+# return from itself, not from this script.
+EOF
+)"
+pe "$(cat <<'EOF'
+if [[ "$install_yq" == true ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  if is_macos; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    # Homebrew's yq is mikefarah/yq v4.
+EOF
+)"
+pe "$(cat <<'EOF'
+    brew_install yq || stop_check || return 1 2>/dev/null || exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "✔️ yq installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
     install_yq_v4
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1213,7 +1305,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    brew_install "${missing_packages[@]}"
+    brew_install "${missing_packages[@]}" || stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'

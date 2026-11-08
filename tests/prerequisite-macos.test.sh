@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034,SC2016  # the check expressions are eval-ed later
+# shellcheck disable=SC2034,SC2016,SC2329  # the check expressions are eval-ed later
 # Tests the macOS support of prerequisite_check.md and scripts/check_docker_setup.sh
 # offline: a mocked uname reports Darwin (or Linux), and docker, brew, sudo, apt, dpkg,
 # curl and the installed tools are mocks that only log their calls. Only a few basic
@@ -208,35 +208,88 @@ env -i HOME="$work" PATH="$mock:$sysbin" CALLS="$work/calls" MOCK_OS=Darwin MOCK
 check "check_docker_setup.sh on macOS without docker: points to Docker Desktop" \
   '[[ $rc == 1 ]] && grep -q "install Docker Desktop" "$work/check-docker.out"'
 
-# The generated scripts/prerequisite_check.sh, sourced as the README says, on a fresh
-# Mac with Homebrew, Docker Desktop, cargo and cosign 3.
-case_no=$((case_no + 1))
-case_dir="$work/case$case_no"
-mkdir -p "$case_dir/home" "$case_dir/tools" "$case_dir/brew/bin" "$case_dir/scripts"
-: > "$case_dir/calls"
-cp "$repo_root/scripts/prerequisite_check.sh" "$repo_root/scripts/check_docker_setup.sh" "$case_dir/scripts/"
-cp "$repo_root/stable.txt" "$case_dir/"
-for tool in install-rust.sh; do
-  printf '#!/bin/sh\necho "%s $*" >> "$CALLS"\n' "$tool" > "$case_dir/scripts/$tool"
-done
-for tool in cargo tplenv; do
-  printf '#!/bin/sh\necho "%s $*" >> "$CALLS"\n' "$tool" > "$case_dir/tools/$tool"
-done
-printf '#!/bin/sh\necho "GitVersion:    v3.1.0"\n' > "$case_dir/tools/cosign"
-chmod +x "$case_dir/scripts/install-rust.sh" "$case_dir/tools"/*
-rc=0
-(
-  cd "$case_dir"
-  env -i HOME="$case_dir/home" \
-    PATH="$mock:$work/docker-bin:$work/brew-bin:$case_dir/tools:$case_dir/brew/bin:$sysbin" \
-    CALLS="$case_dir/calls" MOCK_OS=Darwin MOCK_CPU=arm64 \
-    BREW_PREFIX="$case_dir/brew" MAKE_TOOL="$work/make-tool" \
-    "$BASH" -c '. ./scripts/prerequisite_check.sh'
-) < /dev/null > "$case_dir/out" 2>&1 || rc=$?
+# run_script MODE SHELL [ARGS...]: runs the generated scripts/prerequisite_check.sh on a
+# mocked Mac with cargo, Docker Desktop and cosign 3; sets $case_dir and $rc. MODE "source"
+# sources it in SHELL ARGS, as the README says, and then prints "shell survived: rc=N";
+# MODE "run" runs it with SHELL. Settings: TOOLS (installed tools; default: none, brew
+# installs them), NO_BREW, NO_DOCKER, DOCKER_PS_RC, NO_COSIGN.
+run_script() {
+  local mode="$1" tool path
+  shift
+  case_no=$((case_no + 1))
+  case_dir="$work/case$case_no"
+  mkdir -p "$case_dir/home" "$case_dir/tools" "$case_dir/brew/bin" "$case_dir/scripts"
+  : > "$case_dir/calls"
+  cp "$repo_root/scripts/prerequisite_check.sh" "$repo_root/scripts/check_docker_setup.sh" "$case_dir/scripts/"
+  cp "$repo_root/stable.txt" "$case_dir/"
+  printf '#!/bin/sh\necho "install-rust.sh $*" >> "$CALLS"\n' > "$case_dir/scripts/install-rust.sh"
+  for tool in cargo tplenv; do
+    printf '#!/bin/sh\necho "%s $*" >> "$CALLS"\n' "$tool" > "$case_dir/tools/$tool"
+  done
+  if [[ -z "${NO_COSIGN:-}" ]]; then
+    printf '#!/bin/sh\necho "GitVersion:    v3.1.0"\n' > "$case_dir/tools/cosign"
+  fi
+  chmod +x "$case_dir/scripts/install-rust.sh" "$case_dir/tools"/*
+  for tool in ${TOOLS:-}; do "$work/make-tool" "$case_dir/tools" "$tool"; done
+  path="$mock"
+  [[ -n "${NO_DOCKER:-}" ]] || path="$path:$work/docker-bin"
+  [[ -n "${NO_BREW:-}" ]] || path="$path:$work/brew-bin"
+  path="$path:$case_dir/tools:$case_dir/brew/bin:$sysbin"
+  if [[ "$mode" == source ]]; then
+    set -- "$@" -c '. ./scripts/prerequisite_check.sh; echo "shell survived: rc=$?"'
+  else
+    set -- "$@" ./scripts/prerequisite_check.sh
+  fi
+  rc=0
+  (
+    cd "$case_dir"
+    env -i HOME="$case_dir/home" PATH="$path" CALLS="$case_dir/calls" \
+      MOCK_OS=Darwin MOCK_CPU=arm64 BREW_PREFIX="$case_dir/brew" MAKE_TOOL="$work/make-tool" \
+      DOCKER_PS_RC="${DOCKER_PS_RC:-0}" "$@"
+  ) < /dev/null > "$case_dir/out" 2>&1 || rc=$?
+}
+
+# zsh is the default shell on macOS: we also source the script there, if zsh is installed.
+zsh="$(command -v zsh || true)"
+# ran TEXT: the script printed TEXT when it ran. It also prints its code blocks, so we skip
+# the lines with "echo ".
+ran() {
+  grep -v 'echo ' "$case_dir/out" | grep -q "$1"
+}
+reached_script_end='ran "All external executables are installed and ready" && ran "All images are OK"'
+
+# A fresh Mac with Homebrew, Docker Desktop, cargo and cosign 3.
+run_script source "$BASH"
 check "prerequisite_check.sh on a fresh Mac: reaches the end" \
-  '[[ $rc == 0 ]] && grep -q "All external executables are installed and ready" "$case_dir/out" && grep -q "All images are OK" "$case_dir/out"'
+  "$reached_script_end"' && grep -q "shell survived: rc=0" "$case_dir/out"'
 check "prerequisite_check.sh on a fresh Mac: no sudo, apt, dpkg or curl" "$no_linux_installers"
 check "prerequisite_check.sh on a fresh Mac: keeps cosign 3.1.0" 'grep -q "Cosign 3.1.0 is already installed" "$case_dir/out"'
+if [[ -n "$zsh" ]]; then
+  run_script source "$zsh" -f
+  check "prerequisite_check.sh in zsh on a fresh Mac: reaches the end" \
+    "$reached_script_end"' && grep -q "shell survived: rc=0" "$case_dir/out"'
+fi
+
+# stops NAME MESSAGE: with the settings of run_script, the script prints MESSAGE and stops.
+# Sourced, it returns to the shell: it must not exit, nor return 1 while its "set -e" is
+# on, since both close the shell. Run, it exits with 1.
+stops() {
+  local name="$1" message="$2"
+  local stopped='ran "$message" && ! ran "All external executables"'
+  run_script source "$BASH"
+  check "$name, sourced: stops, and the shell survives" "$stopped"' && grep -q "shell survived: rc=1" "$case_dir/out"'
+  run_script run "$BASH"
+  check "$name, run: exits with 1" "$stopped"' && [[ $rc == 1 ]]'
+  if [[ -n "$zsh" ]]; then
+    run_script source "$zsh" -f
+    check "$name, sourced in zsh: stops, and the shell survives" "$stopped"' && grep -q "shell survived: rc=1" "$case_dir/out"'
+  fi
+}
+NO_BREW=1 stops "Mac without Homebrew" "Missing on this Mac: gh"
+NO_BREW=1 TOOLS="gh kubectl helm jq pkg-config" stops "Mac without Homebrew, only yq missing" "Missing on this Mac: yq"
+NO_DOCKER=1 stops "Mac without Docker" "Docker is not installed"
+DOCKER_PS_RC=1 stops "Docker Desktop not running" "Start Docker Desktop"
+NO_COSIGN=1 stops "Mac without cosign, install fails" "no cosign is installed"
 
 if [[ $failures != 0 ]]; then
   for out in "$work"/case*/out "$work/check-docker.out"; do
