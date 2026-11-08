@@ -154,6 +154,15 @@ printf '%s\n' '- `libssl-dev`: SSL development tools'
 printf '%s\n' ''
 printf '%s\n' '> **Note:** If the script fails on the first run with `Errors were encountered while processing: scone-glibc`, run it a second time.'
 printf '%s\n' ''
+printf '%s\n' '`cosign` 2.0.0 or newer verifies the SCONE package images. The workshop image is signed with'
+printf '%s\n' 'cosign 3, so verifying it needs cosign 3.0.0 or newer. If `cosign` is missing or older than'
+printf '%s\n' '3.0.0, we install the binary for this OS and CPU from the latest cosign release as'
+printf '%s\n' '`/usr/local/bin/cosign`. Set `COSIGN_RELEASE` (e.g., `v3.1.4`) to install a specific release.'
+printf '%s\n' 'The binary must match the checksums of its release and run on this machine before it replaces'
+printf '%s\n' 'the installed `cosign`. If the update fails, an installed cosign 2.x is kept: it still verifies'
+printf '%s\n' 'the package images, but the installation then keeps the tools of the package image instead'
+printf '%s\n' 'of the workshop image'\''s.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
@@ -233,11 +242,31 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# The SCONE images are signed with cosign 3.x, which older cosign versions fail to verify.
+# cosign >= 2.0.0 verifies the SCONE package images. Images signed with cosign 3.x in its
 EOF
 )"
 pe "$(cat <<'EOF'
-COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"
+# bundle format, such as the workshop image built by ./scripts/build.sh, need cosign >= 3.0.0.
+EOF
+)"
+pe "$(cat <<'EOF'
+COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-2.0.0}"
+EOF
+)"
+pe "$(cat <<'EOF'
+COSIGN_BUNDLE_MIN_VERSION="${COSIGN_BUNDLE_MIN_VERSION:-3.0.0}"
+EOF
+)"
+pe "$(cat <<'EOF'
+# The cosign release to install, e.g., v3.1.4. Default: the latest release.
+EOF
+)"
+pe "$(cat <<'EOF'
+COSIGN_RELEASE="${COSIGN_RELEASE:-latest}"
+EOF
+)"
+pe "$(cat <<'EOF'
+COSIGN_INSTALL_PATH="${COSIGN_INSTALL_PATH:-/usr/local/bin/cosign}"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -245,7 +274,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Prints the version of the installed cosign (e.g., 2.4.1), or nothing if unknown.
+# Prints the version (e.g., 2.4.1) of cosign, or of the cosign binary $1, or nothing if unknown.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -253,7 +282,7 @@ cosign_version() {
 EOF
 )"
 pe "$(cat <<'EOF'
-  cosign version 2>/dev/null | grep -o 'GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+' | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 || true
+  "${1:-cosign}" version 2>/dev/null | grep -Eo 'GitVersion: *v?[0-9]+\.[0-9]+\.[0-9]+' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -265,7 +294,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.
+# Succeeds if cosign is installed and its version is at least $1 (default: COSIGN_MIN_VERSION).
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -273,7 +302,7 @@ cosign_version_ok() {
 EOF
 )"
 pe "$(cat <<'EOF'
-  local version
+  local version min_version="${1:-$COSIGN_MIN_VERSION}"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -289,7 +318,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  [[ "$(printf '%s\n%s\n' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]
+  [[ "$(printf '%s\n%s\n' "$min_version" "$version" | sort -V | head -n 1)" == "$min_version" ]]
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -301,27 +330,79 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Auto-install Cosign if not present or too old
+# Installs the cosign binary of COSIGN_RELEASE for this OS and CPU as COSIGN_INSTALL_PATH.
 EOF
 )"
 pe "$(cat <<'EOF'
-if ! check_command cosign || ! cosign_version_ok; then
+# The binary must match the release checksums and run before it replaces an installed cosign.
 EOF
 )"
 pe "$(cat <<'EOF'
-  if check_command cosign; then
+install_cosign() (
 EOF
 )"
 pe "$(cat <<'EOF'
-    echo "📥 Cosign version '$(cosign_version)' of $(command -v cosign) is older than $COSIGN_MIN_VERSION: installing the latest Cosign..."
+  case "$(uname -s)" in
 EOF
 )"
 pe "$(cat <<'EOF'
-  else
+    Linux) os=linux ;;
 EOF
 )"
 pe "$(cat <<'EOF'
-    echo "📥 Installing Cosign..."
+    Darwin) os=darwin ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+    *) echo "No cosign release for OS $(uname -s)"; exit 1 ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+  esac
+EOF
+)"
+pe "$(cat <<'EOF'
+  case "$(uname -m)" in
+EOF
+)"
+pe "$(cat <<'EOF'
+    x86_64|amd64) arch=amd64 ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+    aarch64|arm64) arch=arm64 ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+    *) echo "No cosign release for CPU $(uname -m)"; exit 1 ;;
+EOF
+)"
+pe "$(cat <<'EOF'
+  esac
+EOF
+)"
+pe "$(cat <<'EOF'
+  asset="cosign-$os-$arch"
+EOF
+)"
+pe "$(cat <<'EOF'
+  tag="$COSIGN_RELEASE"
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ "$tag" == latest ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    # Resolve the tag once, so the binary and the checksums come from the same release.
+EOF
+)"
+pe "$(cat <<'EOF'
+    tag="$(curl -fsSIL --retry 3 -o /dev/null -w '%{url_effective}' https://github.com/sigstore/cosign/releases/latest)" || { echo "Cannot determine the latest cosign release"; exit 1; }
+EOF
+)"
+pe "$(cat <<'EOF'
+    tag="${tag##*/}"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -329,35 +410,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
+  if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo mv cosign-linux-amd64 /usr/local/bin/cosign
-EOF
-)"
-pe "$(cat <<'EOF'
-  sudo chmod +x /usr/local/bin/cosign
-EOF
-)"
-pe "$(cat <<'EOF'
-  hash -r
-EOF
-)"
-pe "$(cat <<'EOF'
-  if cosign_version_ok; then
-EOF
-)"
-pe "$(cat <<'EOF'
-    echo "✔️ Cosign $(cosign_version) installed successfully."
-EOF
-)"
-pe "$(cat <<'EOF'
-  else
-EOF
-)"
-pe "$(cat <<'EOF'
-    echo -e "${RED}❌ $(command -v cosign) still reports cosign version '$(cosign_version)', but we need >= $COSIGN_MIN_VERSION. Remove the old cosign or put /usr/local/bin first in your PATH.${NC}"
+    echo "Unexpected cosign release '$tag'"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -369,11 +426,224 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-else
+  url="https://github.com/sigstore/cosign/releases/download/$tag"
+EOF
+)"
+pe "$(cat <<'EOF'
+  tmp="$(mktemp -d)"
+EOF
+)"
+pe "$(cat <<'EOF'
+  trap 'rm -rf "$tmp"' EXIT
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Downloading $url/$asset"
+EOF
+)"
+pe "$(cat <<'EOF'
+  if ! curl -fsSL --retry 3 -o "$tmp/$asset" "$url/$asset" \
+    || ! curl -fsSL --retry 3 -o "$tmp/cosign_checksums.txt" "$url/cosign_checksums.txt"; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Download of cosign $tag failed"
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  expected="$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/cosign_checksums.txt")"
+EOF
+)"
+pe "$(cat <<'EOF'
+  if check_command sha256sum; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    actual="$(sha256sum "$tmp/$asset" | awk '{ print $1 }')"
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    actual="$(shasum -a 256 "$tmp/$asset" | awk '{ print $1 }')"
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ -z "$expected" || "$actual" != "$expected" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "Checksum of $asset does not match cosign_checksums.txt of cosign $tag"
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  chmod +x "$tmp/$asset"
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ -z "$(cosign_version "$tmp/$asset")" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "The downloaded $asset does not run on this machine"
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  sudo mkdir -p "$(dirname "$COSIGN_INSTALL_PATH")" && sudo install -m 0755 "$tmp/$asset" "$COSIGN_INSTALL_PATH"
+EOF
+)"
+pe "$(cat <<'EOF'
+)
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Install Cosign if it is missing, or update it if it cannot verify the workshop image
+EOF
+)"
+pe "$(cat <<'EOF'
+if cosign_version_ok "$COSIGN_BUNDLE_MIN_VERSION"; then
 EOF
 )"
 pe "$(cat <<'EOF'
   echo "✔️ Cosign $(cosign_version) is already installed."
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  if check_command cosign; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "📥 Cosign '$(cosign_version)' of $(command -v cosign) is older than $COSIGN_BUNDLE_MIN_VERSION: installing Cosign $COSIGN_RELEASE..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "📥 Installing Cosign $COSIGN_RELEASE..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  if install_cosign; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    hash -r
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ "$(command -v cosign)" != "$COSIGN_INSTALL_PATH" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo -e "${YELLOW}⚠️ Installed cosign $(cosign_version "$COSIGN_INSTALL_PATH") as $COSIGN_INSTALL_PATH, but $(command -v cosign) comes first in your PATH: remove it or put $(dirname "$COSIGN_INSTALL_PATH") first.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo -e "${YELLOW}⚠️ Could not install cosign: see the message above.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  if cosign_version_ok "$COSIGN_BUNDLE_MIN_VERSION"; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "✔️ Cosign $(cosign_version) installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+  elif cosign_version_ok; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo -e "${YELLOW}⚠️ Using cosign $(cosign_version) of $(command -v cosign): it verifies the SCONE package images, but not the workshop image, which needs cosign >= $COSIGN_BUNDLE_MIN_VERSION.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    if check_command cosign; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo -e "${RED}❌ We need cosign >= $COSIGN_MIN_VERSION to verify the SCONE images, but $(command -v cosign) is cosign '$(cosign_version)'.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    else
+EOF
+)"
+pe "$(cat <<'EOF'
+      echo -e "${RED}❌ We need cosign >= $COSIGN_MIN_VERSION to verify the SCONE images, but no cosign is installed.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'

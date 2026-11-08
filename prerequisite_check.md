@@ -57,6 +57,15 @@ To run our commands and transform manifests and container images, we need a set 
 
 > **Note:** If the script fails on the first run with `Errors were encountered while processing: scone-glibc`, run it a second time.
 
+`cosign` 2.0.0 or newer verifies the SCONE package images. The workshop image is signed with
+cosign 3, so verifying it needs cosign 3.0.0 or newer. If `cosign` is missing or older than
+3.0.0, we install the binary for this OS and CPU from the latest cosign release as
+`/usr/local/bin/cosign`. Set `COSIGN_RELEASE` (e.g., `v3.1.4`) to install a specific release.
+The binary must match the checksums of its release and run on this machine before it replaces
+the installed `cosign`. If the update fails, an installed cosign 2.x is kept: it still verifies
+the package images, but the installation then keeps the tools of the package image instead
+of the workshop image's.
+
 ```bash
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -77,42 +86,108 @@ scone_registry_login() {
     fi
 }
 
-# The SCONE images are signed with cosign 3.x, which older cosign versions fail to verify.
-COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"
+# cosign >= 2.0.0 verifies the SCONE package images. Images signed with cosign 3.x in its
+# bundle format, such as the workshop image built by ./scripts/build.sh, need cosign >= 3.0.0.
+COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-2.0.0}"
+COSIGN_BUNDLE_MIN_VERSION="${COSIGN_BUNDLE_MIN_VERSION:-3.0.0}"
+# The cosign release to install, e.g., v3.1.4. Default: the latest release.
+COSIGN_RELEASE="${COSIGN_RELEASE:-latest}"
+COSIGN_INSTALL_PATH="${COSIGN_INSTALL_PATH:-/usr/local/bin/cosign}"
 
-# Prints the version of the installed cosign (e.g., 2.4.1), or nothing if unknown.
+# Prints the version (e.g., 2.4.1) of cosign, or of the cosign binary $1, or nothing if unknown.
 cosign_version() {
-  cosign version 2>/dev/null | grep -o 'GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+' | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 || true
+  "${1:-cosign}" version 2>/dev/null | grep -Eo 'GitVersion: *v?[0-9]+\.[0-9]+\.[0-9]+' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
 }
 
-# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.
+# Succeeds if cosign is installed and its version is at least $1 (default: COSIGN_MIN_VERSION).
 cosign_version_ok() {
-  local version
+  local version min_version="${1:-$COSIGN_MIN_VERSION}"
   check_command cosign || return 1
   version="$(cosign_version)"
   [[ -n "$version" ]] || return 1
-  [[ "$(printf '%s\n%s\n' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]
+  [[ "$(printf '%s\n%s\n' "$min_version" "$version" | sort -V | head -n 1)" == "$min_version" ]]
 }
 
-# Auto-install Cosign if not present or too old
-if ! check_command cosign || ! cosign_version_ok; then
-  if check_command cosign; then
-    echo "📥 Cosign version '$(cosign_version)' of $(command -v cosign) is older than $COSIGN_MIN_VERSION: installing the latest Cosign..."
-  else
-    echo "📥 Installing Cosign..."
+# Installs the cosign binary of COSIGN_RELEASE for this OS and CPU as COSIGN_INSTALL_PATH.
+# The binary must match the release checksums and run before it replaces an installed cosign.
+install_cosign() (
+  case "$(uname -s)" in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    *) echo "No cosign release for OS $(uname -s)"; exit 1 ;;
+  esac
+  case "$(uname -m)" in
+    x86_64|amd64) arch=amd64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    *) echo "No cosign release for CPU $(uname -m)"; exit 1 ;;
+  esac
+  asset="cosign-$os-$arch"
+  tag="$COSIGN_RELEASE"
+  if [[ "$tag" == latest ]]; then
+    # Resolve the tag once, so the binary and the checksums come from the same release.
+    tag="$(curl -fsSIL --retry 3 -o /dev/null -w '%{url_effective}' https://github.com/sigstore/cosign/releases/latest)" || { echo "Cannot determine the latest cosign release"; exit 1; }
+    tag="${tag##*/}"
   fi
-  curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
-  sudo mv cosign-linux-amd64 /usr/local/bin/cosign
-  sudo chmod +x /usr/local/bin/cosign
-  hash -r
-  if cosign_version_ok; then
-    echo "✔️ Cosign $(cosign_version) installed successfully."
-  else
-    echo -e "${RED}❌ $(command -v cosign) still reports cosign version '$(cosign_version)', but we need >= $COSIGN_MIN_VERSION. Remove the old cosign or put /usr/local/bin first in your PATH.${NC}"
+  if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    echo "Unexpected cosign release '$tag'"
     exit 1
   fi
-else
+  url="https://github.com/sigstore/cosign/releases/download/$tag"
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  echo "Downloading $url/$asset"
+  if ! curl -fsSL --retry 3 -o "$tmp/$asset" "$url/$asset" \
+    || ! curl -fsSL --retry 3 -o "$tmp/cosign_checksums.txt" "$url/cosign_checksums.txt"; then
+    echo "Download of cosign $tag failed"
+    exit 1
+  fi
+  expected="$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/cosign_checksums.txt")"
+  if check_command sha256sum; then
+    actual="$(sha256sum "$tmp/$asset" | awk '{ print $1 }')"
+  else
+    actual="$(shasum -a 256 "$tmp/$asset" | awk '{ print $1 }')"
+  fi
+  if [[ -z "$expected" || "$actual" != "$expected" ]]; then
+    echo "Checksum of $asset does not match cosign_checksums.txt of cosign $tag"
+    exit 1
+  fi
+  chmod +x "$tmp/$asset"
+  if [[ -z "$(cosign_version "$tmp/$asset")" ]]; then
+    echo "The downloaded $asset does not run on this machine"
+    exit 1
+  fi
+  sudo mkdir -p "$(dirname "$COSIGN_INSTALL_PATH")" && sudo install -m 0755 "$tmp/$asset" "$COSIGN_INSTALL_PATH"
+)
+
+# Install Cosign if it is missing, or update it if it cannot verify the workshop image
+if cosign_version_ok "$COSIGN_BUNDLE_MIN_VERSION"; then
   echo "✔️ Cosign $(cosign_version) is already installed."
+else
+  if check_command cosign; then
+    echo "📥 Cosign '$(cosign_version)' of $(command -v cosign) is older than $COSIGN_BUNDLE_MIN_VERSION: installing Cosign $COSIGN_RELEASE..."
+  else
+    echo "📥 Installing Cosign $COSIGN_RELEASE..."
+  fi
+  if install_cosign; then
+    hash -r
+    if [[ "$(command -v cosign)" != "$COSIGN_INSTALL_PATH" ]]; then
+      echo -e "${YELLOW}⚠️ Installed cosign $(cosign_version "$COSIGN_INSTALL_PATH") as $COSIGN_INSTALL_PATH, but $(command -v cosign) comes first in your PATH: remove it or put $(dirname "$COSIGN_INSTALL_PATH") first.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}⚠️ Could not install cosign: see the message above.${NC}"
+  fi
+  if cosign_version_ok "$COSIGN_BUNDLE_MIN_VERSION"; then
+    echo "✔️ Cosign $(cosign_version) installed successfully."
+  elif cosign_version_ok; then
+    echo -e "${YELLOW}⚠️ Using cosign $(cosign_version) of $(command -v cosign): it verifies the SCONE package images, but not the workshop image, which needs cosign >= $COSIGN_BUNDLE_MIN_VERSION.${NC}"
+  else
+    if check_command cosign; then
+      echo -e "${RED}❌ We need cosign >= $COSIGN_MIN_VERSION to verify the SCONE images, but $(command -v cosign) is cosign '$(cosign_version)'.${NC}"
+    else
+      echo -e "${RED}❌ We need cosign >= $COSIGN_MIN_VERSION to verify the SCONE images, but no cosign is installed.${NC}"
+    fi
+    exit 1
+  fi
 fi
 
 # Auto-install Docker if not present

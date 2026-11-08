@@ -99,7 +99,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'The core SCONE packages are available as Debian packages as part of a container image. We first verify that the container image is properly signed by cosign.'
 printf '%s\n' ''
-printf '%s\n' 'To do so, we define the cosign public verification key using a function `create_cosign_verification_key`. We verify the signature of a given container image with function `verify_image`:'
+printf '%s\n' 'To do so, we define the cosign public verification key using a function `create_cosign_verification_key`. We verify the signature of a given container image with function `verify_image`, which needs cosign 2.0.0 or newer (`COSIGN_MIN_VERSION`):'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -160,11 +160,19 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Our images are signed with cosign 3.x, which older cosign versions fail to verify.
+# cosign >= 2.0.0 verifies the SCONE package images. Images signed with cosign 3.x in its
 EOF
 )"
 pe "$(cat <<'EOF'
-COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-3.0.0}"
+# bundle format, such as the workshop image built by ./scripts/build.sh, need cosign >= 3.0.0.
+EOF
+)"
+pe "$(cat <<'EOF'
+COSIGN_MIN_VERSION="${COSIGN_MIN_VERSION:-2.0.0}"
+EOF
+)"
+pe "$(cat <<'EOF'
+COSIGN_BUNDLE_MIN_VERSION="${COSIGN_BUNDLE_MIN_VERSION:-3.0.0}"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -180,7 +188,7 @@ function cosign_version() {
 EOF
 )"
 pe "$(cat <<'EOF'
-    cosign version 2>/dev/null | grep -o 'GitVersion: *v\?[0-9]\+\.[0-9]\+\.[0-9]\+' | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 || true
+    cosign version 2>/dev/null | grep -Eo 'GitVersion: *v?[0-9]+\.[0-9]+\.[0-9]+' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -192,7 +200,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# Succeeds if cosign is installed and its version is at least COSIGN_MIN_VERSION.
+# Succeeds if cosign is installed and its version is at least $1 (default: COSIGN_MIN_VERSION).
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -200,7 +208,7 @@ function cosign_version_ok() {
 EOF
 )"
 pe "$(cat <<'EOF'
-    local version
+    local version min_version="${1:-$COSIGN_MIN_VERSION}"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -216,7 +224,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    [[ "$(printf '%s\n%s\n' "$COSIGN_MIN_VERSION" "$version" | sort -V | head -n 1)" == "$COSIGN_MIN_VERSION" ]]
+    [[ "$(printf '%s\n%s\n' "$min_version" "$version" | sort -V | head -n 1)" == "$min_version" ]]
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -848,7 +856,8 @@ printf '%s\n' '`./scripts/build.sh`, is always newer than the package image of t
 printf '%s\n' 'If it exists and has a valid cosign signature, its `scone-td-build`, `kubectl-scone`'
 printf '%s\n' 'and `kubectl-scone-azure` replace the ones from the package image. Unsigned or'
 printf '%s\n' 'missing workshop images are skipped, and so is the whole step if `cosign` is not'
-printf '%s\n' 'installed or older than `COSIGN_MIN_VERSION` (default 3.0.0). The image is pulled'
+printf '%s\n' 'installed or older than `COSIGN_BUNDLE_MIN_VERSION` (default 3.0.0): the workshop image'
+printf '%s\n' 'is signed with cosign 3, which cosign 2.x cannot verify. The image is pulled'
 printf '%s\n' 'by the digest that `cosign verify` checked, so a tag'
 printf '%s\n' 'that moves after the check cannot slip in an unverified image. A tool that needs a'
 printf '%s\n' 'newer glibc than the host has (e.g., the 6.0.8 workshop tools need glibc 2.34, so'
@@ -895,11 +904,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    elif ! cosign_version_ok; then
+    elif ! cosign_version_ok "$COSIGN_BUNDLE_MIN_VERSION"; then
 EOF
 )"
 pe "$(cat <<'EOF'
-        echo "cosign version '$(cosign_version)' is older than $COSIGN_MIN_VERSION, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION"
+        echo "cosign version '$(cosign_version)' is older than $COSIGN_BUNDLE_MIN_VERSION, so workshop image $SCONE_WORKSHOP_IMAGE cannot be verified: keeping the tools of $REPO/$IMAGE:$SCONE_VERSION. Run ./scripts/prerequisite_check.sh to update cosign."
 EOF
 )"
 pe "$(cat <<'EOF'
