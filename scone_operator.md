@@ -38,7 +38,7 @@ echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
 read -rp "Do you want to proceed install SCONE version $SCONE_VERSION with this context? [y/N] " confirm
-confirm=${confirm,,}  # Convert to lowercase
+confirm="$(printf '%s' "$confirm" | tr '[:upper:]' '[:lower:]')"  # Convert to lowercase (also with the bash 3.2 of macOS)
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
   echo "❌ Aborted by user."
@@ -327,10 +327,10 @@ if [[ $install_sconeapps_secret == 1 ]] ; then
 
 ```
 
-We install/fix/update the installed version:
+We install/fix/update the installed version. `OPERATOR_DCAP_ARGS` is empty on Azure or when `DCAP_KEY` was set before, and `${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}` then expands to nothing: a plain `"${OPERATOR_DCAP_ARGS[@]}"` aborts with `unbound variable` under `set -u` with the bash 3.2 of macOS.
 
 ```bash
-    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"} --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 ```
 
 ## Updating the SCONE platform
@@ -339,7 +339,7 @@ In case an older version of the SCONE platform was already installed (i.e., when
 
 ```bash
 else
-    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}
 fi
 ```
 
