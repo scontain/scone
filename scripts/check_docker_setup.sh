@@ -20,7 +20,29 @@ need_cmd() {
     }
 }
 
+# Docker Desktop (and engines like Colima) on macOS have no 'docker' group: the
+# socket belongs to the user who runs the engine. We only check that docker works.
+check_docker_macos() {
+    if ! command -v docker >/dev/null 2>&1; then
+        err "docker command not found. Please install Docker Desktop first: https://docs.docker.com/desktop/setup/install/mac-install/"
+        exit 1
+    fi
+
+    if docker ps >/dev/null 2>&1; then
+        log "Docker works for the current user."
+    else
+        err "Docker does not respond. Start Docker Desktop (or your Docker engine), wait until it runs, and check with:"
+        err "  docker ps"
+        exit 1
+    fi
+}
+
 main() {
+    if [ "$(uname -s)" = Darwin ]; then
+        check_docker_macos
+        return
+    fi
+
     need_cmd id
     need_cmd getent
     need_cmd stat

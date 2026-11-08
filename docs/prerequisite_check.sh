@@ -154,6 +154,15 @@ printf '%s\n' '- `libssl-dev`: SSL development tools'
 printf '%s\n' ''
 printf '%s\n' '> **Note:** If the script fails on the first run with `Errors were encountered while processing: scone-glibc`, run it a second time.'
 printf '%s\n' ''
+printf '%s\n' 'On **Linux**, we install missing tools with `apt` and the Docker install script, so this works on'
+printf '%s\n' 'Debian and Ubuntu. On **macOS** (Apple Silicon and Intel), we install missing tools with'
+printf '%s\n' '[Homebrew](https://brew.sh) (`brew install gh kubectl helm yq pkg-config jq openssl@3`, where'
+printf '%s\n' '`openssl@3` replaces `libssl-dev`). Without Homebrew, the script names the missing tool and stops.'
+printf '%s\n' 'Docker cannot be installed by script on macOS: install and start'
+printf '%s\n' '[Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) (or another Docker'
+printf '%s\n' 'engine, e.g., Colima) first. On macOS, the script prepares the Kubernetes path of the README;'
+printf '%s\n' 'the SCONE CLI itself needs x86_64 Linux (see [Install SCONE CLI Tools](#install-scone-cli-tools)).'
+printf '%s\n' ''
 printf '%s\n' '`cosign` 2.0.0 or newer verifies the SCONE package images. The workshop image is signed with'
 printf '%s\n' 'cosign 3, so verifying it needs cosign 3.0.0 or newer. If `cosign` is missing or older than'
 printf '%s\n' '3.0.0, we install the binary for this OS and CPU from the latest cosign release as'
@@ -191,6 +200,62 @@ EOF
 )"
 pe "$(cat <<'EOF'
   command -v "$1" &>/dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# On macOS, we install missing tools with Homebrew instead of apt.
+EOF
+)"
+pe "$(cat <<'EOF'
+is_macos() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  [[ "$(uname -s)" == Darwin ]]
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+brew_install() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  if ! check_command brew; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo -e "${RED}❌ Missing on this Mac: $*. Install Homebrew (https://brew.sh) and run this script again, or install $* yourself.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  brew install "$@"
+EOF
+)"
+pe "$(cat <<'EOF'
+  hash -r
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -663,6 +728,26 @@ if ! check_command docker; then
 EOF
 )"
 pe "$(cat <<'EOF'
+  if is_macos; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    # get.docker.com supports Linux only.
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo -e "${RED}❌ Docker is not installed. On macOS, install Docker Desktop (https://docs.docker.com/desktop/setup/install/mac-install/) or another Docker engine, start it, and run this script again.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
+EOF
+)"
+pe "$(cat <<'EOF'
   echo "📥 Installing Docker..."
 EOF
 )"
@@ -715,19 +800,35 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  if is_macos; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    brew_install gh
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo apt update
+  else
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo apt install -y gh
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo apt update
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo apt install -y gh
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -763,31 +864,47 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+  if is_macos; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+    brew_install kubectl
 EOF
 )"
 pe "$(cat <<'EOF'
-  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
+  else
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
+    export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo chmod +x kubectl
+    curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo mv ./kubectl /usr/local/bin/
+    curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
 EOF
 )"
 pe "$(cat <<'EOF'
-  rm kubectl.sha256
+    echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo chmod +x kubectl
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo mv ./kubectl /usr/local/bin/
+EOF
+)"
+pe "$(cat <<'EOF'
+    rm kubectl.sha256
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -823,7 +940,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  if is_macos; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    brew_install helm
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -848,6 +981,30 @@ EOF
 )"
 pe "$(cat <<'EOF'
 install_yq_v4() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  if is_macos; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    # Homebrew's yq is mikefarah/yq v4.
+EOF
+)"
+pe "$(cat <<'EOF'
+    brew_install yq
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "✔️ yq installed successfully."
+EOF
+)"
+pe "$(cat <<'EOF'
+    return
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -967,15 +1124,44 @@ missing_packages=()
 EOF
 )"
 pe "$(cat <<'EOF'
-for pkg in pkg-config jq libssl-dev; do
+if is_macos; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  if ! dpkg -s "$pkg" &>/dev/null; then
+  # Homebrew's openssl@3 provides what libssl-dev provides on Debian. It is keg-only,
 EOF
 )"
 pe "$(cat <<'EOF'
-    missing_packages+=("$pkg")
+  # so pkg-config does not see it unless PKG_CONFIG_PATH points to it: ask brew as well.
+EOF
+)"
+pe "$(cat <<'EOF'
+  for pkg in pkg-config jq; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if ! check_command "$pkg"; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      missing_packages+=("$pkg")
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  done
+EOF
+)"
+pe "$(cat <<'EOF'
+  if ! { check_command brew && brew list --formula openssl@3 &>/dev/null; } \
+    && ! pkg-config --exists openssl &>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    missing_packages+=("openssl@3")
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -983,7 +1169,31 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-done
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  for pkg in pkg-config jq libssl-dev; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if ! dpkg -s "$pkg" &>/dev/null; then
+EOF
+)"
+pe "$(cat <<'EOF'
+      missing_packages+=("$pkg")
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  done
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -999,11 +1209,27 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo apt update
+  if is_macos; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  sudo apt install -y "${missing_packages[@]}"
+    brew_install "${missing_packages[@]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  else
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo apt update
+EOF
+)"
+pe "$(cat <<'EOF'
+    sudo apt install -y "${missing_packages[@]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  fi
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1211,5 +1437,10 @@ printf '%s\n' ''
 printf '%s\n' '## Install SCONE CLI Tools'
 printf '%s\n' ''
 printf '%s\n' 'The required images are now available. Next, install the `scone`-related executables by running `./scripts/install_sconecli.sh`.'
+printf '%s\n' ''
+printf '%s\n' 'The SCONE CLI packages run on x86_64 Linux only, so `./scripts/install_sconecli.sh` stops on'
+printf '%s\n' 'other hosts, e.g., on macOS. There, run the SCONE CLI in the workshop image instead: on an x86_64'
+printf '%s\n' 'machine with Docker (see "Run the Workshop Image" in the [README](README.md)), or in a Kubernetes'
+printf '%s\n' 'cluster with x86_64 nodes with `./scripts/k8s_cli.sh` (see [k8s.md](k8s.md)).'
 printf "%b" "$RESET"
 
