@@ -1,4 +1,6 @@
 # Keep local credentials on the host instead of deleting them during builds.
+registry.credentials.yaml
+# Earlier name of registry.credentials.yaml: it may still hold a registry token.
 registy.credentials.yaml
 Values.credentials.yaml
 Values.credentials.yaml.*

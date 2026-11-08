@@ -18,6 +18,8 @@ k8s/deployment.yaml
 kubeconfig
 Values.credentials.yaml
 Values.credentials.yaml.*
+registry.credentials.yaml
+# Earlier name of registry.credentials.yaml: it may still hold a registry token.
 registy.credentials.yaml
 k8s/demo-rbac.yaml
 # cosign signing keys (cosign generate-key-pair writes cosign.key to the current directory)
