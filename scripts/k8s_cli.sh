@@ -105,6 +105,8 @@ printf '%s\n' 'fi'
 printf '%s\n' ''
 printf '%s\n' '# tplenv prioritizes saved values. Stage its update to protect local credentials'
 printf '%s\n' '# if rendering fails, then restore an explicit caller key for this deployment.'
+printf '%s\n' '# ${array[@]+"${array[@]}"} expands an empty array to nothing; a plain "${array[@]}"'
+printf '%s\n' '# aborts with "unbound variable" under set -u with the bash 3.2 of macOS.'
 printf '%s\n' 'read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"'
 printf '%s\n' 'resolve_toolbox_credentials() {'
 printf '%s\n' '  local values="$1"'
@@ -119,7 +121,7 @@ printf '%s\n' '    tplenv --values "$values" --file <(printf '\''%s\n'\'' '\''${
 printf '%s\n' '  elif [[ -f Values.credentials.yaml ]]; then'
 printf '%s\n' '    cp -p Values.credentials.yaml "$values" || return 1'
 printf '%s\n' '  fi'
-printf '%s\n' '  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}"'
+printf '%s\n' '  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval ${toolbox_confirmation_options[@]+"${toolbox_confirmation_options[@]}"}'
 printf '%s\n' '}'
 printf '%s\n' 'toolbox_credentials_temporary="$(mktemp Values.credentials.yaml.XXXXXX)"'
 printf '%s\n' 'if toolbox_ssh_exports="$(resolve_toolbox_credentials "$toolbox_credentials_temporary")"; then'
@@ -147,6 +149,8 @@ fi
 
 # tplenv prioritizes saved values. Stage its update to protect local credentials
 # if rendering fails, then restore an explicit caller key for this deployment.
+# ${array[@]+"${array[@]}"} expands an empty array to nothing; a plain "${array[@]}"
+# aborts with "unbound variable" under set -u with the bash 3.2 of macOS.
 read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"
 resolve_toolbox_credentials() {
   local values="$1"
@@ -161,7 +165,7 @@ resolve_toolbox_credentials() {
   elif [[ -f Values.credentials.yaml ]]; then
     cp -p Values.credentials.yaml "$values" || return 1
   fi
-  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}"
+  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval ${toolbox_confirmation_options[@]+"${toolbox_confirmation_options[@]}"}
 }
 toolbox_credentials_temporary="$(mktemp Values.credentials.yaml.XXXXXX)"
 if toolbox_ssh_exports="$(resolve_toolbox_credentials "$toolbox_credentials_temporary")"; then
@@ -219,7 +223,7 @@ printf '%s\n' 'toolbox_values_temporary="$(mktemp Values.yaml.XXXXXX)"'
 printf '%s\n' 'if [[ -f Values.yaml ]]; then'
 printf '%s\n' '  cp -p Values.yaml "$toolbox_values_temporary"'
 printf '%s\n' 'fi'
-printf '%s\n' 'if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval "${toolbox_confirmation_options[@]}" --output /dev/null)"; then'
+printf '%s\n' 'if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval ${toolbox_confirmation_options[@]+"${toolbox_confirmation_options[@]}"} --output /dev/null)"; then'
 printf '%s\n' '  mv -f "$toolbox_values_temporary" Values.yaml'
 printf '%s\n' '  eval "$toolbox_environment_exports"'
 printf '%s\n' 'else'
@@ -254,7 +258,7 @@ toolbox_values_temporary="$(mktemp Values.yaml.XXXXXX)"
 if [[ -f Values.yaml ]]; then
   cp -p Values.yaml "$toolbox_values_temporary"
 fi
-if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval "${toolbox_confirmation_options[@]}" --output /dev/null)"; then
+if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval ${toolbox_confirmation_options[@]+"${toolbox_confirmation_options[@]}"} --output /dev/null)"; then
   mv -f "$toolbox_values_temporary" Values.yaml
   eval "$toolbox_environment_exports"
 else
@@ -341,7 +345,7 @@ printf '%s\n' '# The suite also ships demos that use dedicated namespaces. Provi
 printf '%s\n' '# the setup account; the toolbox service account keeps namespace creation denied.'
 printf '%s\n' '# Keep this list in sync with the NAMESPACE values of the scone-td-build-demos demos.'
 printf '%s\n' 'read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo governance-demo pet-clinic}"'
-printf '%s\n' 'for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do'
+printf '%s\n' 'for toolbox_demo_namespace in ${toolbox_demo_namespaces[@]+"${toolbox_demo_namespaces[@]}"}; do'
 printf '%s\n' '  kubectl create ns "$toolbox_demo_namespace" --dry-run=client -o yaml | kubectl apply -f -'
 printf '%s\n' '  export TOOLBOX_DEMO_NAMESPACE="$toolbox_demo_namespace"'
 printf '%s\n' '  render_toolbox_manifest ./k8s/demo-rbac.template.yaml ./k8s/demo-rbac.yaml'
@@ -356,7 +360,7 @@ kubectl apply -f ./k8s/rbac.yaml
 # the setup account; the toolbox service account keeps namespace creation denied.
 # Keep this list in sync with the NAMESPACE values of the scone-td-build-demos demos.
 read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-scone-td-build nfs-demo governance-demo pet-clinic}"
-for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do
+for toolbox_demo_namespace in ${toolbox_demo_namespaces[@]+"${toolbox_demo_namespaces[@]}"}; do
   kubectl create ns "$toolbox_demo_namespace" --dry-run=client -o yaml | kubectl apply -f -
   export TOOLBOX_DEMO_NAMESPACE="$toolbox_demo_namespace"
   render_toolbox_manifest ./k8s/demo-rbac.template.yaml ./k8s/demo-rbac.yaml

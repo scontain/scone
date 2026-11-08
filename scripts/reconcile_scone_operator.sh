@@ -64,7 +64,7 @@ printf '%s\n' 'echo "📦 Current Kubernetes context: $K8S_CONTEXT"'
 printf '%s\n' ''
 printf '%s\n' '# Ask for confirmation'
 printf '%s\n' 'read -rp "Do you want to proceed install SCONE version $SCONE_VERSION with this context? [y/N] " confirm'
-printf '%s\n' 'confirm=${confirm,,}  # Convert to lowercase'
+printf '%s\n' 'confirm="$(printf '\''%s'\'' "$confirm" | tr '\''[:upper:]'\'' '\''[:lower:]'\'')"  # Convert to lowercase (also with the bash 3.2 of macOS)'
 printf '%s\n' ''
 printf '%s\n' 'if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then'
 printf '%s\n' '  echo "❌ Aborted by user."'
@@ -86,7 +86,7 @@ echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
 read -rp "Do you want to proceed install SCONE version $SCONE_VERSION with this context? [y/N] " confirm
-confirm=${confirm,,}  # Convert to lowercase
+confirm="$(printf '%s' "$confirm" | tr '[:upper:]' '[:lower:]')"  # Convert to lowercase (also with the bash 3.2 of macOS)
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
   echo "❌ Aborted by user."
@@ -625,15 +625,15 @@ if [[ $install_sconeapps_secret == 1 ]] ; then
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'We install/fix/update the installed version:'
+printf '%s\n' 'We install/fix/update the installed version. `OPERATOR_DCAP_ARGS` is empty on Azure or when `DCAP_KEY` was set before, and `${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}` then expands to nothing: a plain `"${OPERATOR_DCAP_ARGS[@]}"` aborts with `unbound variable` under `set -u` with the bash 3.2 of macOS.'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com'
+printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"} --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com'
 printf "${RESET}"
 
-    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"} --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -645,12 +645,12 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'else'
-printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"'
+printf '%s\n' '    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
 else
-    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}
 fi
 
 printf "${VIOLET}"
