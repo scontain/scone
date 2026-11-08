@@ -49,16 +49,18 @@ jobs:
 
   # Informational until the installer supports macOS: shows how far prerequisite_check.sh
   # gets on a Mac. The hosted macOS runners have no Docker, so it cannot go past that step.
+  # continue-on-error is on the step, not the job: on the job, GitHub still marks the check
+  # as failed on every PR. The warning and the job summary show where the script stops.
   prerequisite-check:
     name: prerequisite_check.sh on macOS
     runs-on: macos-latest
     timeout-minutes: 30
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Run prerequisite_check.sh with /bin/bash
         id: run
+        continue-on-error: true
         run: |
           set -o pipefail
           /bin/bash ./scripts/prerequisite_check.sh 2>&1 | tee prerequisite_check.log
@@ -66,6 +68,12 @@ jobs:
       - name: Summary
         if: always()
         run: |
+          if [[ "${{ steps.run.outcome }}" != success ]]; then
+            # Last non-empty line without color codes; '%' must be escaped in workflow commands.
+            last_line="$(perl -pe 's/\e\[[0-9;]*m//g' prerequisite_check.log 2>/dev/null | grep -v '^[[:space:]]*$' | tail -n 1 || true)"
+            last_line="${last_line//%/%25}"
+            echo "::warning title=prerequisite_check.sh on macOS::${{ steps.run.outcome }}, stops at: ${last_line:-no output}"
+          fi
           {
             echo "### prerequisite_check.sh on macOS: ${{ steps.run.outcome }}"
             echo
