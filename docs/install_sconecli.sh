@@ -867,24 +867,23 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Install the core packages. This requires sudo access.'
+printf '%s\n' 'Install the core packages. This requires sudo access. We use `apt-get` instead of'
+printf '%s\n' '`dpkg -i` so that missing dependencies from the distribution, e.g., `gettext-base`,'
+printf '%s\n' 'which minimal Ubuntu images do not contain, are installed as well. `--reinstall` and'
+printf '%s\n' '`--allow-downgrades` keep the `dpkg -i` behavior of always installing these files.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
+sudo apt-get update
 EOF
 )"
 pe "$(cat <<'EOF'
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
-EOF
-)"
-pe "$(cat <<'EOF'
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
-EOF
-)"
-pe "$(cat <<'EOF'
-sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall --allow-downgrades \
+    "$INSTALL_WORK/packages"/scone-common_*.deb \
+    "$INSTALL_WORK/packages"/scone-libc_*.deb \
+    "$INSTALL_WORK/packages"/scone-cli_*.deb \
+    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
 EOF
 )"
 

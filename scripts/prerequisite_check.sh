@@ -400,7 +400,8 @@ printf '%s\n' '    && ! pkg-config --exists openssl &>/dev/null; then'
 printf '%s\n' '    missing_packages+=("openssl@3")'
 printf '%s\n' '  fi'
 printf '%s\n' 'else'
-printf '%s\n' '  for pkg in pkg-config jq libssl-dev; do'
+printf '%s\n' '  # gettext-base provides envsubst; the scone-cli package depends on it.'
+printf '%s\n' '  for pkg in pkg-config jq libssl-dev gettext-base; do'
 printf '%s\n' '    if ! dpkg -s "$pkg" &>/dev/null; then'
 printf '%s\n' '      missing_packages+=("$pkg")'
 printf '%s\n' '    fi'
@@ -716,7 +717,8 @@ if is_macos; then
     missing_packages+=("openssl@3")
   fi
 else
-  for pkg in pkg-config jq libssl-dev; do
+  # gettext-base provides envsubst; the scone-cli package depends on it.
+  for pkg in pkg-config jq libssl-dev gettext-base; do
     if ! dpkg -s "$pkg" &>/dev/null; then
       missing_packages+=("$pkg")
     fi

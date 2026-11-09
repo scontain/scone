@@ -356,7 +356,8 @@ if is_macos; then
     missing_packages+=("openssl@3")
   fi
 else
-  for pkg in pkg-config jq libssl-dev; do
+  # gettext-base provides envsubst; the scone-cli package depends on it.
+  for pkg in pkg-config jq libssl-dev gettext-base; do
     if ! dpkg -s "$pkg" &>/dev/null; then
       missing_packages+=("$pkg")
     fi

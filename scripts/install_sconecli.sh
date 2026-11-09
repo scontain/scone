@@ -484,21 +484,28 @@ done
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Install the core packages. This requires sudo access.'
+printf '%s\n' 'Install the core packages. This requires sudo access. We use `apt-get` instead of'
+printf '%s\n' '`dpkg -i` so that missing dependencies from the distribution, e.g., `gettext-base`,'
+printf '%s\n' 'which minimal Ubuntu images do not contain, are installed as well. `--reinstall` and'
+printf '%s\n' '`--allow-downgrades` keep the `dpkg -i` behavior of always installing these files.'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb'
-printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb'
-printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb'
-printf '%s\n' 'sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"'
+printf '%s\n' 'sudo apt-get update'
+printf '%s\n' 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall --allow-downgrades \'
+printf '%s\n' '    "$INSTALL_WORK/packages"/scone-common_*.deb \'
+printf '%s\n' '    "$INSTALL_WORK/packages"/scone-libc_*.deb \'
+printf '%s\n' '    "$INSTALL_WORK/packages"/scone-cli_*.deb \'
+printf '%s\n' '    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"'
 printf "${RESET}"
 
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
-sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall --allow-downgrades \
+    "$INSTALL_WORK/packages"/scone-common_*.deb \
+    "$INSTALL_WORK/packages"/scone-libc_*.deb \
+    "$INSTALL_WORK/packages"/scone-cli_*.deb \
+    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
 
 printf "${VIOLET}"
 printf '%s\n' ''

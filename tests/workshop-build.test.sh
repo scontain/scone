@@ -219,6 +219,17 @@ MOCK
     }
     check 'tests await deployment and execute the actual demo runner' run_demo_test
     check 'candidate is tested after synchronous deployment' grep -Fq 'tested candidate image' "$MOCK_CALLS"
+    check 'non-stable release does not move latest' bash -c '! grep -Fq "scone:latest registry.scontain.com/workshop/scone:latest" "$1"' _ "$MOCK_CALLS"
+    # Releasing the stable.txt version also pushes and signs the "latest" tag.
+    stable_backup="$(cat "$fixture/stable.txt")"
+    echo 6.0.8 > "$fixture/stable.txt"
+    : > "$MOCK_CALLS"
+    check 'stable release builds and pushes' run_demo_test
+    check 'stable release pushes latest' grep -Fq 'docker push registry.scontain.com/workshop/scone:latest' "$MOCK_CALLS"
+    check 'stable release signs latest by digest' test "$(grep -c '^cosign sign --yes --key /keys/cosign.key registry.scontain.com/workshop/scone@sha256:0123456789abcdef' "$MOCK_CALLS")" = 2
+    latest_push_line="$(grep -n '^docker push registry.scontain.com/workshop/scone:latest' "$MOCK_CALLS" | cut -d: -f1 | head -1)"
+    latest_sign_line="$(grep -n '^cosign sign' "$MOCK_CALLS" | cut -d: -f1 | tail -1)"
+    check 'latest is signed after it is pushed' test -n "$latest_push_line" -a "${latest_sign_line:-0}" -gt "${latest_push_line:-0}"
     : > "$MOCK_CALLS"
     run_validation_test() {
         "$fixture/scripts/build.sh" --version 6.0.8 \
@@ -226,6 +237,8 @@ MOCK
             --image-tag 6.0.8-0123456789ab --test > "$work/output" 2>&1
     }
     check 'custom validation tag is pushed and tested' run_validation_test
+    check 'validation tag of the stable version does not move latest' bash -c '! grep -Eq "(push|tag scone:latest) .*-validation:latest" "$1"' _ "$MOCK_CALLS"
+    printf '%s\n' "$stable_backup" > "$fixture/stable.txt"
     check 'validation uses one registry repository' grep -Fq 'push registry.scontain.com/workshop/scone-validation:6.0.8-0123456789ab' "$MOCK_CALLS"
     check 'custom image tag preserves SCONE build release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
     check 'pushed image is signed by digest' grep -Fq 'cosign sign --yes --key /keys/cosign.key registry.scontain.com/workshop/scone-validation@sha256:0123456789abcdef password=secret' "$MOCK_CALLS"

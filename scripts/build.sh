@@ -250,6 +250,24 @@ if [[ -n "${PUSH_IMAGE}" ]]; then
   # cosign reads the key password from COSIGN_PASSWORD.
   cosign sign --yes --key "$COSIGN_KEY" "$pushed_ref"
   echo "Signed image: $pushed_ref"
+
+  # Releasing the current stable version also moves "latest" to it. Images pushed
+  # under another tag (e.g., validation images via --image-tag) never move "latest".
+  stable_version="$(tr -d '[:space:]' < "$repo_root/stable.txt")"
+  if [[ "$IMAGE_TAG" == "$SCONE_VERSION" && "$SCONE_VERSION" == "$stable_version" ]]; then
+    docker tag scone:latest "${PUSH_IMAGE}:latest"
+    docker push "${PUSH_IMAGE}:latest"
+    latest_ref="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' \
+      "${PUSH_IMAGE}:latest" | grep -F -m1 "${PUSH_IMAGE}@" || true)"
+    if [[ "$latest_ref" != "$pushed_ref" ]]; then
+      echo "Error: ${PUSH_IMAGE}:latest has digest '${latest_ref}'; expected ${pushed_ref}" >&2
+      exit 1
+    fi
+    cosign sign --yes --key "$COSIGN_KEY" "$latest_ref"
+    echo "Tagged and signed ${PUSH_IMAGE}:latest -> $latest_ref (stable version $stable_version)"
+  else
+    echo "Not moving ${PUSH_IMAGE}:latest: tag ${IMAGE_TAG} is not the stable release ${stable_version} (stable.txt)."
+  fi
 else
   echo "WARNING: Image was not pushed. It is available only to the local Docker daemon."
   echo "         To make it available to Kubernetes, rerun with --push."
