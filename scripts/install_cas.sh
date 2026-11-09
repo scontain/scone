@@ -481,7 +481,7 @@ printf '%s\n' 'echo "📦 Current Kubernetes context: $K8S_CONTEXT"'
 printf '%s\n' ''
 printf '%s\n' '# Ask for confirmation'
 printf '%s\n' 'read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm'
-printf '%s\n' 'confirm=${confirm,,}  # Convert to lowercase'
+printf '%s\n' 'confirm="$(printf '\''%s'\'' "$confirm" | tr '\''[:upper:]'\'' '\''[:lower:]'\'')"  # Convert to lowercase (also with the bash 3.2 of macOS)'
 printf '%s\n' ''
 printf '%s\n' 'if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then'
 printf '%s\n' '  echo "❌ Aborted by user."'
@@ -503,7 +503,7 @@ echo "📦 Current Kubernetes context: $K8S_CONTEXT"
 
 # Ask for confirmation
 read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in namespace $CAS_NAMESPACE  within this context? [y/N] " confirm
-confirm=${confirm,,}  # Convert to lowercase
+confirm="$(printf '%s' "$confirm" | tr '[:upper:]' '[:lower:]')"  # Convert to lowercase (also with the bash 3.2 of macOS)
 
 if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
   echo "❌ Aborted by user."

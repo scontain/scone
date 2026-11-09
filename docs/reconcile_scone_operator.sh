@@ -145,7 +145,7 @@ read -rp "Do you want to proceed install SCONE version $SCONE_VERSION with this 
 EOF
 )"
 pe "$(cat <<'EOF'
-confirm=${confirm,,}  # Convert to lowercase
+confirm="$(printf '%s' "$confirm" | tr '[:upper:]' '[:lower:]')"  # Convert to lowercase (also with the bash 3.2 of macOS)
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -993,11 +993,19 @@ if [[ $install_sconeapps_secret == 1 ]] ; then
 EOF
 )"
 pe "$(cat <<'EOF'
-    # ask user for the credentials for accessing the registry
+    # ask user for the credentials for accessing the registry. tplenv creates or
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
+    # replaces the file with the umask's mode: keep the saved token private.
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(umask 077; tplenv --values Values.credentials.yaml --file $WD/registry.credentials.md --context --create-values-file --eval --force )
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1007,12 +1015,12 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'We install/fix/update the installed version:'
+printf '%s\n' 'We install/fix/update the installed version. `OPERATOR_DCAP_ARGS` is empty on Azure or when `DCAP_KEY` was set before, and `${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}` then expands to nothing: a plain `"${OPERATOR_DCAP_ARGS[@]}"` aborts with `unbound variable` under `set -u` with the bash 3.2 of macOS.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose "${OPERATOR_DCAP_ARGS[@]}" --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
+    ./operator_controller --set-version $SCONE_VERSION --reconcile --update --plugin --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"} --secret-operator  --username $REGISTRY_USER --access-token $REGISTRY_TOKEN --email info@scontain.com
 EOF
 )"
 
@@ -1029,7 +1037,7 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
-    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose "${OPERATOR_DCAP_ARGS[@]}"
+    ./operator_controller --set-version $SCONE_VERSION --update --reconcile --plugin  --verbose ${OPERATOR_DCAP_ARGS[@]+"${OPERATOR_DCAP_ARGS[@]}"}
 EOF
 )"
 pe "$(cat <<'EOF'

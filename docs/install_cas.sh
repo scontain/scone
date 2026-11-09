@@ -860,7 +860,7 @@ read -rp "Do you want to proceed install version $VERSION of SCONE CAS $CAS in n
 EOF
 )"
 pe "$(cat <<'EOF'
-confirm=${confirm,,}  # Convert to lowercase
+confirm="$(printf '%s' "$confirm" | tr '[:upper:]' '[:lower:]')"  # Convert to lowercase (also with the bash 3.2 of macOS)
 EOF
 )"
 pe "$(cat <<'EOF'

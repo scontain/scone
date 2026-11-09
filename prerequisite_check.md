@@ -399,8 +399,10 @@ echo -e "${YELLOW}📦 Checking access to required container images...${NC}"
 
 if ! docker pull --quiet "registry.scontain.com/scone.cloud/sconecli:$SCONE_VERSION" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image - trying to log in${NC}"
-    # ask user for the credentials for accessing the registry
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
+    # ask user for the credentials for accessing the registry. tplenv creates or
+    # replaces the file with the umask's mode: keep the saved token private.
+  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi
+  eval $(umask 077; tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
     kubectl create secret docker-registry sconeapps --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN || true
       scone_registry_login
 fi

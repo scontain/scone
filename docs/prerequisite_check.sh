@@ -1436,11 +1436,19 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-    # ask user for the credentials for accessing the registry
+    # ask user for the credentials for accessing the registry. tplenv creates or
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
+    # replaces the file with the umask's mode: keep the saved token private.
+EOF
+)"
+pe "$(cat <<'EOF'
+  if [[ -f Values.credentials.yaml ]]; then chmod 600 Values.credentials.yaml; fi
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(umask 077; tplenv --values Values.credentials.yaml --file registry.credentials.md --create-values-file --context --eval --force )
 EOF
 )"
 pe "$(cat <<'EOF'

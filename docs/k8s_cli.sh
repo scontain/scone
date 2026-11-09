@@ -208,6 +208,14 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# ${array[@]+"${array[@]}"} expands an empty array to nothing; a plain "${array[@]}"
+EOF
+)"
+pe "$(cat <<'EOF'
+# aborts with "unbound variable" under set -u with the bash 3.2 of macOS.
+EOF
+)"
+pe "$(cat <<'EOF'
 read -r -a toolbox_confirmation_options <<< "${CONFIRM_ALL_ENVIRONMENT_VARIABLES}"
 EOF
 )"
@@ -217,6 +225,18 @@ EOF
 )"
 pe "$(cat <<'EOF'
   local values="$1"
+EOF
+)"
+pe "$(cat <<'EOF'
+  # This runs in a subshell. tplenv 0.11 replaces the values file with a new
+EOF
+)"
+pe "$(cat <<'EOF'
+  # one, so keep the copies with the registry token private while asking.
+EOF
+)"
+pe "$(cat <<'EOF'
+  umask 077
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -264,7 +284,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval "${toolbox_confirmation_options[@]}"
+  tplenv --values "$values" --file toolbox.credentials.md --context --create-values-file --eval ${toolbox_confirmation_options[@]+"${toolbox_confirmation_options[@]}"}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -373,7 +393,7 @@ fi
 EOF
 )"
 pe "$(cat <<'EOF'
-if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval "${toolbox_confirmation_options[@]}" --output /dev/null)"; then
+if toolbox_environment_exports="$(tplenv --values "$toolbox_values_temporary" --file environment-variables-k8s.md --create-values-file --context --eval ${toolbox_confirmation_options[@]+"${toolbox_confirmation_options[@]}"} --output /dev/null)"; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -568,7 +588,7 @@ read -r -a toolbox_demo_namespaces <<< "${TOOLBOX_DEMO_NAMESPACES-java-demo ci-s
 EOF
 )"
 pe "$(cat <<'EOF'
-for toolbox_demo_namespace in "${toolbox_demo_namespaces[@]}"; do
+for toolbox_demo_namespace in ${toolbox_demo_namespaces[@]+"${toolbox_demo_namespaces[@]}"}; do
 EOF
 )"
 pe "$(cat <<'EOF'

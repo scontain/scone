@@ -81,10 +81,12 @@ This container image needs access to `registry.scontain.com`; credentials are st
 
 This creates `scone-registry.env`.
 
-- If you are not logged in yet, you can create the file manually:
+- If you are not logged in yet, you can create the file manually. Both files hold
+  your token, so only you may read them:
 
 ```bash
-tplenv --file scone-registry.env.template --output scone-registry.env --values registy.credentials.yaml --create-values-file --context --force
+(umask 077; tplenv --file scone-registry.env.template --output scone-registry.env --values registy.credentials.yaml --create-values-file --context --force)
+chmod 600 scone-registry.env registy.credentials.yaml
 ```
 
 ### Run the Workshop Image

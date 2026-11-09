@@ -62,7 +62,13 @@ else
 fi
 
 echo "[INFO] Discovering instances of ${PLURAL}.${GROUP}…"
-mapfile -t RES < <(kubectl get "${PLURAL}.${GROUP}" "${nsflag[@]}" -o json \
+# Keep this runnable with the bash 3.2 that macOS ships as /bin/bash: read rows in a
+# loop and upper-case with tr (both need bash 4 builtins otherwise), and expand
+# nsflag with ${nsflag[@]+...}: an empty array is "unbound" under set -u in bash < 4.4.
+RES=()
+while IFS= read -r row || [[ -n "$row" ]]; do
+  RES+=("$row")
+done < <(kubectl get "${PLURAL}.${GROUP}" ${nsflag[@]+"${nsflag[@]}"} -o json \
   | jq -r --arg name "$NAME" '.items[] | select($name == "" or .metadata.name == $name) | [ ( .metadata.namespace // "" ), .metadata.name ] | @tsv')
 
 if (( ${#RES[@]} == 0 )); then
@@ -74,7 +80,8 @@ if (( ${#RES[@]} == 0 )); then
   exit 0
 fi
 
-target_uc=${COND^^}
+to_upper() { printf '%s' "$1" | tr '[:lower:]' '[:upper:]'; }
+target_uc=$(to_upper "$COND")
 total=${#RES[@]}
 deadline=$(( $(date +%s) + TIMEOUT ))
 echo "[INFO] Waiting for .status.state == '${COND}' on ${total} instance(s)…"
@@ -94,7 +101,7 @@ while (( $(date +%s) < deadline )); do
     [[ -n "$obj" ]] || { not_ready+=("$ref: <missing>"); continue; }
 
     state=$(jq -r '.status.state // empty' <<<"$obj")
-    state_uc=${state^^}
+    state_uc=$(to_upper "$state")
     if [[ -n "$state" && "$state_uc" == "$target_uc" ]]; then
       ((++ok))
     else
