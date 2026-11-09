@@ -97,12 +97,18 @@ is_sourced() {
   [[ "${BASH_SOURCE[0]:-}" != "$0" ]]
 }
 
+# This script starts with "set -euo pipefail". If you sourced it, these options are on in your
+# shell: then any command that fails closes it. reset_shell_options turns them off again if you
+# sourced this script. We call it when we stop and at the end.
+reset_shell_options() {
+  if is_sourced; then set +e +u +o pipefail; fi
+}
+
 # If something is missing, we stop with "stop_check || return 1 2>/dev/null || exit 1": it
 # returns to your shell if you sourced this script, and exits with 1 if you ran it. "exit 1"
-# would close your shell, and so would "return 1" while the "set -e" of this script is on:
-# stop_check turns "set -e" off if you sourced this script.
+# would close your shell, and so would "return 1" while "set -e" is on.
 stop_check() {
-  if is_sourced; then set +e; fi
+  reset_shell_options
   return 1
 }
 
@@ -417,12 +423,13 @@ fi
   for image in "${images[@]}"; do
     if ! docker pull --quiet "$image" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image: $image${NC}"
-      exit 1
+      stop_check || return 1 2>/dev/null || exit 1
     else
       echo "✅ image '$image' is accessible"
     fi
   done
   echo -e "${GREEN}✔️ All images are OK.${NC}"
+  reset_shell_options
 ```
 
 ## Install SCONE CLI Tools

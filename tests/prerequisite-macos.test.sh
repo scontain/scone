@@ -62,6 +62,9 @@ cat > "$work/docker-bin/docker" <<'MOCK'
 #!/bin/sh
 echo "docker $*" >> "$CALLS"
 if [ "$1" = ps ]; then exit "${DOCKER_PS_RC:-0}"; fi
+if [ "$1" = pull ] && [ -n "${DOCKER_PULL_FAIL:-}" ]; then
+  case "$*" in *"$DOCKER_PULL_FAIL"*) exit 1 ;; esac
+fi
 MOCK
 # make-tool DIR NAME [YQ_MAJOR]: an installed tool.
 cat > "$work/make-tool" <<'MOCK'
@@ -210,9 +213,11 @@ check "check_docker_setup.sh on macOS without docker: points to Docker Desktop" 
 
 # run_script MODE SHELL [ARGS...]: runs the generated scripts/prerequisite_check.sh on a
 # mocked Mac with cargo, Docker Desktop and cosign 3; sets $case_dir and $rc. MODE "source"
-# sources it in SHELL ARGS, as the README says, and then prints "shell survived: rc=N";
-# MODE "run" runs it with SHELL. Settings: TOOLS (installed tools; default: none, brew
-# installs them), NO_BREW, NO_DOCKER, DOCKER_PS_RC, NO_COSIGN.
+# sources it in SHELL ARGS, as the README says, and then prints "shell survived: rc=N", but
+# only if a failing command, an unset variable and a failing pipeline do not close the shell
+# afterwards: the script must turn its "set -euo pipefail" off again. MODE "run" runs it with
+# SHELL. Settings: TOOLS (installed tools; default: none, brew installs them), NO_BREW,
+# NO_DOCKER, DOCKER_PS_RC, DOCKER_PULL_FAIL (images that cannot be pulled), NO_COSIGN.
 run_script() {
   local mode="$1" tool path
   shift
@@ -236,7 +241,7 @@ run_script() {
   [[ -n "${NO_BREW:-}" ]] || path="$path:$work/brew-bin"
   path="$path:$case_dir/tools:$case_dir/brew/bin:$sysbin"
   if [[ "$mode" == source ]]; then
-    set -- "$@" -c '. ./scripts/prerequisite_check.sh; echo "shell survived: rc=$?"'
+    set -- "$@" -c '. ./scripts/prerequisite_check.sh; rc=$?; false; : "$no_such_variable"; false | true || exit 9; echo "shell survived: rc=$rc"'
   else
     set -- "$@" ./scripts/prerequisite_check.sh
   fi
@@ -245,7 +250,7 @@ run_script() {
     cd "$case_dir"
     env -i HOME="$case_dir/home" PATH="$path" CALLS="$case_dir/calls" \
       MOCK_OS=Darwin MOCK_CPU=arm64 BREW_PREFIX="$case_dir/brew" MAKE_TOOL="$work/make-tool" \
-      DOCKER_PS_RC="${DOCKER_PS_RC:-0}" "$@"
+      DOCKER_PS_RC="${DOCKER_PS_RC:-0}" DOCKER_PULL_FAIL="${DOCKER_PULL_FAIL:-}" "$@"
   ) < /dev/null > "$case_dir/out" 2>&1 || rc=$?
 }
 
@@ -270,12 +275,13 @@ if [[ -n "$zsh" ]]; then
     "$reached_script_end"' && grep -q "shell survived: rc=0" "$case_dir/out"'
 fi
 
-# stops NAME MESSAGE: with the settings of run_script, the script prints MESSAGE and stops.
-# Sourced, it returns to the shell: it must not exit, nor return 1 while its "set -e" is
-# on, since both close the shell. Run, it exits with 1.
+# stops NAME MESSAGE [LATER]: with the settings of run_script, the script prints MESSAGE and
+# stops before it prints LATER (default: the end of the tool checks). Sourced, it returns to
+# the shell: it must not exit, nor return 1 while its "set -e" is on, since both close the
+# shell. Run, it exits with 1.
 stops() {
-  local name="$1" message="$2"
-  local stopped='ran "$message" && ! ran "All external executables"'
+  local name="$1" message="$2" later="${3:-All external executables}"
+  local stopped='ran "$message" && ! ran "$later"'
   run_script source "$BASH"
   check "$name, sourced: stops, and the shell survives" "$stopped"' && grep -q "shell survived: rc=1" "$case_dir/out"'
   run_script run "$BASH"
@@ -290,6 +296,8 @@ NO_BREW=1 TOOLS="gh kubectl helm jq pkg-config" stops "Mac without Homebrew, onl
 NO_DOCKER=1 stops "Mac without Docker" "Docker is not installed"
 DOCKER_PS_RC=1 stops "Docker Desktop not running" "Start Docker Desktop"
 NO_COSIGN=1 stops "Mac without cosign, install fails" "no cosign is installed"
+DOCKER_PULL_FAIL=glibc:2.35 stops "Image cannot be pulled" \
+  "Cannot pull Docker image: registry.scontain.com/public-images/glibc:2.35-v4" "All images are OK"
 
 if [[ $failures != 0 ]]; then
   for out in "$work"/case*/out "$work/check-docker.out"; do

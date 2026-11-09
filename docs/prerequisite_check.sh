@@ -259,6 +259,34 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# This script starts with "set -euo pipefail". If you sourced it, these options are on in your
+EOF
+)"
+pe "$(cat <<'EOF'
+# shell: then any command that fails closes it. reset_shell_options turns them off again if you
+EOF
+)"
+pe "$(cat <<'EOF'
+# sourced this script. We call it when we stop and at the end.
+EOF
+)"
+pe "$(cat <<'EOF'
+reset_shell_options() {
+EOF
+)"
+pe "$(cat <<'EOF'
+  if is_sourced; then set +e +u +o pipefail; fi
+EOF
+)"
+pe "$(cat <<'EOF'
+}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
 # If something is missing, we stop with "stop_check || return 1 2>/dev/null || exit 1": it
 EOF
 )"
@@ -267,11 +295,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-# would close your shell, and so would "return 1" while the "set -e" of this script is on:
-EOF
-)"
-pe "$(cat <<'EOF'
-# stop_check turns "set -e" off if you sourced this script.
+# would close your shell, and so would "return 1" while "set -e" is on.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -279,7 +303,7 @@ stop_check() {
 EOF
 )"
 pe "$(cat <<'EOF'
-  if is_sourced; then set +e; fi
+  reset_shell_options
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1508,7 +1532,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-      exit 1
+      stop_check || return 1 2>/dev/null || exit 1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1529,6 +1553,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
   echo -e "${GREEN}✔️ All images are OK.${NC}"
+EOF
+)"
+pe "$(cat <<'EOF'
+  reset_shell_options
 EOF
 )"
 
