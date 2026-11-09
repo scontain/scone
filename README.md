@@ -26,7 +26,7 @@ If you want to install the development components on your local machine or on a 
 
 If you do not have a dedicated x86 development VM, you can run the development components as part of a Kubernetes cluster with x86 nodes:
 
-- [`prerequisite_check.md`](prerequisite_check.md): run `. ./scripts/prerequisite_check.sh` to ensure `kubectl` and `cargo` are installed.
+- [`prerequisite_check.md`](prerequisite_check.md): run `. ./scripts/prerequisite_check.sh` to ensure `kubectl` and `cargo` are installed. This works on Debian/Ubuntu and on macOS, where it needs [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) and installs missing tools with [Homebrew](https://brew.sh).
 
 ![Screencast](docs/prerequisite_check.gif)
 

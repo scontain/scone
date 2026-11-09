@@ -30,6 +30,22 @@ Below, we describe how to install these commands and run `scone` using `auto` mo
 
 We assume in this description that you run a Debian-based distribution like Ubuntu. Note that we also have packages for Alpine Linux.
 
+The SCONE packages run on x86_64 Linux only (see "Local Installation" in the [README](README.md)):
+CPU emulation, e.g., of x86_64 on Apple Silicon, is not sufficient. On other hosts, e.g., on
+macOS, we stop before asking for any input. Run the SCONE CLI in the workshop image instead:
+on an x86_64 machine with Docker (see "Run the Workshop Image" in the README), or in a
+Kubernetes cluster with x86_64 nodes with `./scripts/k8s_cli.sh` (see [k8s.md](k8s.md)).
+
+```bash
+if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ]]; then
+    echo "❌ The SCONE CLI packages need x86_64 Linux, but this host runs $(uname -s) on $(uname -m)." >&2
+    echo "   Run the SCONE CLI in the workshop image instead:" >&2
+    echo "   - on an x86_64 machine with Docker: see \"Run the Workshop Image\" in README.md, or" >&2
+    echo "   - in a Kubernetes cluster with x86_64 nodes: run ./scripts/k8s_cli.sh (see k8s.md)." >&2
+    exit 1
+fi
+```
+
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`
 but that are not set yet. 
 

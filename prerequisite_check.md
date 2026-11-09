@@ -57,6 +57,15 @@ To run our commands and transform manifests and container images, we need a set 
 
 > **Note:** If the script fails on the first run with `Errors were encountered while processing: scone-glibc`, run it a second time.
 
+On **Linux**, we install missing tools with `apt` and the Docker install script, so this works on
+Debian and Ubuntu. On **macOS** (Apple Silicon and Intel), we install missing tools with
+[Homebrew](https://brew.sh) (`brew install gh kubectl helm yq pkg-config jq openssl@3`, where
+`openssl@3` replaces `libssl-dev`). Without Homebrew, the script names the missing tool and stops.
+Docker cannot be installed by script on macOS: install and start
+[Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) (or another Docker
+engine, e.g., Colima) first. On macOS, the script prepares the Kubernetes path of the README;
+the SCONE CLI itself needs x86_64 Linux (see [Install SCONE CLI Tools](#install-scone-cli-tools)).
+
 `cosign` 2.0.0 or newer verifies the SCONE package images. The workshop image is signed with
 cosign 3, so verifying it needs cosign 3.0.0 or newer. If `cosign` is missing or older than
 3.0.0, we install the binary for this OS and CPU from the latest cosign release as
@@ -74,6 +83,43 @@ NC='\033[0m' # No Color
 
 check_command() {
   command -v "$1" &>/dev/null
+}
+
+# On macOS, we install missing tools with Homebrew instead of apt.
+is_macos() {
+  [[ "$(uname -s)" == Darwin ]]
+}
+
+# Succeeds if you sourced this script (". ./scripts/prerequisite_check.sh"), as the README says:
+# then BASH_SOURCE[0] is this script and $0 is your shell. zsh, which has no BASH_SOURCE, can
+# only source this script.
+is_sourced() {
+  [[ "${BASH_SOURCE[0]:-}" != "$0" ]]
+}
+
+# This script starts with "set -euo pipefail". If you sourced it, these options are on in your
+# shell: then any command that fails closes it. reset_shell_options turns them off again if you
+# sourced this script. We call it when we stop and at the end.
+reset_shell_options() {
+  if is_sourced; then set +e +u +o pipefail; fi
+}
+
+# If something is missing, we stop with "stop_check || return 1 2>/dev/null || exit 1": it
+# returns to your shell if you sourced this script, and exits with 1 if you ran it. "exit 1"
+# would close your shell, and so would "return 1" while "set -e" is on.
+stop_check() {
+  reset_shell_options
+  return 1
+}
+
+# Installs the Homebrew formulae $@. Fails if Homebrew is missing: then the caller stops.
+brew_install() {
+  if ! check_command brew; then
+    echo -e "${RED}❌ Missing on this Mac: $*. Install Homebrew (https://brew.sh) and run this script again, or install $* yourself.${NC}"
+    return 1
+  fi
+  brew install "$@" || return
+  hash -r
 }
 
 scone_registry_login() {
@@ -186,12 +232,17 @@ else
     else
       echo -e "${RED}❌ We need cosign >= $COSIGN_MIN_VERSION to verify the SCONE images, but no cosign is installed.${NC}"
     fi
-    exit 1
+    stop_check || return 1 2>/dev/null || exit 1
   fi
 fi
 
 # Auto-install Docker if not present
 if ! check_command docker; then
+  if is_macos; then
+    # get.docker.com supports Linux only.
+    echo -e "${RED}❌ Docker is not installed. On macOS, install Docker Desktop (https://docs.docker.com/desktop/setup/install/mac-install/) or another Docker engine, start it, and run this script again.${NC}"
+    stop_check || return 1 2>/dev/null || exit 1
+  fi
   echo "📥 Installing Docker..."
   curl -fsSL https://get.docker.com | sh
   echo "✔️ Docker installed successfully. Please log out and back in for group changes to take effect."
@@ -199,16 +250,20 @@ else
   echo "✔️ Docker is already installed."
 fi
 
-# Ensure that we can run docker without being root
-./scripts/check_docker_setup.sh
+# Ensure that we can run docker without being root (on macOS: that Docker runs)
+./scripts/check_docker_setup.sh || stop_check || return 1 2>/dev/null || exit 1
 
 # Auto-install GitHub CLI if not present
 if ! check_command gh; then
   echo "📥 Installing GitHub CLI..."
-  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-  sudo apt update
-  sudo apt install -y gh
+  if is_macos; then
+    brew_install gh || stop_check || return 1 2>/dev/null || exit 1
+  else
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    sudo apt update
+    sudo apt install -y gh
+  fi
   echo "✔️ GitHub CLI installed successfully."
 else
   echo "✔️ GitHub CLI is already installed."
@@ -217,13 +272,17 @@ fi
 # Auto-install kubectl if not present
 if ! check_command kubectl; then
   echo "📥 Installing kubectl..."
-  export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
-  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
-  curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
-  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
-  sudo chmod +x kubectl
-  sudo mv ./kubectl /usr/local/bin/
-  rm kubectl.sha256
+  if is_macos; then
+    brew_install kubectl || stop_check || return 1 2>/dev/null || exit 1
+  else
+    export KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+    curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+    curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
+    echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
+    sudo chmod +x kubectl
+    sudo mv ./kubectl /usr/local/bin/
+    rm kubectl.sha256
+  fi
   echo "✔️ kubectl installed successfully."
 else
   echo "✔️ kubectl is already installed."
@@ -232,7 +291,11 @@ fi
 # Auto-install Helm if not present
 if ! check_command helm; then
   echo "📥 Installing Helm..."
-  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  if is_macos; then
+    brew_install helm || stop_check || return 1 2>/dev/null || exit 1
+  else
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  fi
   echo "✔️ Helm installed successfully."
 else
   echo "✔️ Helm is already installed."
@@ -249,35 +312,65 @@ install_yq_v4() {
 }
 
 # Check and auto-install yq v4
+install_yq=false
 if check_command yq; then
     yq_version=$(yq --version 2>&1 | grep  -oE 'v[0-9]+' | cut -d'v' -f2) || yq_version=""
     if [[ -z "$yq_version" || "$yq_version" == "0" ]]; then
         echo -e "${RED}❌ Found yq version $yq_version which is not supported. Installing Yq v4"
-        install_yq_v4
+        install_yq=true
     fi
     if [[ "$yq_version" -ge 4 ]]; then
         echo "✔️ yq v$yq_version is installed (meets requirement v4+)."
     else
         echo -e "${RED}❌ yq version $yq_version is too old. Installing Yq v4"
-        install_yq_v4
+        install_yq=true
     fi
 else
     echo -e "${RED}❌ yq is not installed. Installing Yq v4"
+    install_yq=true
+fi
+# On macOS, we stop here if Homebrew is missing: a function like install_yq_v4 can only
+# return from itself, not from this script.
+if [[ "$install_yq" == true ]]; then
+  if is_macos; then
+    # Homebrew's yq is mikefarah/yq v4.
+    brew_install yq || stop_check || return 1 2>/dev/null || exit 1
+    echo "✔️ yq installed successfully."
+  else
     install_yq_v4
+  fi
 fi
 
 # Auto-install other required packages
 missing_packages=()
-for pkg in pkg-config jq libssl-dev; do
-  if ! dpkg -s "$pkg" &>/dev/null; then
-    missing_packages+=("$pkg")
+if is_macos; then
+  # Homebrew's openssl@3 provides what libssl-dev provides on Debian. It is keg-only,
+  # so pkg-config does not see it unless PKG_CONFIG_PATH points to it: ask brew as well.
+  for pkg in pkg-config jq; do
+    if ! check_command "$pkg"; then
+      missing_packages+=("$pkg")
+    fi
+  done
+  if ! { check_command brew && brew list --formula openssl@3 &>/dev/null; } \
+    && ! pkg-config --exists openssl &>/dev/null; then
+    missing_packages+=("openssl@3")
   fi
-done
+else
+  for pkg in pkg-config jq libssl-dev; do
+    if ! dpkg -s "$pkg" &>/dev/null; then
+      missing_packages+=("$pkg")
+    fi
+  done
+fi
 
 if [ ${#missing_packages[@]} -ne 0 ]; then
   echo "📥 Installing missing packages: ${missing_packages[*]}"
-  sudo apt update
-  sudo apt install -y "${missing_packages[@]}"
+  if is_macos; then
+    brew_install "${missing_packages[@]}" || stop_check || return 1 2>/dev/null || exit 1
+  else
+    sudo apt update
+    sudo apt install -y "${missing_packages[@]}"
+  fi
   echo "✔️ All missing packages installed successfully."
 fi
 
@@ -330,14 +423,20 @@ fi
   for image in "${images[@]}"; do
     if ! docker pull --quiet "$image" &>/dev/null; then
       echo -e "${RED}❌ Cannot pull Docker image: $image${NC}"
-      exit 1
+      stop_check || return 1 2>/dev/null || exit 1
     else
       echo "✅ image '$image' is accessible"
     fi
   done
   echo -e "${GREEN}✔️ All images are OK.${NC}"
+  reset_shell_options
 ```
 
 ## Install SCONE CLI Tools
 
 The required images are now available. Next, install the `scone`-related executables by running `./scripts/install_sconecli.sh`.
+
+The SCONE CLI packages run on x86_64 Linux only, so `./scripts/install_sconecli.sh` stops on
+other hosts, e.g., on macOS. There, run the SCONE CLI in the workshop image instead: on an x86_64
+machine with Docker (see "Run the Workshop Image" in the [README](README.md)), or in a Kubernetes
+cluster with x86_64 nodes with `./scripts/k8s_cli.sh` (see [k8s.md](k8s.md)).
