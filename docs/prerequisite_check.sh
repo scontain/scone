@@ -1289,7 +1289,11 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
-  for pkg in pkg-config jq libssl-dev; do
+  # gettext-base provides envsubst; the scone-cli package depends on it.
+EOF
+)"
+pe "$(cat <<'EOF'
+  for pkg in pkg-config jq libssl-dev gettext-base; do
 EOF
 )"
 pe "$(cat <<'EOF'

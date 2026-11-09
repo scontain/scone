@@ -200,8 +200,8 @@ check "Linux: reaches the end" "$reached_end"
 check "Linux: installs Docker with get.docker.com" 'grep -qx "curl -fsSL https://get.docker.com" "$case_dir/calls"'
 check "Linux: runs the docker group setup" 'grep -qx "check_docker_setup" "$case_dir/calls"'
 check "Linux: installs gh with apt" 'grep -qx "sudo apt install -y gh" "$case_dir/calls"'
-check "Linux: checks packages with dpkg and installs jq with apt" \
-  'grep -qx "dpkg -s libssl-dev" "$case_dir/calls" && grep -qx "sudo apt install -y jq" "$case_dir/calls"'
+check "Linux: checks packages with dpkg and installs jq and gettext-base with apt" \
+  'grep -qx "dpkg -s libssl-dev" "$case_dir/calls" && grep -qx "sudo apt install -y jq gettext-base" "$case_dir/calls"'
 check "Linux: brew is not used" '! grep -q "^brew " "$case_dir/calls"'
 
 # check_docker_setup.sh on macOS without docker.

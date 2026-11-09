@@ -200,6 +200,9 @@ export COSIGN_PASSWORD=...
 `--push` and `--push-to` sign the pushed image digest with `cosign sign --key "$COSIGN_KEY"`
 and exit with an error before building if `COSIGN_KEY` or `COSIGN_PASSWORD` is not set.
 This also applies to `overwrite.sh --validate-latest`, which pushes through `build.sh`.
+If the pushed version equals [`stable.txt`](stable.txt) and `--image-tag` is not
+overridden, `build.sh` also overwrites the `latest` tag of the same repository with
+this image and signs it. Pushes of other versions or tags leave `latest` unchanged.
 `sconecli.md` only installs tools from workshop images whose signature matches the
 scone.cloud public key. Keep the private key outside this repository; `.gitignore` and
 `.dockerignore` exclude `*.key` files as a safeguard.

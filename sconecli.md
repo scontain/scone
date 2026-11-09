@@ -265,13 +265,18 @@ for tool in scone-td-build kubectl-scone kubectl-scone-azure; do
 done
 ```
 
-Install the core packages. This requires sudo access.
+Install the core packages. This requires sudo access. We use `apt-get` instead of
+`dpkg -i` so that missing dependencies from the distribution, e.g., `gettext-base`,
+which minimal Ubuntu images do not contain, are installed as well. `--reinstall` and
+`--allow-downgrades` keep the `dpkg -i` behavior of always installing these files.
 
 ```bash
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-common_*.deb
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-libc_*.deb
-sudo dpkg -i "$INSTALL_WORK/packages"/scone-cli_*.deb
-sudo dpkg -i "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall --allow-downgrades \
+    "$INSTALL_WORK/packages"/scone-common_*.deb \
+    "$INSTALL_WORK/packages"/scone-libc_*.deb \
+    "$INSTALL_WORK/packages"/scone-cli_*.deb \
+    "$INSTALL_WORK/packages/$SCONE_GLIBC_DEB"
 ```
 
 The workshop image `registry.scontain.com/workshop/scone:$SCONE_VERSION`, built by
