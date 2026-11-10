@@ -80,6 +80,16 @@ export KUBECTL_PROVISION_BINARY="$work/kubectl-provision"
 export PATH="$work/bin:$PATH"
 : > "$MOCK_CALLS"
 failures=0
+# REQUIRE_ALL_TESTS=1 (set in CI) turns every skip into a failure.
+skip() {
+    if [[ "${REQUIRE_ALL_TESTS:-}" == 1 ]]; then
+        echo "FAIL - $1 (REQUIRE_ALL_TESTS=1 forbids skipping)"
+        failures=$((failures + 1))
+    else
+        echo "skip - $1"
+    fi
+}
+
 check() {
     local name="$1"
     shift
@@ -204,7 +214,7 @@ MOCK
         bash "$work/install-script.local" 6.0.8 > "$work/output" 2>&1 || true
         check '--version is used without a Values.yaml' grep -qx 6.0.8 "$install_root/installed-version"
     else
-        echo 'skip - --version over Values.yaml (needs tplenv and a yq that can edit $work)'
+        skip '--version over Values.yaml (needs tplenv and a yq that can edit $work)'
     fi
     check 'build loads the base image into the local daemon' grep -Fq -- 'docker buildx build --load' "$MOCK_CALLS"
     check 'build never uses the Docker TCP endpoint' bash -c '! grep -Eq -- "--context dind|tcp://" "$1"' _ "$MOCK_CALLS"
@@ -282,7 +292,7 @@ MOCK
     check 'image is signed after the push' test -n "$push_line" -a -n "$sign_line" -a "${sign_line:-0}" -gt "${push_line:-0}"
     check 'deployment uses the candidate tag' grep -Fq 'toolbox deployed registry.scontain.com/workshop/scone-validation:6.0.8-0123456789ab' "$MOCK_CALLS"
 else
-    echo 'skip - wrapper Docker tests require kubeconfig and Docker config files to exist'
+    skip 'wrapper Docker tests require kubeconfig and Docker config files to exist'
 fi
 
 # Execute the exact defaulting statement from the generated prerequisite script.
