@@ -9,6 +9,8 @@ TOOLCHAIN="${TOOLCHAIN:-stable}"
 read -r -a COMPONENTS <<< "${COMPONENTS:-rustfmt clippy}"
 PROFILE="${PROFILE:-default}"   # rustup profiles: minimal|default|complete
 RUSTUP_INIT_URL="${RUSTUP_INIT_URL:-https://sh.rustup.rs}"
+# cargo links the crates it builds (e.g., `cargo install tplenv`) with this C compiler.
+RUST_LINKER="${RUST_LINKER:-cc}"
 
 # ---- Helpers ----
 log() { printf '%s\n' "$*" >&2; }
@@ -29,10 +31,34 @@ require_cmd() {
   fi
 }
 
+# rustup installs without a C compiler, but `cargo install` then fails with
+# "linker `cc` not found". On Debian/Ubuntu, we install build-essential.
+ensure_c_linker() {
+  have "$RUST_LINKER" && return 0
+  log "C compiler '${RUST_LINKER}' not found: cargo needs it to build crates."
+  if [ "$(uname -s)" = Darwin ]; then
+    log "ERROR: install the Xcode Command Line Tools with: xcode-select --install"
+    exit 1
+  fi
+  if have apt-get; then
+    local sudo=""
+    [ "$(id -u)" -eq 0 ] || sudo=sudo
+    log "Installing build-essential..."
+    $sudo apt-get update
+    $sudo apt-get install -y build-essential
+  fi
+  if ! have "$RUST_LINKER"; then
+    log "ERROR: C compiler '${RUST_LINKER}' still not available."
+    log "Install a C compiler and linker (e.g., build-essential or gcc) and run this script again."
+    exit 1
+  fi
+}
+
 # ---- Main ----
 main() {
   # Basic prerequisites
   require_cmd curl
+  ensure_c_linker
   # If we need to install rustup, we also need a shell and some basics
   if ! have rustup || ! have cargo || ! have rustc; then
     log "Rust toolchain missing (rustup/cargo/rustc). Installing via rustup..."

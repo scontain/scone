@@ -122,15 +122,15 @@ Generate updated screencasts by running `make`.
 Prepare the override binaries, then build the image with the same SCONE release:
 
 ```bash
-SCONE_VERSION=6.0.8 ./overwrite.sh
-./scripts/build.sh --version 6.0.8
+SCONE_VERSION=6.0.9 ./overwrite.sh
+./scripts/build.sh --version 6.0.9
 ```
 
 `overwrite.sh` builds `scone-td-build` **0.4.0** from pinned revision
 `b607bdc7009fc8990c2f083fdf02180f436c5369` and `kubectl-scone` **6.0.5** from
 `00044d0bbe70f005398833eb9a5efac394fd93d4`. The plugin uses the boolean
 `autoUpdate` schema expected by the 6.0 operator. Its patch version differs from
-the **6.0.8** SCONE image/package release. It no longer follows `main`.
+the **6.0.9** SCONE image/package release. It no longer follows `main`.
 The public helpers and Azure plugin are also built. Cargo names the Azure executable
 `kubectl-scone_azure`; `overwrite.sh` renames it to `kubectl-scone-azure`, which is
 the name kubectl plugin discovery requires. `kubectl-provision` is copied from
@@ -146,7 +146,7 @@ interface checks. `SCONE_VERSION` defaults to `stable.txt` for `overwrite.sh`.
 To validate the latest `scone-td-build` commit on `main` end to end, run:
 
 ```bash
-SCONE_VERSION=6.0.8 ./overwrite.sh --validate-latest
+SCONE_VERSION=6.0.9 ./overwrite.sh --validate-latest
 ```
 
 This builds the candidate in a temporary directory, checks the tooling, then
@@ -160,9 +160,9 @@ that command on success. A later normal build uses the existing `overwrite/bin`,
 so install the validated revision before building and publishing it:
 
 ```bash
-SCONE_VERSION=6.0.8 SCONE_TD_BUILD_REV=<validated-commit> ./overwrite.sh
-./scripts/build.sh --version 6.0.8 --push
-SCONE_VERSION=6.0.8 ./scripts/k8s_cli.sh
+SCONE_VERSION=6.0.9 SCONE_TD_BUILD_REV=<validated-commit> ./overwrite.sh
+./scripts/build.sh --version 6.0.9 --push
+SCONE_VERSION=6.0.9 ./scripts/k8s_cli.sh
 ```
 
 `build.sh` normally uses prepared overrides from `overwrite/bin`; it does not
@@ -178,7 +178,7 @@ context.
 To check overrides without building:
 
 ```bash
-SCONE_VERSION=6.0.8 ./scripts/check-scone-tooling.sh --overrides-dir overwrite/bin
+SCONE_VERSION=6.0.9 ./scripts/check-scone-tooling.sh --overrides-dir overwrite/bin
 ```
 
 The build uses the local Docker daemon and does not need Docker to listen on TCP.
@@ -194,7 +194,7 @@ To build and push the versioned image:
 ```bash
 export COSIGN_KEY=/path/outside/the/repo/cosign.key   # or a KMS URI, e.g., awskms://...
 export COSIGN_PASSWORD=...
-./scripts/build.sh --version 6.0.8 --push
+./scripts/build.sh --version 6.0.9 --push
 ```
 
 `--push` and `--push-to` sign the pushed image digest with `cosign sign --key "$COSIGN_KEY"`
@@ -268,7 +268,7 @@ local to the Docker daemon and prints a warning.
 To build, push, and run the demos against the current Kubernetes context:
 
 ```bash
-./scripts/build.sh --version 6.0.8 --push --test
+./scripts/build.sh --version 6.0.9 --push --test
 ```
 
 `--test` deploys the selected versioned image, then clones or updates

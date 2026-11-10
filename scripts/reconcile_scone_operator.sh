@@ -38,11 +38,39 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' '# tplenv is in ~/.cargo/bin, which a new shell may not have in its PATH yet.'
+printf '%s\n' 'export PATH="$HOME/.cargo/bin:$PATH"'
+printf '%s\n' 'if ! command -v tplenv >/dev/null 2>&1; then'
+printf '%s\n' '    echo "❌ tplenv is not installed: run '\''. ./scripts/prerequisite_check.sh'\'' first." >&2'
+printf '%s\n' '    exit 1'
+printf '%s\n' 'fi'
+printf '%s\n' '# Unlike '\''eval $(tplenv ...)'\'', this assignment stops the script if tplenv fails.'
+printf '%s\n' 'tplenv_exports="$(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)"'
+printf '%s\n' 'eval "$tplenv_exports"'
+printf '%s\n' 'for var in REGISTRY SCONE_VERSION; do'
+printf '%s\n' '    if [[ -z "${!var:-}" ]]; then'
+printf '%s\n' '        echo "❌ Environment variable $var is not set: set it, or add environment.$var to Values.yaml." >&2'
+printf '%s\n' '        exit 1'
+printf '%s\n' '    fi'
+printf '%s\n' 'done'
 printf '%s\n' 'export VERSION=$SCONE_VERSION'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+# tplenv is in ~/.cargo/bin, which a new shell may not have in its PATH yet.
+export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v tplenv >/dev/null 2>&1; then
+    echo "❌ tplenv is not installed: run '. ./scripts/prerequisite_check.sh' first." >&2
+    exit 1
+fi
+# Unlike 'eval $(tplenv ...)', this assignment stops the script if tplenv fails.
+tplenv_exports="$(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)"
+eval "$tplenv_exports"
+for var in REGISTRY SCONE_VERSION; do
+    if [[ -z "${!var:-}" ]]; then
+        echo "❌ Environment variable $var is not set: set it, or add environment.$var to Values.yaml." >&2
+        exit 1
+    fi
+done
 export VERSION=$SCONE_VERSION
 
 printf "${VIOLET}"

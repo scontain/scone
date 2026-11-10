@@ -53,7 +53,15 @@ cat > "$work/bin/docker" <<'MOCK'
 printf 'docker %s\n' "$*" >> "$MOCK_CALLS"
 case "$1" in
     run) exit "${MOCK_IMAGE_CHECK_RC:-0}" ;;
-    create) echo mock-install-container ;;
+    create)
+        # Save the install script (the argument after -c) for the Values.yaml check.
+        args=("$@")
+        for ((i = 0; i < ${#args[@]} - 1; i++)); do
+            if [[ "${args[i]}" == -c && -n "${MOCK_INSTALL_SCRIPT:-}" ]]; then
+                printf '%s\n' "${args[i + 1]}" > "$MOCK_INSTALL_SCRIPT"
+            fi
+        done
+        echo mock-install-container ;;
     start) exit "${MOCK_INSTALL_RC:-0}" ;;
     image)
         if [[ "$2" == inspect ]]; then
@@ -67,7 +75,7 @@ cat > "$work/bin/cosign" <<'MOCK'
 printf 'cosign %s password=%s\n' "$*" "${COSIGN_PASSWORD:-}" >> "$MOCK_CALLS"
 MOCK
 chmod +x "$work/bin/cargo" "$work/bin/docker" "$work/bin/cosign"
-export MOCK_CALLS="$work/calls" MOCK_TOOL="$work/tool"
+export MOCK_CALLS="$work/calls" MOCK_TOOL="$work/tool" MOCK_INSTALL_SCRIPT="$work/install-script"
 export KUBECTL_PROVISION_BINARY="$work/kubectl-provision"
 export PATH="$work/bin:$PATH"
 : > "$MOCK_CALLS"
@@ -171,6 +179,33 @@ if [[ -f "$HOME/.kube/config" && -f "$HOME/.docker/config.json" ]]; then
     printf 'preserve this file\n' > "$fixture/registy.credentials.yaml"
     check 'valid overrides allow the build' run_build 0 env
     check 'build uses the requested SCONE release' grep -Fq -- '--build-arg SCONE_VERSION=6.0.8' "$MOCK_CALLS"
+    # tplenv prefers Values.yaml over SCONE_VERSION: a stale Values.yaml must not win
+    # over --version. Run the saved install script with the real tplenv and yq.
+    # A confined yq (e.g., the snap) cannot edit files below $work: skip then.
+    printf 'a: 1\n' > "$work/probe.yaml"
+    if command -v tplenv >/dev/null && yq -i '.b = 2' "$work/probe.yaml" 2>/dev/null; then
+        install_root="$work/install-root"
+        mkdir -p "$install_root/scripts"
+        cp "$repo_root/environment-variables.md" "$install_root/"
+        printf 'environment:\n  REGISTRY: registry.scontain.com\n  SCONE_VERSION: 6.0.7\n' > "$install_root/Values.yaml"
+        printf '#!/bin/sh\n' > "$install_root/scripts/prerequisite_check.sh"
+        cat > "$install_root/scripts/install_sconecli.sh" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+eval "$(tplenv --file environment-variables.md --create-values-file --eval --output /dev/null </dev/null)"
+echo "$SCONE_VERSION" > installed-version
+MOCK
+        chmod +x "$install_root/scripts/"*.sh
+        sed "s#/root/scone#$install_root#" "$MOCK_INSTALL_SCRIPT" > "$work/install-script.local"
+        bash "$work/install-script.local" 6.0.8 > "$work/output" 2>&1 || true
+        check '--version wins over a stale Values.yaml' grep -qx 6.0.8 "$install_root/installed-version"
+        check 'Values.yaml keeps its other settings' grep -Fq 'REGISTRY: registry.scontain.com' "$install_root/Values.yaml"
+        rm -f "$install_root/Values.yaml" "$install_root/installed-version"
+        bash "$work/install-script.local" 6.0.8 > "$work/output" 2>&1 || true
+        check '--version is used without a Values.yaml' grep -qx 6.0.8 "$install_root/installed-version"
+    else
+        echo 'skip - --version over Values.yaml (needs tplenv and a yq that can edit $work)'
+    fi
     check 'build loads the base image into the local daemon' grep -Fq -- 'docker buildx build --load' "$MOCK_CALLS"
     check 'build never uses the Docker TCP endpoint' bash -c '! grep -Eq -- "--context dind|tcp://" "$1"' _ "$MOCK_CALLS"
     check 'install step reaches Docker via the mounted host socket' grep -Fq -- 'src=/var/run/docker.sock,dst=/mnt/docker.sock' "$MOCK_CALLS"

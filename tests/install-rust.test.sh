@@ -17,6 +17,18 @@ run_installer() {
     install_status="$5"
     export TOOLCHAIN="$6"
     export COMPONENTS="$7"
+    # fake_cc stands in for cc: it exists unless $8 is "missing", and
+    # "apt-get install build-essential" creates it unless $8 is "broken".
+    linker="${8:-present}"
+    export RUST_LINKER=fake_cc
+    [[ "$linker" != present ]] || fake_cc() { :; }
+    sudo() { printf "sudo %s\n" "$*" >> "$calls"; "$@"; }
+    apt-get() {
+      printf "apt-get %s\n" "$*" >> "$calls"
+      if [[ "$*" == "install -y build-essential" && "$linker" == missing ]]; then
+        fake_cc() { :; }
+      fi
+    }
 
     # Functions take precedence over real tools, even if .cargo/env edits PATH.
     curl() { echo "unexpected download" >&2; return 99; }
@@ -100,3 +112,26 @@ run_installer 1 1 0 stable 'rustfmt clippy rust-src' || fail 'custom components'
 grep -qx 'rustup component add rust-src --toolchain stable' "$work/calls" \
   || fail 'custom component list'
 printf 'ok - custom component list is preserved\n'
+
+: > "$work/calls"
+run_installer 1 1 0 stable 'rustfmt clippy' missing || fail 'missing C compiler'
+grep -q 'apt-get install -y build-essential' "$work/calls" || fail 'install build-essential'
+grep -q '^rustup component add' "$work/calls" || fail 'continue after installing build-essential'
+printf 'ok - missing C compiler is installed with build-essential\n'
+
+: > "$work/calls"
+run_installer 1 1 0 stable 'rustfmt clippy' present || fail 'present C compiler'
+if grep -q 'apt-get' "$work/calls"; then
+  fail 'do not install build-essential if a C compiler exists'
+fi
+printf 'ok - present C compiler is kept\n'
+
+: > "$work/calls"
+status=0
+run_installer 1 1 0 stable 'rustfmt clippy' broken || status=$?
+[[ "$status" != 0 ]] || fail 'stop if no C compiler can be installed'
+grep -q 'still not available' "$work/output" || fail 'explain the missing C compiler'
+if grep -q '^rustup' "$work/calls"; then
+  fail 'do not set up rust without a C compiler'
+fi
+printf 'ok - setup stops if no C compiler can be installed\n'
