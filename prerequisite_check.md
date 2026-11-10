@@ -2,7 +2,7 @@
 
 ## Ensure `cargo` Is Installed
 
-We install some utilities with `cargo`, so we first ensure that `rust` and `cargo` are installed. Use `scripts/install-rust.sh`, which checks for `rust` and required components and installs them if needed.
+We install some utilities with `cargo`, so we first ensure that `rust` and `cargo` are installed. Use `scripts/install-rust.sh`, which checks for `rust` and required components and installs them if needed. `cargo` needs a C compiler (`cc`) to build these utilities: if it is missing, `scripts/install-rust.sh` installs `build-essential` with `apt` on Debian and Ubuntu, and asks you to run `xcode-select --install` on macOS.
 
 ![Screencast](docs/prerequisite_check.gif)
 

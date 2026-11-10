@@ -106,7 +106,7 @@ export SSH_PUB_KEY="${toolbox_ssh_key_override:-$SSH_PUB_KEY}"
 
 ## Container Image
 
-In our pod, we use a versioned image such as `registry.scontain.com/workshop/scone:6.0.8`.
+In our pod, we use a versioned image such as `registry.scontain.com/workshop/scone:6.0.9`.
 
 ```bash
 toolbox_image_override="${CLI_IMAGE:-}"

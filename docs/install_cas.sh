@@ -756,7 +756,63 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+# tplenv is in ~/.cargo/bin, which a new shell may not have in its PATH yet.
+EOF
+)"
+pe "$(cat <<'EOF'
+export PATH="$HOME/.cargo/bin:$PATH"
+EOF
+)"
+pe "$(cat <<'EOF'
+if ! command -v tplenv >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+    echo "❌ tplenv is not installed: run '. ./scripts/prerequisite_check.sh' first." >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+    exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+pe "$(cat <<'EOF'
+# Unlike 'eval $(tplenv ...)', this assignment stops the script if tplenv fails.
+EOF
+)"
+pe "$(cat <<'EOF'
+tplenv_exports="$(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)"
+EOF
+)"
+pe "$(cat <<'EOF'
+eval "$tplenv_exports"
+EOF
+)"
+pe "$(cat <<'EOF'
+for var in CAS CAS_NAMESPACE; do
+EOF
+)"
+pe "$(cat <<'EOF'
+    if [[ -z "${!var:-}" ]]; then
+EOF
+)"
+pe "$(cat <<'EOF'
+        echo "❌ Environment variable $var is not set: set it, or add environment.$var to Values.yaml." >&2
+EOF
+)"
+pe "$(cat <<'EOF'
+        exit 1
+EOF
+)"
+pe "$(cat <<'EOF'
+    fi
+EOF
+)"
+pe "$(cat <<'EOF'
+done
 EOF
 )"
 pe "$(cat <<'EOF'

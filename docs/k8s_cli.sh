@@ -336,7 +336,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '## Container Image'
 printf '%s\n' ''
-printf '%s\n' 'In our pod, we use a versioned image such as `registry.scontain.com/workshop/scone:6.0.8`.'
+printf '%s\n' 'In our pod, we use a versioned image such as `registry.scontain.com/workshop/scone:6.0.9`.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 

@@ -215,6 +215,10 @@ install_container="$(docker create \
     # This build replaces the workshop image: do not install tools from its previous version.
     export SCONE_WORKSHOP_IMAGE=""
     cd /root/scone
+    # tplenv prefers environment.SCONE_VERSION in Values.yaml over the SCONE_VERSION
+    # variable: write --version into Values.yaml so that this release gets installed.
+    [[ -f Values.yaml ]] || echo "{}" > Values.yaml
+    yq -i ".environment.SCONE_VERSION = strenv(SCONE_VERSION)" Values.yaml
     docker version
     ./scripts/prerequisite_check.sh
     ./scripts/install_sconecli.sh

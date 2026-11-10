@@ -222,7 +222,21 @@ fi
 7. Determine the name and the namespace of the CAS instance
 
 ```bash
-eval $(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+# tplenv is in ~/.cargo/bin, which a new shell may not have in its PATH yet.
+export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v tplenv >/dev/null 2>&1; then
+    echo "❌ tplenv is not installed: run '. ./scripts/prerequisite_check.sh' first." >&2
+    exit 1
+fi
+# Unlike 'eval $(tplenv ...)', this assignment stops the script if tplenv fails.
+tplenv_exports="$(tplenv --file Values-CAS.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)"
+eval "$tplenv_exports"
+for var in CAS CAS_NAMESPACE; do
+    if [[ -z "${!var:-}" ]]; then
+        echo "❌ Environment variable $var is not set: set it, or add environment.$var to Values.yaml." >&2
+        exit 1
+    fi
+done
 # Confirm to the user
 echo "✅ Using CAS: $CAS"
 echo "✅ Using namespace: $CAS_NAMESPACE"

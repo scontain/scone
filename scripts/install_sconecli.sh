@@ -76,10 +76,38 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --eval --context ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )'
+printf '%s\n' '# tplenv is in ~/.cargo/bin, which a new shell may not have in its PATH yet.'
+printf '%s\n' 'export PATH="$HOME/.cargo/bin:$PATH"'
+printf '%s\n' 'if ! command -v tplenv >/dev/null 2>&1; then'
+printf '%s\n' '    echo "❌ tplenv is not installed: run '\''. ./scripts/prerequisite_check.sh'\'' first." >&2'
+printf '%s\n' '    exit 1'
+printf '%s\n' 'fi'
+printf '%s\n' '# Unlike '\''eval $(tplenv ...)'\'', this assignment stops the script if tplenv fails.'
+printf '%s\n' 'tplenv_exports="$(tplenv --file environment-variables.md --create-values-file --eval --context ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)"'
+printf '%s\n' 'eval "$tplenv_exports"'
+printf '%s\n' 'for var in REGISTRY SCONE_VERSION; do'
+printf '%s\n' '    if [[ -z "${!var:-}" ]]; then'
+printf '%s\n' '        echo "❌ Environment variable $var is not set: set it, or add environment.$var to Values.yaml." >&2'
+printf '%s\n' '        exit 1'
+printf '%s\n' '    fi'
+printf '%s\n' 'done'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --eval --context ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+# tplenv is in ~/.cargo/bin, which a new shell may not have in its PATH yet.
+export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v tplenv >/dev/null 2>&1; then
+    echo "❌ tplenv is not installed: run '. ./scripts/prerequisite_check.sh' first." >&2
+    exit 1
+fi
+# Unlike 'eval $(tplenv ...)', this assignment stops the script if tplenv fails.
+tplenv_exports="$(tplenv --file environment-variables.md --create-values-file --eval --context ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)"
+eval "$tplenv_exports"
+for var in REGISTRY SCONE_VERSION; do
+    if [[ -z "${!var:-}" ]]; then
+        echo "❌ Environment variable $var is not set: set it, or add environment.$var to Values.yaml." >&2
+        exit 1
+    fi
+done
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -782,7 +810,7 @@ printf '%s\n' 'and lists executable paths to help identify shadowed installation
 printf '%s\n' ''
 printf '%s\n' 'To repeat these checks without installing packages, run this from the repository:'
 printf '%s\n' ''
-printf '%s\n' 'SCONE_VERSION=6.0.8 ./scripts/check-scone-tooling.sh'
+printf '%s\n' 'SCONE_VERSION=6.0.9 ./scripts/check-scone-tooling.sh'
 printf '%s\n' ''
 printf '%s\n' 'Without `SCONE_VERSION`, the standalone checker uses `stable.txt`. Set the target'
 printf '%s\n' 'to the release used by your operator. These are local version and command checks;'

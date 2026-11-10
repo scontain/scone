@@ -1,4 +1,4 @@
-ARG SCONE_VERSION="6.0.8"
+ARG SCONE_VERSION="6.0.9"
 FROM registry.scontain.com/cicd/sconecli:${SCONE_VERSION} AS sconectl
 
 FROM registry.scontain.com/cicd/container-diff AS builder
