@@ -74,7 +74,14 @@ cat > "$work/bin/cosign" <<'MOCK'
 #!/usr/bin/env bash
 printf 'cosign %s password=%s\n' "$*" "${COSIGN_PASSWORD:-}" >> "$MOCK_CALLS"
 MOCK
-chmod +x "$work/bin/cargo" "$work/bin/docker" "$work/bin/cosign"
+# overwrite.sh resolves the latest scone-td-build main revision with git ls-remote.
+cat > "$work/bin/git" <<'MOCK'
+#!/usr/bin/env bash
+printf 'git %s\n' "$*" >> "$MOCK_CALLS"
+[[ "$*" == 'ls-remote https://github.com/scontain/scone-td-build.git refs/heads/main' ]] || exit 2
+printf '%s\trefs/heads/main\n' fedcba9876543210fedcba9876543210fedcba98
+MOCK
+chmod +x "$work/bin/cargo" "$work/bin/docker" "$work/bin/cosign" "$work/bin/git"
 export MOCK_CALLS="$work/calls" MOCK_TOOL="$work/tool" MOCK_INSTALL_SCRIPT="$work/install-script"
 export KUBECTL_PROVISION_BINARY="$work/kubectl-provision"
 export PATH="$work/bin:$PATH"
@@ -137,8 +144,17 @@ export COSIGN_KEY=/keys/cosign.key COSIGN_PASSWORD=secret
 check 'missing overrides fail before Docker, despite compatible host tools' run_build 1 env
 check 'Docker was not invoked' test ! -s "$MOCK_CALLS"
 
+# A pinned revision is built as given, without looking up main.
+: > "$MOCK_CALLS"
+SCONE_VERSION=6.0.8 SCONE_TD_BUILD_REV=b607bdc7009fc8990c2f083fdf02180f436c5369 "$fixture/overwrite.sh" > "$work/output" 2>&1
+check 'a pinned scone-td-build revision is built' grep -Fq -- '--rev b607bdc7009fc8990c2f083fdf02180f436c5369 --locked' "$MOCK_CALLS"
+check 'a pinned revision does not look up main' bash -c '! grep -Fq "git ls-remote" "$1"' _ "$MOCK_CALLS"
+
+# Without a pin, scone-td-build follows the latest main revision, resolved once.
+: > "$MOCK_CALLS"
 SCONE_VERSION=6.0.8 "$fixture/overwrite.sh" > "$work/output" 2>&1
-check 'source build pins scone-td-build 0.4.0 revision' grep -Fq -- '--rev b607bdc7009fc8990c2f083fdf02180f436c5369 --locked' "$MOCK_CALLS"
+check 'source build follows the latest scone-td-build main' grep -Fq -- '--rev fedcba9876543210fedcba9876543210fedcba98 --locked' "$MOCK_CALLS"
+check 'the resolved main revision is printed' grep -Fq 'Using latest scone-td-build main revision: fedcba9876543210fedcba9876543210fedcba98' "$work/output"
 check 'source build pins the v6 plugin instead of main' grep -Fq -- '--rev 00044d0bbe70f005398833eb9a5efac394fd93d4 --locked' "$MOCK_CALLS"
 check 'validated binaries are installed' test -x "$fixture/overwrite/bin/scone-td-build"
 check 'Cargo Azure name is normalized for kubectl' test -x "$fixture/overwrite/bin/kubectl-scone-azure"

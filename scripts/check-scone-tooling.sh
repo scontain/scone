@@ -81,7 +81,7 @@ check_version() {
             fail "$tool" "prerelease $version cannot satisfy stable SCONE_VERSION=$expected"
         fi
     elif (( 10#$major == 0 && 10#$minor < 4 )) || [[ -n "$prerelease" ]]; then
-        fail "$tool" "version $version is unsupported by the demos; install a stable scone-td-build >= 0.4.0 (workshop revision b607bdc supports the cas-endpoint templates)."
+        fail "$tool" "version $version is unsupported by the demos; install a stable scone-td-build >= 0.4.0 (SCONE_VERSION=$expected ./overwrite.sh builds the latest main)."
     fi
 }
 
@@ -119,7 +119,7 @@ fi
 
 if td_build=$(tool_path scone-td-build) && apply_help=$("$td_build" apply --help 2>&1); then
     if [[ "$apply_help" != *--file* ]] || [[ "$apply_help" =~ Usage:[^$'\n']*--cas-address ]]; then
-        fail scone-td-build "apply does not support the expected manifest workflow (apply -f scone.yaml); install the workshop revision b607bdc."
+        fail scone-td-build "apply does not support the expected manifest workflow (apply -f scone.yaml); rebuild it with SCONE_VERSION=$expected ./overwrite.sh."
     fi
 else
     fail scone-td-build "apply --help failed: ${apply_help:-missing executable}"
