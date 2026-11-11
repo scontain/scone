@@ -6,7 +6,8 @@ usage() {
     cat <<'USAGE'
 Usage: SCONE_VERSION=<release> ./overwrite.sh [--validate-latest]
 
-Without options, build and install the pinned workshop tool overrides.
+Without options, build and install the workshop tool overrides, with scone-td-build
+from the latest main revision. Set SCONE_TD_BUILD_REV to build a specific revision.
 --validate-latest  Build the latest scone-td-build main revision in a temporary
                    override set, push a validation image, and run all demos.
                    Requires Docker, registry push access, and a disposable cluster.
@@ -32,9 +33,10 @@ esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 target_version="${SCONE_VERSION:-$(cat "$repo_root/stable.txt")}"
-# This revision is 0.4.0 and supports the demos' cas-endpoint manifests.
-td_build_rev="${SCONE_TD_BUILD_REV:-b607bdc7009fc8990c2f083fdf02180f436c5369}"
-if [[ "$validate_latest" == true ]]; then
+# scone-td-build follows main unless SCONE_TD_BUILD_REV pins a revision. The branch is
+# resolved to a commit once, so the build, the checks and the printed revision agree.
+td_build_rev="${SCONE_TD_BUILD_REV:-}"
+if [[ "$validate_latest" == true || -z "$td_build_rev" ]]; then
     command -v git >/dev/null || { echo "ERROR: missing git" >&2; exit 1; }
     latest_ref="$(git ls-remote https://github.com/scontain/scone-td-build.git refs/heads/main | awk '$2 == "refs/heads/main" { print $1; exit }')"
     if [[ ! "$latest_ref" =~ ^[[:xdigit:]]{40}$ ]]; then
@@ -42,9 +44,15 @@ if [[ "$validate_latest" == true ]]; then
         exit 1
     fi
     td_build_rev="$latest_ref"
-    echo "Validating latest scone-td-build main revision: $td_build_rev"
+    if [[ "$validate_latest" == true ]]; then
+        echo "Validating latest scone-td-build main revision: $td_build_rev"
+    else
+        echo "Using latest scone-td-build main revision: $td_build_rev (set SCONE_TD_BUILD_REV to pin one)"
+    fi
 fi
-# This revision is kubectl-scone 6.0.5 with the v6 boolean autoUpdate schema.
+# This revision is kubectl-scone 6.0.5 with the v6 boolean autoUpdate schema. The plugin
+# stays pinned: its main is the 7.x line, which cannot read 6.0 CAS objects, and its
+# 6.0.x branch builds kubectl-scone 5.10.0.
 plugin_rev="${SCONE_KUBECTL_PLUGIN_REV:-}"
 if [[ -z "$plugin_rev" ]]; then
     case "$target_version" in

@@ -126,11 +126,14 @@ SCONE_VERSION=6.0.9 ./overwrite.sh
 ./scripts/build.sh --version 6.0.9
 ```
 
-`overwrite.sh` builds `scone-td-build` **0.4.0** from pinned revision
-`b607bdc7009fc8990c2f083fdf02180f436c5369` and `kubectl-scone` **6.0.5** from
-`00044d0bbe70f005398833eb9a5efac394fd93d4`. The plugin uses the boolean
-`autoUpdate` schema expected by the 6.0 operator. Its patch version differs from
-the **6.0.9** SCONE image/package release. It no longer follows `main`.
+`overwrite.sh` builds `scone-td-build` from the latest `main` revision. It resolves
+`main` to a commit once and prints it, so the build and the checks use the same
+revision. Set `SCONE_TD_BUILD_REV` to build a specific revision instead.
+`kubectl-scone` **6.0.5** stays pinned to `00044d0bbe70f005398833eb9a5efac394fd93d4`:
+the plugin's `main` is the 7.x line, which cannot read 6.0 CAS objects, and its
+`6.0.x` branch builds 5.10.0. The plugin uses the boolean `autoUpdate` schema
+expected by the 6.0 operator. Its patch version differs from the **6.0.9** SCONE
+image/package release.
 The public helpers and Azure plugin are also built. Cargo names the Azure executable
 `kubectl-scone_azure`; `overwrite.sh` renames it to `kubectl-scone-azure`, which is
 the name kubectl plugin discovery requires. `kubectl-provision` is copied from
@@ -139,7 +142,7 @@ the name kubectl plugin discovery requires. `kubectl-provision` is copied from
 
 Builds use a temporary directory. All binaries must pass validation before they
 replace existing overrides; files are copied completely and flushed before atomic
-replacement. To select different source revisions, set `SCONE_TD_BUILD_REV` and
+replacement. To pin source revisions, set `SCONE_TD_BUILD_REV` and
 `SCONE_KUBECTL_PLUGIN_REV`. Their output must still pass the target version and
 interface checks. `SCONE_VERSION` defaults to `stable.txt` for `overwrite.sh`.
 
@@ -156,8 +159,9 @@ remains in the registry under `workshop/scone-validation:<SCONE_VERSION>-<revisi
 Run it with registry push access and a disposable Kubernetes cluster: the demos
 create and deploy application resources. A passing run identifies the exact
 revision that can then be installed with `SCONE_TD_BUILD_REV`. Validation prints
-that command on success. A later normal build uses the existing `overwrite/bin`,
-so install the validated revision before building and publishing it:
+that command on success. Pinning it matters when `main` may have moved since the
+validation. A later normal build uses the existing `overwrite/bin`, so install the
+validated revision before building and publishing it:
 
 ```bash
 SCONE_VERSION=6.0.9 SCONE_TD_BUILD_REV=<validated-commit> ./overwrite.sh

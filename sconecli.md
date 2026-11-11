@@ -436,8 +436,8 @@ echo "✅ All required SCONE commands installed and compatible with the workshop
 The checker requires `scone` and `kubectl-scone` to match the major/minor release
 line of `SCONE_VERSION`; patch versions may differ. A stable target rejects
 prerelease tools. The demos require a stable `scone-td-build` version of at least
-0.4.0 and the `apply -f scone.yaml` interface. Workshop revision `b607bdc` supports
-the current `cas-endpoint` templates. The checker also exercises the kubectl
+0.4.0 and the `apply -f scone.yaml` interface. The workshop image builds it from the
+latest `main` (see `overwrite.sh`), which reads the current `cas-address` templates. The checker also exercises the kubectl
 plugins' help commands. Any failure stops installation before the success message
 and lists executable paths to help identify shadowed installations.
 
