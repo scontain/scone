@@ -119,6 +119,10 @@ main() {
   if [[ "${changed}" == true ]]; then
     echo "Reloading systemd and restarting Docker ..."
     systemctl daemon-reload
+    # docker.service allows only a few starts per minute (StartLimitBurst). Running this
+    # script and enable_docker_tcp.sh back to back can exceed that and leave Docker
+    # stopped with "start-limit-hit", so reset the counter first.
+    systemctl reset-failed "${SERVICE_NAME}.service" 2>/dev/null || true
     systemctl restart "${SERVICE_NAME}"
   else
     echo "No configuration from enable_docker_tcp.sh found. Nothing to remove."
